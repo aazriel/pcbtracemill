@@ -1,0 +1,34 @@
+{
+  "sourceUnits": "inch",
+  "objects": 8,
+  "kinds": {
+    "flash/dark": 4,
+    "draw/dark": 3,
+    "arc/dark": 1
+  },
+  "strokes": 4,
+  "polygons": 6,
+  "holes": 0,
+  "area": 24.992,
+  "objectAreas": [
+    3.097,
+    3.097,
+    3.357,
+    4.19,
+    1.339,
+    0.694,
+    1.061,
+    8.258
+  ],
+  "bbox": {
+    "minX": 1.778,
+    "minY": 1.27,
+    "maxX": 16.002,
+    "maxY": 10.287
+  },
+  "pointsApprox": 110,
+  "fileAttributes": {},
+  "warnings": [
+    "Deprecated G70 (inch) unit command"
+  ]
+}
