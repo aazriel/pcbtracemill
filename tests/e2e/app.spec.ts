@@ -14,7 +14,16 @@ declare global {
     __tm?: {
       importDropped(files: { name: string; data: string }[]): Promise<void>
       ui: { getState(): TmUiState }
-      project: { getState(): { layers: { id: string }[]; removeLayer(id: string): void } }
+      regenerate(): Promise<void>
+      project: {
+        getState(): {
+          layers: { id: string }[]
+          removeLayer(id: string): void
+          steps: { id: string; kind: string }[]
+          tools: { id: string; type: string; geometry: { diameter: number } }[]
+          upsertStep(step: unknown): void
+        }
+      }
     }
   }
 }
@@ -129,4 +138,38 @@ test('layer type returns to AUTO, re-import asks to replace, help opens', async 
   await expect(page.getByTestId('help-dialog')).toBeVisible()
   await page.screenshot({ path: join(shots, '5-help.png') })
   await page.keyboard.press('Escape')
+})
+
+test('tool picker, and places the tool cannot reach can be shown and ignored', async () => {
+  await page.evaluate(() => window.__tm!.ui.getState().set({ stage: 'manufacture' }))
+  // the step's tool is chosen in a dialog with recommended / other groups
+  await page.getByTestId('step-card').nth(1).hover()
+  await page.getByTestId('step-edit').nth(1).click()
+  await page.getByTestId('tool-choose').click()
+  await expect(page.getByTestId('tool-group-recommended')).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.getByTestId('tool-picker')).toBeHidden()
+  await page.getByTestId('step-cancel').click()
+  await expect(page.getByTestId('step-dialog')).toBeHidden()
+
+  // a 1 mm end mill cannot pass between the demo board's pads
+  await page.evaluate(async () => {
+    const p = window.__tm!.project.getState()
+    const iso = p.steps.find((s) => s.kind === 'isolate')!
+    const mill = p.tools.find((t) => t.type === 'flat' && Math.abs(t.geometry.diameter - 1) < 0.01)!
+    p.upsertStep({ ...iso, toolId: mill.id })
+    await window.__tm!.regenerate()
+  })
+  await page.getByTestId('step-problems').first().click()
+  const rows = page.getByTestId('problem-row')
+  await expect(rows.first()).toBeVisible()
+  const before = await rows.count()
+  expect(before).toBeGreaterThan(1)
+  await rows.first().getByTestId('problem-ignore').click()
+  await expect(rows).toHaveCount(before - 1)
+  // gaps smaller than the setting are no longer reported
+  await page.getByTestId('problem-ignore-below').fill('0.95')
+  await page.getByTestId('problem-ignore-below').press('Enter')
+  await expect.poll(async () => rows.count()).toBeLessThan(before - 1)
+  await page.screenshot({ path: join(shots, '6-problems.png') })
 })

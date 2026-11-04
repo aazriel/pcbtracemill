@@ -10,6 +10,7 @@ import {
   Eye,
   EyeOff,
   GripVertical,
+  MapPin,
   Pencil,
   Plus,
   RefreshCcw,
@@ -20,7 +21,7 @@ import type { CamStep } from '@core/model/types'
 import { STEP_KIND_INFO } from '@core/cam'
 import { useProject } from '@renderer/store/project'
 import { useUi } from '@renderer/store/ui'
-import { applyRecipe } from '@renderer/store/controller'
+import { applyRecipe, showProblems } from '@renderer/store/controller'
 import { PanelSection } from '@renderer/components/ui/section'
 import { Button } from '@renderer/components/ui/button'
 import { Dialog } from '@renderer/components/ui/dialog'
@@ -77,21 +78,20 @@ export function StepsPanel(): React.JSX.Element {
   }
 
   return (
-    <PanelSection
-      title="Steps"
-      actions={
-        <>
-          <Tooltip content="Let TraceMill plan the whole job for you: it picks the steps, their order and the tools from your layers.">
-            <Button size="sm" variant="secondary" onClick={runRecipe} data-testid="recipe">
-              <Wand2 /> Recipe
-            </Button>
-          </Tooltip>
-          <Button size="sm" onClick={openPicker} data-testid="add-step">
-            <Plus /> Add step
+    <PanelSection title="Steps">
+      <p className="text-[11px] leading-snug text-slate-500">
+        The milling operations, run from top to bottom. Drag a card (or use the arrows) to change the order.
+      </p>
+      <div className="mb-3 mt-2 grid grid-cols-2 gap-2">
+        <Tooltip content="Let TraceMill plan the whole job for you: it picks the steps, their order and the tools from your layers.">
+          <Button variant="secondary" className="h-10 text-sm" onClick={runRecipe} data-testid="recipe">
+            <Wand2 /> Recipe
           </Button>
-        </>
-      }
-    >
+        </Tooltip>
+        <Button className="h-10 text-sm" onClick={openPicker} data-testid="add-step">
+          <Plus /> Add step
+        </Button>
+      </div>
       {steps.length === 0 ? (
         <div className="rounded-lg border border-dashed border-slate-700 p-4 text-center text-xs leading-relaxed text-slate-400">
           <Wand2 className="mx-auto mb-2 size-6 text-sky-400" />
@@ -107,10 +107,6 @@ export function StepsPanel(): React.JSX.Element {
             onDrop(drag?.over ?? steps.length)
           }}
         >
-          <p className="mb-1.5 text-[10.5px] text-slate-500">
-            The machine runs the steps from top to bottom. Drag a card (or use the arrows) to change the
-            order.
-          </p>
           {steps.map((step, i) => (
             <div key={step.id}>
               {flipBefore.has(step.id) && (
@@ -223,6 +219,7 @@ function StepCard({
   const upsertStep = useProject((s) => s.upsertStep)
   const removeStep = useProject((s) => s.removeStep)
   const selected = useUi((s) => s.selectedStepId === step.id)
+  const problems = useUi((s) => s.cam?.toolpaths.find((t) => t.stepId === step.id)?.problems?.length ?? 0)
   const openEdit = useStepEditor((s) => s.openEdit)
   const status = useStepStatus(step, ctx)
   const [confirmDel, setConfirmDel] = useState(false)
@@ -300,6 +297,22 @@ function StepCard({
             <StatusCircle level={level} size={18} />
           </span>
         </Tooltip>
+        {step.enabled && problems > 0 && (
+          <Tooltip content="Places this step cannot machine as designed — click to see them on the board">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                showProblems(step.id)
+              }}
+              className="flex shrink-0 items-center gap-0.5 rounded bg-amber-500/15 px-1 py-px text-[10px] font-semibold text-amber-200 hover:bg-amber-500/30"
+              data-testid="step-problems"
+            >
+              <MapPin className="size-3" />
+              {problems}
+            </button>
+          </Tooltip>
+        )}
       </div>
       <div className="mt-1 flex flex-wrap items-center gap-1 pl-[3.25rem] text-[10.5px] text-slate-400">
         <span

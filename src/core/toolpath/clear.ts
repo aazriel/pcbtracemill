@@ -11,16 +11,22 @@
  * orientation, conventional = reversed.
  */
 import type { Path, PolygonSet, ToolpathSegment } from '../model/types'
-import { difference, intersection, offset, polygonArea, polygonSetArea, rings } from '../geometry'
+import { applyAffine, difference, intersection, offset, polygonArea, rings, type Affine } from '../geometry'
 import { effectiveCutWidth } from '../tools/geometry'
 import { fmt, selectedGeometry, selectedLayers, toWork, ToolpathError, type StepContext } from './context'
-import { formatLocations } from './gaps'
+import { problemId } from './gaps'
 import { emitLoops, type LoopItem } from './isolate'
 import { depthLevels } from './moves'
 import { buildOutline, outlineLayers } from './outline'
 import { simplifyPath } from './pathUtils'
 
 const MAX_RINGS = 20000
+
+function invertAffine(m: Affine): Affine {
+  const [a, b, c, d, e, f] = m
+  const det = a * d - b * c
+  return [d / det, -b / det, -c / det, a / det, (c * f - d * e) / det, (b * e - a * f) / det]
+}
 
 export function generateClear(ctx: StepContext): ToolpathSegment[] {
   const { step, tool, layers, boardBBox } = ctx.input
@@ -80,15 +86,29 @@ export function generateClear(ctx: StepContext): ToolpathSegment[] {
     (poly) => polygonArea(poly) >= Math.max(0.25 * w * w, 0.01)
   )
   if (remnants.length > 0) {
-    const locs = remnants.map((poly) => {
+    const toBoard = invertAffine(ctx.m)
+    const ignored = new Set(step.ignoredProblems ?? [])
+    let area = 0
+    for (const poly of remnants) {
       const xs = poly.outer.map((v) => v.x)
       const ys = poly.outer.map((v) => v.y)
-      return { x: (Math.min(...xs) + Math.max(...xs)) / 2, y: (Math.min(...ys) + Math.max(...ys)) / 2 }
-    })
-    ctx.warnings.push(
-      `${remnants.length} area(s) narrower than the ${fmt(w)} mm tool remain uncleared ` +
-        `(${fmt(polygonSetArea(remnants))} mm², near work ${formatLocations(locs)}).`
-    )
+      const centre = {
+        x: (Math.min(...xs) + Math.max(...xs)) / 2,
+        y: (Math.min(...ys) + Math.max(...ys)) / 2
+      }
+      const at = applyAffine(toBoard, centre)
+      const id = problemId('uncleared', at)
+      if (ignored.has(id)) continue
+      const a = polygonArea(poly)
+      area += a
+      ctx.problems.push({ id, kind: 'uncleared', x: at.x, y: at.y, area: a })
+    }
+    const n = ctx.problems.length
+    if (n > 0)
+      ctx.warnings.push(
+        `${n} area(s) narrower than the ${fmt(w)} mm tool remain uncleared (${fmt(area)} mm²). ` +
+          `Use “Show on board” to see them.`
+      )
   }
 
   const climb = p.direction === 'climb'

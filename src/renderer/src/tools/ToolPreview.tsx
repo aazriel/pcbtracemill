@@ -34,9 +34,14 @@ export function ToolPreview({
   const g = tool.geometry
   const D = Math.max(0.05, Number.isFinite(g.diameter) ? g.diameter : 1)
   const flute = Math.max(0.2, Number.isFinite(g.fluteLength) ? g.fluteLength : 1)
-  const shankD = tool.type === 'vbit' ? D : Math.max(D, 3.175)
-  const shankLen = Math.max(shankD * 2.2, 6)
-  const totalLen = flute + shankLen
+  // Every tool is drawn as one continuous body like the V-bit: a short shank, a tapered neck down
+  // to the cutter, then the cutting part. The shank is drawn only a little wider than the cutter
+  // (real shanks are 3.175 mm even on 0.3 mm drills, which would dwarf the part that matters).
+  const isV = tool.type === 'vbit'
+  const shankD = isV ? D : Math.min(Math.max(D * 1.6, D + 0.3), Math.max(D, 3.175))
+  const neckLen = isV || shankD <= D * 1.02 ? 0 : (shankD - D) / 2 / Math.tan((24 * Math.PI) / 180)
+  const shankLen = Math.max(shankD * 2.4, flute * 0.55)
+  const totalLen = flute + neckLen + shankLen
   const padTop = compact ? 4 : 34
   const padBottom = compact ? 4 : 26
   const usableH = height - padTop - padBottom
@@ -50,7 +55,8 @@ export function ToolPreview({
   const r = (D / 2) * scale
   const shankR = (shankD / 2) * scale
   const fluteTop = tipY - flute * scale
-  const shankTop = fluteTop - shankLen * scale
+  const neckTop = fluteTop - neckLen * scale
+  const shankTop = neckTop - shankLen * scale
 
   // Tip profile polygon (from fluteTop down to the tip), symmetric around cx.
   let body: string
@@ -206,9 +212,9 @@ export function ToolPreview({
         fill={`url(#${id}-steel)`}
         rx={2}
       />
-      {shankR > r + 0.5 && tool.type !== 'vbit' && (
+      {neckLen > 0 && (
         <path
-          d={`M ${cx - shankR} ${fluteTop} L ${cx - r} ${fluteTop + Math.min(6, (shankR - r) * 0.8)} L ${cx + r} ${fluteTop + Math.min(6, (shankR - r) * 0.8)} L ${cx + shankR} ${fluteTop} Z`}
+          d={`M ${cx - shankR} ${neckTop} L ${cx + shankR} ${neckTop} L ${cx + r} ${fluteTop} L ${cx - r} ${fluteTop} Z`}
           fill={`url(#${id}-steel)`}
         />
       )}

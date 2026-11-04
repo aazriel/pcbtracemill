@@ -1,14 +1,17 @@
-import { AlertTriangle, XCircle } from 'lucide-react'
+import { AlertTriangle, MapPin, XCircle } from 'lucide-react'
 import type { ValidationIssue } from '@core/model/types'
 import { cn } from '@renderer/lib/utils'
 
 /** Errors first, then warnings; each in its own colour with a plain-language message. */
 export function IssueList({
   issues,
-  className
+  className,
+  onShowOnBoard
 }: {
   issues: ValidationIssue[]
   className?: string
+  /** Adds a "Show on board" button to issues about places that cannot be machined. */
+  onShowOnBoard?: () => void
 }): React.JSX.Element | null {
   const list = issues
     .filter((i) => i.level !== 'ok')
@@ -31,7 +34,21 @@ export function IssueList({
           ) : (
             <AlertTriangle className="mt-px size-3.5 shrink-0 text-amber-400" />
           )}
-          <span>{i.message}</span>
+          <span className="min-w-0 flex-1">{i.message}</span>
+          {onShowOnBoard && /show on board/i.test(i.message) && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onShowOnBoard()
+              }}
+              className="shrink-0 rounded bg-amber-500/20 px-2 py-0.5 text-[11px] font-semibold text-amber-100 hover:bg-amber-500/30"
+              data-testid="show-on-board"
+            >
+              <MapPin className="mr-1 inline size-3" />
+              Show on board
+            </button>
+          )}
         </li>
       ))}
     </ul>

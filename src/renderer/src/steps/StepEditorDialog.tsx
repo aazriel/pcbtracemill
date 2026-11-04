@@ -7,6 +7,7 @@ import type { CamStep, ValidationIssue } from '@core/model/types'
 import { STEP_KIND_INFO, validateStep } from '@core/cam'
 import { useProject } from '@renderer/store/project'
 import { useUi } from '@renderer/store/ui'
+import { showProblems } from '@renderer/store/controller'
 import { Dialog } from '@renderer/components/ui/dialog'
 import { Button } from '@renderer/components/ui/button'
 import { StatusCircle, type StatusLevel } from '@renderer/components/ui/status'
@@ -79,6 +80,7 @@ function useDraftStatus(draft: CamStep): {
 
 function Body({ draft }: { draft: CamStep }): React.JSX.Element {
   const update = useStepEditor((s) => s.update)
+  const close = useStepEditor((s) => s.close)
   const saved = useProject((s) => s.steps.find((x) => x.id === draft.id))
   const cam = useUi((s) => s.cam)
   const camStale = useUi((s) => s.camStale)
@@ -156,7 +158,14 @@ function Body({ draft }: { draft: CamStep }): React.JSX.Element {
                   {i + 1}. {s.title}
                 </h3>
               </header>
-              <IssueList issues={st.issues} className="mb-3" />
+              <IssueList
+                issues={st.issues}
+                className="mb-3"
+                onShowOnBoard={() => {
+                  close()
+                  showProblems(draft.id)
+                }}
+              />
               {s.id === 'layer' && <LayerSection draft={draft} update={update} issues={st.issues} />}
               {s.id === 'tool' && <ToolSection draft={draft} update={update} issues={st.issues} />}
               {s.id === 'general' && <GeneralSection draft={draft} update={update} issues={st.issues} />}

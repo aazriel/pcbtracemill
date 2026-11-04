@@ -34,9 +34,6 @@ export function MachineSection(): React.JSX.Element {
             The CNC machine you will mill on. It decides the G-code dialect, file type, speed limits and the
             heights the bit lifts to between cuts.
           </HelpTip>
-          <Button size="sm" variant="outline" onClick={() => setOpen(true)} data-testid="machine-change">
-            <ArrowLeftRight /> {machine ? 'Change' : 'Choose'}
-          </Button>
         </>
       }
     >
@@ -68,10 +65,18 @@ export function MachineSection(): React.JSX.Element {
         </button>
       ) : (
         <p className="text-xs text-slate-500">
-          No machine chosen yet. Click <span className="text-slate-300">Choose</span> to pick the CNC machine
-          you will mill on.
+          No machine chosen yet. Click <span className="text-slate-300">Choose machine</span> to pick the CNC
+          machine you will mill on.
         </p>
       )}
+      <Button
+        variant="secondary"
+        className="mt-2 h-9 w-full"
+        onClick={() => setOpen(true)}
+        data-testid="machine-change"
+      >
+        <ArrowLeftRight /> {machine ? 'Change machine' : 'Choose machine'}
+      </Button>
       {open && <MachineDialog current={machine} onUse={setMachine} onClose={() => setOpen(false)} />}
     </PanelSection>
   )

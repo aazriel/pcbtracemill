@@ -9,7 +9,7 @@ import { MachineDetail } from './MachineDetail'
 import { useCustomMachines } from './customMachines'
 
 /**
- * Machine chooser: a grid of built-in presets and the user's own machines on the left, the full
+ * Machine chooser: a single list of built-in presets and the user's own machines on the left, the full
  * profile of the selected one on the right. Rendered only while open (so state resets on every open).
  */
 export function MachineDialog({
@@ -65,7 +65,7 @@ export function MachineDialog({
       onOpenChange={(o) => !o && onClose()}
       title="Choose your machine"
       description="Pick the CNC machine you will mill on. Its settings decide what kind of G-code file is written and which safety limits are checked."
-      className="w-[min(96vw,1180px)]"
+      className="w-[min(96vw,1060px)]"
       footer={
         <>
           <div className="mr-auto text-xs text-slate-400">
@@ -100,13 +100,13 @@ export function MachineDialog({
     >
       <div
         data-testid="machine-dialog"
-        className="grid h-[min(70vh,720px)] grid-cols-[minmax(0,1fr)_minmax(0,460px)] gap-4"
+        className="grid h-[min(72vh,740px)] grid-cols-[minmax(0,1fr)_minmax(0,480px)] gap-4"
       >
         <div className="min-h-0 overflow-y-auto pr-1">
           <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
             Built-in machines
           </h3>
-          <div className="grid grid-cols-1 gap-2 xl:grid-cols-2">
+          <div className="flex flex-col gap-2">
             {MACHINE_PRESETS.map((m) => (
               <MachineCard
                 key={m.id}
@@ -120,7 +120,7 @@ export function MachineDialog({
           <h3 className="mb-2 mt-4 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
             Your machines
           </h3>
-          <div className="grid grid-cols-1 gap-2 xl:grid-cols-2">
+          <div className="flex flex-col gap-2">
             {custom.map((m) => (
               <MachineCard
                 key={m.id}

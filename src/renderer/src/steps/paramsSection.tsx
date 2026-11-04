@@ -6,6 +6,7 @@ import { useProject } from '@renderer/store/project'
 import { useLayersWithParsed } from '@renderer/store/controller'
 import { Button } from '@renderer/components/ui/button'
 import { FieldShell, NumberField, Segmented, Switch } from '@renderer/components/ui/fields'
+import { HelpTip } from '@renderer/components/ui/help'
 import { cn } from '@renderer/lib/utils'
 import {
   ClearDiagram,
@@ -46,7 +47,17 @@ function DirectionField({
       <FieldShell
         label="Cutting direction"
         description="Which way the bit travels around the copper. Climb usually leaves cleaner edges."
-        help={`${help(helpKey)} ${help('concept.climb')}`}
+        helpWide
+        help={
+          <>
+            {help(helpKey)} {help('concept.climb')}
+            <div className="mt-2">
+              <Figure caption="Seen from above: the bit spins clockwise while it moves to the right.">
+                <DirectionAnimation direction={value} />
+              </Figure>
+            </div>
+          </>
+        }
       >
         <div>
           <Segmented
@@ -59,24 +70,41 @@ function DirectionField({
           />
         </div>
       </FieldShell>
-      <Figure caption="Seen from above: the bit spins clockwise while it moves to the right.">
-        <DirectionAnimation direction={value} />
-      </Figure>
     </div>
   )
 }
 
+/**
+ * Parameter fields. The step's illustration lives in the "How this step works (?)" tooltip; `side` is
+ * for content you work with (e.g. the hole-size table), shown next to the fields.
+ */
 function Grid({
   children,
-  figure
+  how,
+  side
 }: {
   children: React.ReactNode
-  figure: React.ReactNode
+  how?: React.ReactNode
+  side?: React.ReactNode
 }): React.JSX.Element {
   return (
-    <div className="grid grid-cols-1 gap-x-6 gap-y-4 lg:grid-cols-2">
-      <div className="flex flex-col gap-4">{children}</div>
-      <div className="flex flex-col gap-3">{figure}</div>
+    <div className="flex flex-col gap-3">
+      {how && (
+        <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-400">
+          How this step works
+          <HelpTip title="How this step works" wide>
+            {how}
+          </HelpTip>
+        </div>
+      )}
+      {side ? (
+        <div className="grid grid-cols-1 gap-x-6 gap-y-4 lg:grid-cols-2">
+          <div className="flex flex-col gap-4">{children}</div>
+          <div className="flex flex-col gap-3">{side}</div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 items-start gap-x-6 gap-y-4 lg:grid-cols-2">{children}</div>
+      )}
     </div>
   )
 }
@@ -213,7 +241,7 @@ export function ParamsSection({
       const width = tool ? effectiveCutWidth(tool, draft.cutDepth) : 0.2
       return (
         <Grid
-          figure={
+          how={
             <>
               <Figure caption="Top view of one pad: each dashed line is one pass of the bit, dark bands are where copper is removed. Updates as you change the values.">
                 <IsolationDiagram
@@ -274,7 +302,7 @@ export function ParamsSection({
       const cp = p.clear
       return (
         <Grid
-          figure={
+          how={
             <Figure caption="Side by side passes remove the copper between traces. Tiny copper islands smaller than the limit are not worth chasing and are skipped.">
               <ClearDiagram
                 overlap={cp.overlap}
@@ -330,7 +358,7 @@ export function ParamsSection({
       const c = p.cutout
       return (
         <Grid
-          figure={
+          how={
             <Figure caption="The bit follows the dashed line all the way around; the yellow tabs stay uncut so the board stays attached until you snap it free.">
               <CutoutDiagram
                 tabs={c.tabs}
@@ -404,11 +432,13 @@ export function ParamsSection({
       const d = p.drill
       return (
         <Grid
-          figure={
+          how={
+            <Figure caption="Pecking lifts the drill out every few tenths of a millimetre to clear chips; useful for small drills.">
+              <PeckAnimation peck={d.peck} depth={draft.cutDepth} thickness={material?.thickness ?? 1.6} />
+            </Figure>
+          }
+          side={
             <>
-              <Figure caption="Pecking lifts the drill out every few tenths of a millimetre to clear chips; useful for small drills.">
-                <PeckAnimation peck={d.peck} depth={draft.cutDepth} thickness={material?.thickness ?? 1.6} />
-              </Figure>
               <div className="flex items-center justify-between text-[11px] font-medium text-slate-300">
                 Hole sizes in the selected layers
                 {tool && (
@@ -498,7 +528,7 @@ export function ParamsSection({
       const h = p.holeMill
       return (
         <Grid
-          figure={
+          side={
             <>
               <div className="text-[11px] font-medium text-slate-300">Hole sizes in the selected layers</div>
               <HoleTable
