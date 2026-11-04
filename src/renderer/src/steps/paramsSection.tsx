@@ -17,6 +17,16 @@ import {
   PeckAnimation
 } from './illustrations'
 import { help } from './stepUtils'
+import {
+  EngraveAnimation,
+  HelixFigure,
+  HoleMillAnimation,
+  HoleRangeFigure,
+  PinsAnimation,
+  RetractFigure,
+  SlotFigure,
+  TabHeightFigure
+} from './stepFigures'
 import type { SectionProps } from './editorSections'
 
 const r3 = (v: number): number => Math.round(v * 1000) / 1000
@@ -74,6 +84,18 @@ function DirectionField({
   )
 }
 
+/** "How this step works (?)": the step's operation, animated, in a tooltip. */
+function HowItWorks({ children }: { children: React.ReactNode }): React.JSX.Element {
+  return (
+    <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-400">
+      How this step works
+      <HelpTip title="How this step works" wide>
+        {children}
+      </HelpTip>
+    </div>
+  )
+}
+
 /**
  * Parameter fields. The step's illustration lives in the "How this step works (?)" tooltip; `side` is
  * for content you work with (e.g. the hole-size table), shown next to the fields.
@@ -89,14 +111,7 @@ function Grid({
 }): React.JSX.Element {
   return (
     <div className="flex flex-col gap-3">
-      {how && (
-        <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-400">
-          How this step works
-          <HelpTip title="How this step works" wide>
-            {how}
-          </HelpTip>
-        </div>
-      )}
+      {how && <HowItWorks>{how}</HowItWorks>}
       {side ? (
         <div className="grid grid-cols-1 gap-x-6 gap-y-4 lg:grid-cols-2">
           <div className="flex flex-col gap-4">{children}</div>
@@ -233,12 +248,33 @@ export function ParamsSection({
   const holeSizes = useHoleSizes(draft.layerIds)
   const p = draft.params
   const err = (re: RegExp): string | null => firstIssue(issues, re, 'error')
+  /** (?) content: the explanation plus the illustration of that setting. */
+  const fig = (text: React.ReactNode, node: React.ReactNode): { help: React.ReactNode; helpWide: true } => ({
+    help: (
+      <>
+        {text}
+        <div className="mt-2">{node}</div>
+      </>
+    ),
+    helpWide: true
+  })
   const warn = (re: RegExp): string | null => firstIssue(issues, re, 'warning')
 
   switch (draft.kind) {
     case 'isolate': {
       const ip = p.isolation
       const width = tool ? effectiveCutWidth(tool, draft.cutDepth) : 0.2
+      const isoFig = (
+        <Figure caption="Top view of one pad: each dashed line is one pass of the bit.">
+          <IsolationDiagram
+            passes={ip.passes}
+            overlap={ip.overlap}
+            cutWidth={width}
+            extraClearance={ip.extraClearance}
+            direction={ip.direction}
+          />
+        </Figure>
+      )
       return (
         <Grid
           how={
@@ -263,7 +299,7 @@ export function ParamsSection({
             value={ip.passes}
             onChange={(v) => setParam(update, 'isolation', { passes: Math.round(v) })}
             description="How many grooves are cut next to each other around every trace."
-            help={help('isolation.passes')}
+            {...fig(help('isolation.passes'), isoFig)}
             error={err(/passes/i)}
             warning={warn(/passes/i)}
           />
@@ -276,7 +312,7 @@ export function ParamsSection({
             value={Math.round(ip.overlap * 100)}
             onChange={(v) => setParam(update, 'isolation', { overlap: v / 100 })}
             description="How much each pass covers the previous one; about 40% avoids thin copper slivers."
-            help={`${help('isolation.overlap')} ${help('concept.overlap')}`}
+            {...fig(`${help('isolation.overlap')} ${help('concept.overlap')}`, isoFig)}
             error={err(/overlap/i)}
           />
           <NumberField
@@ -287,7 +323,7 @@ export function ParamsSection({
             value={ip.extraClearance}
             onChange={(v) => setParam(update, 'isolation', { extraClearance: v })}
             description="Moves the first pass further away from the copper, leaving a wider gap."
-            help={help('isolation.extraClearance')}
+            {...fig(help('isolation.extraClearance'), isoFig)}
             error={err(/clearance/i)}
           />
           <DirectionField
@@ -300,6 +336,11 @@ export function ParamsSection({
     }
     case 'clear': {
       const cp = p.clear
+      const clearFig = (
+        <Figure caption="Side by side passes remove the copper between traces.">
+          <ClearDiagram overlap={cp.overlap} clearMargin={cp.clearMargin} minIslandArea={cp.minIslandArea} />
+        </Figure>
+      )
       return (
         <Grid
           how={
@@ -321,7 +362,7 @@ export function ParamsSection({
             value={Math.round(cp.overlap * 100)}
             onChange={(v) => setParam(update, 'clear', { overlap: v / 100 })}
             description="How much each pass covers the previous one, so no thin strips are left behind."
-            help={`${help('clear.overlap')} ${help('concept.overlap')}`}
+            {...fig(`${help('clear.overlap')} ${help('concept.overlap')}`, clearFig)}
             error={err(/overlap/i)}
           />
           <NumberField
@@ -332,7 +373,7 @@ export function ParamsSection({
             value={cp.minIslandArea}
             onChange={(v) => setParam(update, 'clear', { minIslandArea: v })}
             description="Tiny bits of copper the bit cannot reach well are skipped instead of reported as a problem."
-            help={help('clear.minIslandArea')}
+            {...fig(help('clear.minIslandArea'), clearFig)}
             error={err(/island/i)}
           />
           <NumberField
@@ -343,7 +384,7 @@ export function ParamsSection({
             value={cp.clearMargin}
             onChange={(v) => setParam(update, 'clear', { clearMargin: v })}
             description="0 clears all copper. A value clears only a band of this width along the traces (much faster)."
-            help={help('clear.clearMargin')}
+            {...fig(help('clear.clearMargin'), clearFig)}
             error={err(/margin/i)}
           />
           <DirectionField
@@ -356,6 +397,16 @@ export function ParamsSection({
     }
     case 'cutout': {
       const c = p.cutout
+      const cutFig = (
+        <Figure caption="The bit follows the dashed line; the yellow tabs stay uncut.">
+          <CutoutDiagram
+            tabs={c.tabs}
+            tabWidth={c.tabWidth}
+            outside={c.outside}
+            toolDiameter={tool?.geometry.diameter ?? 1.5}
+          />
+        </Figure>
+      )
       return (
         <Grid
           how={
@@ -372,7 +423,7 @@ export function ParamsSection({
           <FieldShell
             label="Cut on which side of the outline"
             description="Outside keeps the board at its exact designed size; inside makes it slightly smaller."
-            help={help('cutout.outside')}
+            {...fig(help('cutout.outside'), cutFig)}
           >
             <div>
               <Segmented
@@ -393,7 +444,7 @@ export function ParamsSection({
             value={c.tabs}
             onChange={(v) => setParam(update, 'cutout', { tabs: Math.round(v) })}
             description="Small uncut bridges that hold the board in the sheet. 2–4 is typical."
-            help={`${help('cutout.tabs')} ${help('concept.tabs')}`}
+            {...fig(`${help('cutout.tabs')} ${help('concept.tabs')}`, cutFig)}
             error={err(/number of tabs/i)}
             warning={warn(/without tabs/i)}
           />
@@ -407,7 +458,7 @@ export function ParamsSection({
                 value={c.tabWidth}
                 onChange={(v) => setParam(update, 'cutout', { tabWidth: v })}
                 description="Length of each bridge along the outline."
-                help={help('cutout.tabWidth')}
+                {...fig(help('cutout.tabWidth'), cutFig)}
                 error={err(/tab width/i)}
                 warning={warn(/narrower/i)}
               />
@@ -419,7 +470,10 @@ export function ParamsSection({
                 value={c.tabHeight}
                 onChange={(v) => setParam(update, 'cutout', { tabHeight: v })}
                 description={`How much material is left standing in each tab (board is ${material?.thickness ?? '?'} mm thick).`}
-                help={help('cutout.tabHeight')}
+                {...fig(
+                  help('cutout.tabHeight'),
+                  <TabHeightFigure tabHeight={c.tabHeight} thickness={material?.thickness ?? 1.6} />
+                )}
                 error={err(/tab height/i)}
                 warning={warn(/tab height/i)}
               />
@@ -477,7 +531,10 @@ export function ParamsSection({
               value={d.minDiameter}
               onChange={(v) => setParam(update, 'drill', { minDiameter: v })}
               description="Holes smaller than this are skipped."
-              help={help('drill.minDiameter')}
+              {...fig(
+                help('drill.minDiameter'),
+                <HoleRangeFigure min={d.minDiameter} max={d.maxDiameter} mode="drill" />
+              )}
               error={err(/minimum hole/i)}
             />
             <NumberField
@@ -488,7 +545,10 @@ export function ParamsSection({
               value={d.maxDiameter}
               onChange={(v) => setParam(update, 'drill', { maxDiameter: v })}
               description="Holes bigger than this are skipped."
-              help={help('drill.maxDiameter')}
+              {...fig(
+                help('drill.maxDiameter'),
+                <HoleRangeFigure min={d.minDiameter} max={d.maxDiameter} mode="drill" />
+              )}
               error={err(/maximum hole/i)}
             />
           </div>
@@ -500,7 +560,12 @@ export function ParamsSection({
             value={d.peck}
             onChange={(v) => setParam(update, 'drill', { peck: v })}
             description="0 drills each hole in one go. A value lifts the drill out after each chunk of this depth."
-            help={help('drill.peck')}
+            {...fig(
+              help('drill.peck'),
+              <Figure>
+                <PeckAnimation peck={d.peck} depth={draft.cutDepth} thickness={material?.thickness ?? 1.6} />
+              </Figure>
+            )}
             error={err(/peck/i)}
           />
           <NumberField
@@ -511,7 +576,7 @@ export function ParamsSection({
             value={d.retract}
             onChange={(v) => setParam(update, 'drill', { retract: v })}
             description="How high above the board the drill lifts between holes."
-            help={help('drill.retract')}
+            {...fig(help('drill.retract'), <RetractFigure retract={d.retract} />)}
             error={err(/retract/i)}
           />
           <Switch
@@ -519,7 +584,7 @@ export function ParamsSection({
             checked={d.includeSlots}
             onChange={(v) => setParam(update, 'drill', { includeSlots: v })}
             description="Slots (oval holes) are drilled as a row of holes."
-            help={help('drill.includeSlots')}
+            {...fig(help('drill.includeSlots'), <SlotFigure on={d.includeSlots} />)}
           />
         </Grid>
       )
@@ -528,6 +593,7 @@ export function ParamsSection({
       const h = p.holeMill
       return (
         <Grid
+          how={<HoleMillAnimation />}
           side={
             <>
               <div className="text-[11px] font-medium text-slate-300">Hole sizes in the selected layers</div>
@@ -551,7 +617,10 @@ export function ParamsSection({
               value={h.minDiameter}
               onChange={(v) => setParam(update, 'holeMill', { minDiameter: v })}
               description="Only holes at least this big are milled; smaller ones are left for a drill step."
-              help={help('holeMill.minDiameter')}
+              {...fig(
+                help('holeMill.minDiameter'),
+                <HoleRangeFigure min={h.minDiameter} max={h.maxDiameter} mode="mill" />
+              )}
               error={err(/minimum hole/i)}
             />
             <NumberField
@@ -562,7 +631,10 @@ export function ParamsSection({
               value={h.maxDiameter}
               onChange={(v) => setParam(update, 'holeMill', { maxDiameter: v })}
               description="Holes bigger than this are skipped."
-              help={help('holeMill.maxDiameter')}
+              {...fig(
+                help('holeMill.maxDiameter'),
+                <HoleRangeFigure min={h.minDiameter} max={h.maxDiameter} mode="mill" />
+              )}
               error={err(/maximum hole/i)}
             />
           </div>
@@ -571,7 +643,7 @@ export function ParamsSection({
             checked={h.helical}
             onChange={(v) => setParam(update, 'holeMill', { helical: v })}
             description="The bit spirals gently into the hole instead of plunging straight down."
-            help={help('holeMill.helical')}
+            {...fig(help('holeMill.helical'), <HelixFigure helical={h.helical} />)}
           />
         </Grid>
       )
@@ -579,6 +651,9 @@ export function ParamsSection({
     case 'engrave':
       return (
         <div className="flex flex-col gap-2 text-xs leading-relaxed text-slate-300">
+          <HowItWorks>
+            <EngraveAnimation />
+          </HowItWorks>
           <p>
             The bit follows the centre of every line in the selected artwork (text, component outlines, logos)
             at the cut depth set in <b>General</b>. Filled shapes are traced around their edge.
@@ -594,6 +669,9 @@ export function ParamsSection({
       const a = material?.alignment
       return (
         <div className="flex flex-col gap-3">
+          <HowItWorks>
+            <PinsAnimation />
+          </HowItWorks>
           <p className="text-xs leading-relaxed text-slate-300">
             {help('concept.alignment')} The holes are placed using the alignment settings of the{' '}
             <b>material</b>:

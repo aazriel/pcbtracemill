@@ -46,7 +46,7 @@ export function FieldShell({
   )
 }
 
-/** The (?) of a field: its description and any longer help, in one tooltip. */
+/** The (?) of a field: the longer help when there is one, otherwise the short description. */
 export function FieldHelp({
   label,
   description,
@@ -59,11 +59,10 @@ export function FieldHelp({
   wide?: boolean
 }): React.JSX.Element | null {
   if (!description && !help) return null
+  // The longer help (text and / or illustration) replaces the short description: never both.
   return (
     <HelpTip title={label} wide={wide}>
-      {description}
-      {description && help && <div className="mt-1.5" />}
-      {help}
+      {help ?? description}
     </HelpTip>
   )
 }

@@ -50,7 +50,17 @@ function fieldProps(
     label: h.label,
     description: h.description,
     unit: h.unit,
-    ...(figure ? { help: figure, helpWide: true } : {})
+    ...(figure
+      ? {
+          help: (
+            <>
+              {h.description}
+              <div className="mt-2">{figure}</div>
+            </>
+          ),
+          helpWide: true
+        }
+      : {})
   }
 }
 
