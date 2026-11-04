@@ -25,9 +25,31 @@ describe('frame transforms', () => {
 
   it('centre origin shifts by half the stock', () => {
     const mat = material({ origin: 'center' })
-    close(workOriginInStock(mat), 50, 40)
+    close(workOriginInStock(mat, board), 50, 40)
     close(applyAffine(boardToWorkTransform(mat, board, 'top'), { x: 5, y: 5 }), -40, -30)
-    close(applyAffine(stockToWork(material({ origin: 'top-right' })), { x: 100, y: 80 }), 0, 0)
+    close(applyAffine(stockToWork(material({ origin: 'top-right' }), board), { x: 100, y: 80 }), 0, 0)
+  })
+
+  it('an origin on the board uses the corner / centre of the board as placed on the stock', () => {
+    // board 30 × 20 placed at offset (10, 10) on a 100 × 80 stock
+    close(workOriginInStock(material({ originOn: 'board' }), board), 10, 10)
+    close(workOriginInStock(material({ originOn: 'board', origin: 'top-right' }), board), 40, 30)
+    close(workOriginInStock(material({ originOn: 'board', origin: 'center' }), board), 25, 20)
+    // the board's bottom-left corner is X0 Y0
+    const m = boardToWorkTransform(material({ originOn: 'board' }), board, 'top')
+    close(applyAffine(m, { x: 5, y: 5 }), 0, 0)
+    close(applyAffine(m, { x: 35, y: 25 }), 30, 20)
+    // without a board it falls back to the stock corner
+    close(workOriginInStock(material({ originOn: 'board' }), { minX: 1, minY: 1, maxX: -1, maxY: -1 }), 0, 0)
+  })
+
+  it('the board origin is one fixed point on the bed for both sides (no re-zeroing after the flip)', () => {
+    const mat = material({ originOn: 'board', origin: 'center' })
+    const p = { x: 12, y: 7 }
+    const top = applyAffine(boardToWorkTransform(mat, board, 'top'), p)
+    const bot = applyAffine(boardToWorkTransform(mat, board, 'bottom'), p)
+    // the origin stays at stock (25, 20); the point's stock y (top.y + 20) flips to 80 − (top.y + 20)
+    close(bot, top.x, 80 - (top.y + 20) - 20)
   })
 
   it('rotates 90° CCW about the board centre and keeps the bbox at the offset', () => {
@@ -67,8 +89,8 @@ describe('frame transforms', () => {
       expect(pins).toHaveLength(2)
       for (const p of pins) {
         close(applyAffine(flipTransform(mat), p), p.x, p.y)
-        const top = applyAffine(stockSideToWork(mat, 'top'), p)
-        const bot = applyAffine(stockSideToWork(mat, 'bottom'), p)
+        const top = applyAffine(stockSideToWork(mat, 'top', board), p)
+        const bot = applyAffine(stockSideToWork(mat, 'bottom', board), p)
         close(bot, top.x, top.y)
       }
       if (axis === 'x') {

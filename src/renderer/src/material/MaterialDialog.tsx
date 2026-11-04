@@ -454,7 +454,29 @@ export function MaterialDialog({
             helpText={getHelp('concept.origin')?.body}
             intro={help('origin')}
           >
-            <OriginPicker value={draft.origin} onChange={(origin) => update({ origin })} />
+            <Segmented
+              stretch
+              value={draft.originOn ?? 'stock'}
+              onChange={(originOn) => update({ originOn })}
+              options={[
+                {
+                  value: 'stock',
+                  label: 'On the material',
+                  title: 'X0 Y0 on a corner or the centre of the sheet'
+                },
+                {
+                  value: 'board',
+                  label: 'On the board',
+                  title: 'X0 Y0 on a corner or the centre of the board itself',
+                  disabled: !hasBoard
+                }
+              ]}
+            />
+            <OriginPicker
+              value={draft.origin}
+              on={draft.originOn ?? 'stock'}
+              onChange={(origin) => update({ origin })}
+            />
           </FormSection>
 
           <FormSection

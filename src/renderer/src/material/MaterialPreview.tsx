@@ -191,7 +191,7 @@ export function MaterialPreview({
   overlay?: ReactNode
 }): React.JSX.Element {
   const [ref, size] = useSize<HTMLDivElement>()
-  const o0 = workOriginInStock(material)
+  const o0 = workOriginInStock(material, bbox)
   const pinsOn = material.doubleSided && material.alignment.enabled
   const t = useTween({
     width: Math.max(0.1, fin(material.width, 1)),

@@ -126,7 +126,7 @@ export function generateIsolation(ctx: StepContext): ToolpathSegment[] {
   }
 
   const copper = toWork(ctx, copperBoard)
-  const stock = stockRectInWork(material)
+  const stock = stockRectInWork(material, boardBBox)
   const bb = workBBox(ctx, boardBBox)
   const grow = offsets[offsets.length - 1] + w
   const clip: BBox = {

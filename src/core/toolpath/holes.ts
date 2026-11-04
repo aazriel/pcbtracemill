@@ -234,9 +234,9 @@ export function generateAlignment(ctx: StepContext): ToolpathSegment[] {
   const a = material.alignment
   if (!a.enabled) ctx.warnings.push('Alignment pins are disabled in the material settings.')
   if (!(a.pinDiameter > 0)) throw new ToolpathError('Alignment pin diameter must be positive.')
-  const m = stockSideToWork(material, step.side)
+  const m = stockSideToWork(material, step.side, boardBBox)
   const pins = alignmentPinPositions(material, boardBBox).map((q) => applyAffine(m, q))
-  const stock = stockRectInWork(material)
+  const stock = stockRectInWork(material, boardBBox)
   const outside = pins.filter(
     (q) =>
       q.x - a.pinDiameter / 2 < stock.minX ||

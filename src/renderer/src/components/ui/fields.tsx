@@ -273,7 +273,7 @@ export function Segmented<T extends string>({
 }: {
   value: T
   onChange: (v: T) => void
-  options: { value: T; label: ReactNode; title?: string }[]
+  options: { value: T; label: ReactNode; title?: string; disabled?: boolean }[]
   size?: 'default' | 'sm'
   /** Fill the available width with equally wide options. */
   stretch?: boolean
@@ -293,9 +293,10 @@ export function Segmented<T extends string>({
           role="radio"
           aria-checked={o.value === value}
           title={o.title}
+          disabled={o.disabled}
           onClick={() => onChange(o.value)}
           className={cn(
-            'rounded px-2.5 font-medium transition-colors',
+            'rounded px-2.5 font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40',
             size === 'sm' ? 'py-0.5 text-[11px]' : 'h-[26px] text-xs',
             o.value === value ? 'bg-sky-600 text-white' : 'text-slate-400 hover:text-slate-100'
           )}

@@ -81,7 +81,7 @@ export function setupSimulation(req: SimSetupRequest): SimSetup {
   }
 
   // Work → stock is the same for both faces: the bottom face stock frame is the bed frame after flipping.
-  const workToStock = invertAffine(geoToSimAffine(stockToWork(m)))
+  const workToStock = invertAffine(geoToSimAffine(stockToWork(m, req.boardBBox)))
   const runner = new SimRunner({
     moves: interp.moves,
     tools: Object.fromEntries(req.tools.map((t) => [t.id, t])),

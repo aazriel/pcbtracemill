@@ -61,7 +61,7 @@ export function buildWorkScene(
   if (!src.length) src = [[...rect, rect[0]]]
   const outline = src.map((p) => p.map((q) => applyAffine(m, q)))
   return {
-    stock: stockRectInWork(material),
+    stock: stockRectInWork(material, bbox),
     board: transformedBBox([rect.map((q) => applyAffine(m, q))]),
     outline
   }

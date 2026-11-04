@@ -84,7 +84,7 @@ export function SimulationStage(): React.JSX.Element {
       lineCount,
       stepNames,
       tools,
-      origin: workOriginInStock(material)
+      origin: workOriginInStock(material, bbox)
     })
   }, [cam, camVersion, material, tools, layers, bbox])
 
