@@ -8,7 +8,8 @@ import { Button } from '@renderer/components/ui/button'
 import { HelpTip } from '@renderer/components/ui/help'
 import { cn } from '@renderer/lib/utils'
 import { ToolPreview } from './ToolPreview'
-import { CutDepthDiagram, StepoverDiagram } from './ToolDiagrams'
+import { CutDepthDiagram } from './ToolDiagrams'
+import { toolFigure } from './toolFigures'
 import { changeToolType, cutWidthAt, fmtMm, TOOL_TYPES } from './toolMeta'
 
 /** Maps validateTool() messages onto the field they belong to. */
@@ -37,11 +38,20 @@ export function fieldErrors(errors: string[]): Partial<Record<ToolFieldKey, stri
   return out
 }
 
-/** label/description/help/unit props for a field, straight from TOOL_FIELD_HELP. */
-function fh(key: ToolFieldKey): { label: string; description: string; help: string; unit?: string } {
+/** Field props from TOOL_FIELD_HELP: label, unit, and the (?) text plus the field's illustration. */
+function fieldProps(
+  key: ToolFieldKey,
+  tool: Tool,
+  depth: number
+): { label: string; description: string; help?: ReactNode; helpWide?: boolean; unit?: string } {
   const h = TOOL_FIELD_HELP[key]
-  const firstSentence = h.description.match(/^.*?[.!?](\s|$)/)?.[0].trim() ?? h.description
-  return { label: h.label, description: firstSentence, help: h.description, unit: h.unit }
+  const figure = toolFigure(key, tool, depth)
+  return {
+    label: h.label,
+    description: h.description,
+    unit: h.unit,
+    ...(figure ? { help: figure, helpWide: true } : {})
+  }
 }
 
 /** Typical V-bit cone length for a given shank, tip and angle. */
@@ -104,6 +114,7 @@ export function ToolEditor({
   const g = draft.geometry
   const f = draft.feeds
   const fe = fieldErrors(errors)
+  const fh = (key: ToolFieldKey): ReturnType<typeof fieldProps> => fieldProps(key, draft, previewDepth)
   const info = TOOL_TYPE_INFO[draft.type]
   const setGeo = (patch: Partial<Tool['geometry']>): void =>
     onChange({ ...draft, geometry: { ...g, ...patch } })
@@ -397,15 +408,6 @@ export function ToolEditor({
               <NumberField
                 {...fh('feeds.stepOver')}
                 description="0.4 = each new pass moves over 40% of the cut width (passes overlap by 60%)."
-                helpWide
-                help={
-                  <>
-                    {fh('feeds.stepOver').help}
-                    <div className="mt-2 overflow-hidden rounded-md">
-                      <StepoverDiagram stepOver={f.stepOver} width={340} height={124} />
-                    </div>
-                  </>
-                }
                 value={f.stepOver}
                 onChange={(stepOver) => setFeeds({ stepOver })}
                 min={0}
