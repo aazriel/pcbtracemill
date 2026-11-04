@@ -233,6 +233,7 @@ export function Switch({
   label,
   description,
   help,
+  helpWide,
   disabled
 }: {
   checked: boolean
@@ -240,6 +241,8 @@ export function Switch({
   label: string
   description?: ReactNode
   help?: ReactNode
+  /** The (?) holds an illustration: make the tooltip wider. */
+  helpWide?: boolean
   disabled?: boolean
 }): React.JSX.Element {
   return (
@@ -247,7 +250,7 @@ export function Switch({
       <div className="min-w-0">
         <div className="flex items-center gap-1.5 text-xs font-medium text-slate-300">
           <span>{label}</span>
-          <FieldHelp label={label} description={description} help={help} />
+          <FieldHelp label={label} description={description} help={help} wide={helpWide} />
         </div>
       </div>
       <SwitchPrimitive.Root

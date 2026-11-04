@@ -10,11 +10,14 @@ const SPAN = 104
 export function HeightsIllustration({
   safeZ,
   travelZ,
-  toolChangeZ
+  toolChangeZ,
+  highlight
 }: {
   safeZ: number
   travelZ: number
   toolChangeZ: number
+  /** Emphasise one height: the bit hops to it and the other lines are dimmed. */
+  highlight?: 'safe' | 'travel' | 'change'
 }): React.JSX.Element {
   const clean = (v: number): number => (Number.isFinite(v) ? Math.max(0, v) : 0)
   const t = useTween({ safe: clean(safeZ), travel: clean(travelZ), change: clean(toolChangeZ) })
@@ -39,6 +42,9 @@ export function HeightsIllustration({
 
   const yT = y(t.travel)
   const yS = y(t.safe)
+  const yC = y(t.change)
+  // the bit's hop: travel → cut → travel → (highlighted or safe height) → travel
+  const yH = highlight === 'change' ? yC : highlight === 'travel' ? yT : yS
   const fmt = (v: number): string => (Number.isFinite(v) ? String(Math.round(v * 100) / 100) : '—')
 
   return (
@@ -59,14 +65,14 @@ export function HeightsIllustration({
       </text>
 
       {lines.map((l, i) => (
-        <g key={l.key}>
+        <g key={l.key} opacity={highlight && highlight !== l.key ? 0.3 : 1}>
           <line
             x1="70"
             x2="232"
             y1={y(l.z)}
             y2={y(l.z)}
             stroke={l.color}
-            strokeWidth="1.2"
+            strokeWidth={highlight === l.key ? 2.2 : 1.2}
             strokeDasharray="4 3"
           />
           <line x1="232" x2="238" y1={y(l.z)} y2={labelY[i]} stroke={l.color} strokeWidth="0.8" />
@@ -84,7 +90,7 @@ export function HeightsIllustration({
           dur="3.2s"
           repeatCount="indefinite"
           keyTimes="0;0.2;0.35;0.55;0.75;1"
-          values={`0 ${yT}; 0 ${SURFACE + 1.5}; 0 ${yT}; 0 ${yS}; 0 ${yS}; 0 ${yT}`}
+          values={`0 ${yT}; 0 ${SURFACE + 1.5}; 0 ${yT}; 0 ${yH}; 0 ${yH}; 0 ${yT}`}
         />
         <polygon points="135,0 132.5,-6 137.5,-6" fill="#e2e8f0" />
         <rect x="132.5" y="-20" width="5" height="14" fill="#cbd5e1" />
