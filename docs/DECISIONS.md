@@ -86,3 +86,6 @@ The "apply correction" switch and the side that was probed are stored in `Projec
 
 ## D-021 Starter drills
 The starter kit includes 0.3 / 0.4 / 0.5 mm carbide drills (common via sizes) with a gentle 40 mm/min plunge, so typical designs drill every hole without warnings.
+
+## D-022 Origin on the board
+`material.originOn` chooses whether `material.origin` (a corner or the centre) refers to the copper-clad sheet (`stock`, default) or to the board as placed on it for the **top** side (`board`). Either way the work zero is one fixed point on the machine bed for both sides, so the operator never re-zeroes X/Y after flipping; on the bottom side that point is generally no longer a board corner. Every stock↔work transform therefore takes the board bbox (`workOriginInStock`, `stockToWork`, `stockSideToWork`, `stockRectInWork`).

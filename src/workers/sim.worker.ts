@@ -182,7 +182,7 @@ const api = {
     runner = s.runner
     moves = s.moves
     // Work → stock XY (identical for both faces, see setupSimulation).
-    w2s = invertAffine(geoToSimAffine(stockToWork(req.material)))
+    w2s = invertAffine(geoToSimAffine(stockToWork(req.material, req.boardBBox)))
     const transfer: ArrayBuffer[] = []
     const fields = snapshotFields(transfer)
     const lineTimes = new Float64Array(moves.length * 2)

@@ -7,6 +7,8 @@
  *  - STOCK coordinates: the blank spans x ∈ [0, material.width], y ∈ [0, material.height], with (0,0)
  *    at the stock's bottom-left corner as seen from above while the TOP side faces up.
  *  - WORK coordinates: stock coordinates shifted so the machine work zero (material.origin) is (0,0).
+ *    The origin is a corner / the centre of the stock, or (material.originOn = 'board') of the board as
+ *    placed for the top side. Either way it is one fixed point on the bed, used for both sides.
  *    Toolpath moves are emitted in work coordinates. Z0 is the copper surface.
  *
  * Placement of the board into the stock (top side):
@@ -71,43 +73,49 @@ export function flipTransform(material: Material): Affine {
     : [-1, 0, 0, 1, material.width, 0]
 }
 
-/** Position of the machine work zero (X0 Y0) in stock coordinates. */
-export function workOriginInStock(material: Material): Vec2 {
-  const W = material.width
-  const H = material.height
+/**
+ * Position of the machine work zero (X0 Y0) in stock coordinates: the chosen corner (or centre) of
+ * the stock, or of the board as placed for the top side when `originOn` is 'board'.
+ */
+export function workOriginInStock(material: Material, boardBBox: BBox): Vec2 {
+  const r =
+    material.originOn === 'board' && !bboxIsEmpty(boardBBox)
+      ? placedBoardBBox(material, boardBBox)
+      : { minX: 0, minY: 0, maxX: material.width, maxY: material.height }
   switch (material.origin) {
     case 'bottom-right':
-      return { x: W, y: 0 }
+      return { x: r.maxX, y: r.minY }
     case 'top-left':
-      return { x: 0, y: H }
+      return { x: r.minX, y: r.maxY }
     case 'top-right':
-      return { x: W, y: H }
+      return { x: r.maxX, y: r.maxY }
     case 'center':
-      return { x: W / 2, y: H / 2 }
+      return { x: (r.minX + r.maxX) / 2, y: (r.minY + r.maxY) / 2 }
     default:
-      return { x: 0, y: 0 }
+      return { x: r.minX, y: r.minY }
   }
 }
 
 /** Stock → work coordinates (pure translation). */
-export function stockToWork(material: Material): Affine {
-  const o = workOriginInStock(material)
+export function stockToWork(material: Material, boardBBox: BBox): Affine {
+  const o = workOriginInStock(material, boardBBox)
   return translate(-o.x, -o.y)
 }
 
 /** Stock-side transform (identity for top, flip for bottom) followed by the work-origin shift. */
-export function stockSideToWork(material: Material, side: 'top' | 'bottom'): Affine {
-  return side === 'bottom' ? compose(stockToWork(material), flipTransform(material)) : stockToWork(material)
+export function stockSideToWork(material: Material, side: 'top' | 'bottom', boardBBox: BBox): Affine {
+  const toWork = stockToWork(material, boardBBox)
+  return side === 'bottom' ? compose(toWork, flipTransform(material)) : toWork
 }
 
 /** Full board → work transform for the given side. */
 export function boardToWorkTransform(material: Material, boardBBox: BBox, side: 'top' | 'bottom'): Affine {
-  return compose(stockSideToWork(material, side), boardToStockTransform(material, boardBBox))
+  return compose(stockSideToWork(material, side, boardBBox), boardToStockTransform(material, boardBBox))
 }
 
 /** Stock rectangle in work coordinates (identical for both sides, the flip maps the stock onto itself). */
-export function stockRectInWork(material: Material): BBox {
-  const o = workOriginInStock(material)
+export function stockRectInWork(material: Material, boardBBox: BBox): BBox {
+  const o = workOriginInStock(material, boardBBox)
   return { minX: -o.x, minY: -o.y, maxX: material.width - o.x, maxY: material.height - o.y }
 }
 

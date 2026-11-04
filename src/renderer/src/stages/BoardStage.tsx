@@ -112,7 +112,7 @@ export function BoardStage(): React.JSX.Element {
     [stockInBoard]
   )
 
-  const stockSize = material ? stockRectInWork(material) : null
+  const stockSize = material ? stockRectInWork(material, bbox) : null
   const empty = layers.length === 0
 
   return (

@@ -287,8 +287,14 @@ export interface Material {
   offsetY: number
   /** Board rotation in degrees (0/90/180/270 recommended). */
   rotation: number
-  /** Where work zero (X0 Y0) sits on the stock. Z0 is always the top copper surface. */
+  /** Where work zero (X0 Y0) sits: a corner / the centre of the stock or of the board. Z0 is always the top copper surface. */
   origin: OriginCorner
+  /**
+   * What `origin` refers to: the copper-clad sheet ('stock', default) or the board as placed on it
+   * for the top side ('board'). It is one fixed point on the machine bed for both sides, so X/Y is
+   * not re-zeroed after flipping.
+   */
+  originOn?: 'stock' | 'board'
   doubleSided: boolean
   alignment: AlignmentConfig
   /** True while width/height track the board size + default margin. */

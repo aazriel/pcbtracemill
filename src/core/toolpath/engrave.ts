@@ -51,7 +51,7 @@ export function generateEngrave(ctx: StepContext): ToolpathSegment[] {
   // Chain touching strokes into longer polylines (fewer lifts), then go to work coordinates.
   const chained = chainPolylines(lines, 0.01)
   const toW = (p: Path): Path => p.map((v) => applyAffine(ctx.m, v))
-  const stock = stockRectInWork(material)
+  const stock = stockRectInWork(material, ctx.input.boardBBox)
   const items: LoopItem[] = []
   let outside = 0
   const add = (p: Path, closed: boolean): void => {
