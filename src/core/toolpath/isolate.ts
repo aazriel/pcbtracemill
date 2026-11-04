@@ -16,7 +16,7 @@ import { applyAffine, offset, rings } from '../geometry'
 import { effectiveCutWidth } from '../tools/geometry'
 import { fmt, selectedGeometry, selectedLayers, toWork, ToolpathError, type StepContext } from './context'
 import { stockRectInWork } from './frame'
-import { findNarrowGaps, formatLocations } from './gaps'
+import { findNarrowGaps, problemId } from './gaps'
 import { closedLoopSegment, depthLevels, openPathSegment } from './moves'
 import { orderPaths } from './order'
 import { bboxInside, bboxOfPath, clipPolylineToRect, simplifyPath } from './pathUtils'
@@ -108,11 +108,20 @@ export function generateIsolation(ctx: StepContext): ToolpathSegment[] {
   const offsets = isolationOffsets(w, p.passes, p.overlap, extra)
 
   const gaps = findNarrowGaps(copperBoard, w / 2 + extra)
-  if (gaps.count > 0) {
+  const ignoreBelow = Math.max(0, p.ignoreGapsBelow ?? 0)
+  const ignored = new Set(step.ignoredProblems ?? [])
+  gaps.locations.forEach((loc, i) => {
+    const gap = gaps.widths[i]
+    const id = problemId('gap', loc)
+    if (ignored.has(id) || (ignoreBelow > 0 && gap < ignoreBelow)) return
+    ctx.problems.push({ id, kind: 'narrow-gap', x: loc.x, y: loc.y, gap, needed: w + 2 * extra })
+  })
+  const shown = ctx.problems.length
+  if (shown > 0) {
     const what = extra > 0 ? `${fmt(w)} mm tool (+${fmt(extra)} mm clearance)` : `${fmt(w)} mm tool`
     ctx.warnings.push(
-      `${gaps.count} place${gaps.count === 1 ? '' : 's'} where traces are closer than the ${what} can fit — ` +
-        `they will not be isolated (near board ${formatLocations(gaps.locations)}).`
+      `${shown} place${shown === 1 ? '' : 's'} where copper is closer than the ${what} can fit — ` +
+        `${shown === 1 ? 'it' : 'they'} will not be isolated. Use “Show on board” to see ${shown === 1 ? 'it' : 'them'}.`
     )
   }
 

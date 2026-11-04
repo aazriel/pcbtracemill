@@ -1,5 +1,5 @@
 /** Detection of places where separate copper features are too close for the tool to pass between. */
-import type { BBox, PolygonSet, Vec2 } from '../model/types'
+import type { BBox, Path, Polygon, PolygonSet, Vec2 } from '../model/types'
 import {
   countPoints,
   intersection,
@@ -51,6 +51,50 @@ export interface GapReport {
   count: number
   /** Approximate centre of each narrow place (same coordinates as the input). */
   locations: Vec2[]
+  /** Actual distance between the two copper features at each place (same order as locations). */
+  widths: number[]
+}
+
+function segDist2(a: Vec2, b: Vec2, p: Vec2): number {
+  const dx = b.x - a.x
+  const dy = b.y - a.y
+  const l = dx * dx + dy * dy
+  const t = l > 0 ? Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / l)) : 0
+  const x = a.x + t * dx - p.x
+  const y = a.y + t * dy - p.y
+  return x * x + y * y
+}
+
+/** Distance between two segments (they never cross: the polygons are separate features). */
+function segSegDist(a: Vec2, b: Vec2, c: Vec2, d: Vec2): number {
+  return Math.sqrt(Math.min(segDist2(a, b, c), segDist2(a, b, d), segDist2(c, d, a), segDist2(c, d, b)))
+}
+
+function edgesNear(poly: Polygon, box: BBox): [Vec2, Vec2][] {
+  const out: [Vec2, Vec2][] = []
+  const ringsOf: Path[] = [poly.outer, ...poly.holes]
+  for (const r of ringsOf)
+    for (let i = 0; i < r.length; i++) {
+      const a = r[i]
+      const b = r[(i + 1) % r.length]
+      if (
+        Math.max(a.x, b.x) >= box.minX &&
+        Math.min(a.x, b.x) <= box.maxX &&
+        Math.max(a.y, b.y) >= box.minY &&
+        Math.min(a.y, b.y) <= box.maxY
+      )
+        out.push([a, b])
+    }
+  return out
+}
+
+/** Smallest distance between two polygons, looking only at edges inside `box`. */
+function distanceNear(pa: Polygon, pb: Polygon, box: BBox): number {
+  const ea = edgesNear(pa, box)
+  const eb = edgesNear(pb, box)
+  let best = Infinity
+  for (const [a, b] of ea) for (const [c, d] of eb) best = Math.min(best, segSegDist(a, b, c, d))
+  return best
 }
 
 /**
@@ -59,7 +103,7 @@ export interface GapReport {
  * Narrow slots inside a single polygon (e.g. a U-shaped trace) are not reported.
  */
 export function findNarrowGaps(copper: PolygonSet, radius: number): GapReport {
-  const report: GapReport = { count: 0, locations: [] }
+  const report: GapReport = { count: 0, locations: [], widths: [] }
   if (copper.length < 2 || radius <= 0) return report
   const r = radius * (1 - 1e-3) // features exactly 2r apart are fine
   const items = copper.map((poly) => {
@@ -100,16 +144,16 @@ export function findNarrowGaps(copper: PolygonSet, radius: number): GapReport {
         const b = polygonSetBBox([p])
         report.count++
         report.locations.push({ x: (b.minX + b.maxX) / 2, y: (b.minY + b.maxY) / 2 })
+        const near = { minX: b.minX - r, minY: b.minY - r, maxX: b.maxX + r, maxY: b.maxY + r }
+        const dist = distanceNear(items[i].poly, items[j].poly, near)
+        report.widths.push(Number.isFinite(dist) ? dist : 0)
       }
     }
   }
   return report
 }
 
-export function formatLocations(locs: Vec2[], max = 5): string {
-  const s = locs
-    .slice(0, max)
-    .map((p) => `(${p.x.toFixed(1)}, ${p.y.toFixed(1)})`)
-    .join(', ')
-  return locs.length > max ? `${s}, …` : s
+/** Stable id of a problem place: kind + position rounded to 0.01 mm. */
+export function problemId(kind: string, p: Vec2): string {
+  return `${kind}:${p.x.toFixed(2)},${p.y.toFixed(2)}`
 }

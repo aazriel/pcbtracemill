@@ -49,6 +49,10 @@ export interface UiState {
   toasts: Toast[]
   /** Step currently highlighted in Manufacture (e.g. to show its toolpath). */
   selectedStepId: string | null
+  /** Step whose problem places are listed on the Manufacture board (panel open). */
+  problemStepId: string | null
+  /** Problem place the Manufacture view is zoomed to. */
+  problemFocus: string | null
   set(patch: Partial<UiState>): void
   toast(level: Toast['level'], message: string): void
   dismissToast(id: number): void
@@ -74,6 +78,8 @@ export const useUi = create<UiState>()((set) => ({
   skippedFiles: [],
   toasts: [],
   selectedStepId: null,
+  problemStepId: null,
+  problemFocus: null,
   set: (patch) => set(patch),
   toast: (level, message) => {
     const id = ++toastId

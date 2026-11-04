@@ -1,13 +1,15 @@
 import type { ReactNode } from 'react'
 import { Gauge, NotebookPen, Ruler, Tag } from 'lucide-react'
 import type { StepKind, Tool, ToolType } from '@core/model/types'
-import { TOOL_FIELD_HELP, TOOL_TYPE_INFO, type ToolFieldKey } from '@core/tools'
+import { TOOL_FIELD_HELP, TOOL_TYPE_INFO, createTool, type ToolFieldKey } from '@core/tools'
 import { defaultCutDepth } from '@core/cam'
 import { NumberField, SelectField, TextField } from '@renderer/components/ui/fields'
 import { Button } from '@renderer/components/ui/button'
+import { HelpTip } from '@renderer/components/ui/help'
+import { cn } from '@renderer/lib/utils'
 import { ToolPreview } from './ToolPreview'
 import { CutDepthDiagram, StepoverDiagram } from './ToolDiagrams'
-import { changeToolType, fmtMm, TOOL_TYPES } from './toolMeta'
+import { changeToolType, cutWidthAt, fmtMm, TOOL_TYPES } from './toolMeta'
 
 /** Maps validateTool() messages onto the field they belong to. */
 export function fieldErrors(errors: string[]): Partial<Record<ToolFieldKey, string>> {
@@ -49,15 +51,16 @@ function coneLength(t: Tool): number {
   return Math.round(((g.diameter - (g.tipDiameter ?? 0)) / 2 / Math.tan(half)) * 100) / 100
 }
 
+/** One block of the tool form; its explanation and illustration live in the (?) next to the title. */
 function Section({
   icon,
   title,
-  hint,
+  help,
   children
 }: {
   icon: ReactNode
   title: string
-  hint?: string
+  help?: ReactNode
   children: ReactNode
 }): React.JSX.Element {
   return (
@@ -65,7 +68,11 @@ function Section({
       <header className="mb-2.5 flex items-center gap-2">
         <span className="text-sky-400 [&_svg]:size-4">{icon}</span>
         <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-300">{title}</h3>
-        {hint && <span className="ml-auto text-[11px] text-slate-500">{hint}</span>}
+        {help && (
+          <HelpTip title={title} wide>
+            {help}
+          </HelpTip>
+        )}
       </header>
       {children}
     </section>
@@ -79,8 +86,8 @@ export interface ToolEditorProps {
   errors: string[]
   /** Other tools (for duplicate tool number warnings). */
   otherTools: Tool[]
+  /** Cut depth shown in the Geometry illustration for V-bits and ball end mills. */
   previewDepth: number
-  onPreviewDepthChange: (d: number) => void
   stepKind?: StepKind | null
 }
 
@@ -92,7 +99,6 @@ export function ToolEditor({
   errors,
   otherTools,
   previewDepth,
-  onPreviewDepthChange,
   stepKind
 }: ToolEditorProps): React.JSX.Element {
   const g = draft.geometry
@@ -110,56 +116,52 @@ export function ToolEditor({
     stepKind === 'isolate' || stepKind === 'clear'
       ? defaultCutDepth(stepKind, { thickness: 1.6, copperThickness: 0.035 })
       : null
+  const typicalDepth = stepDepthHint ?? (draft.type === 'vbit' ? 0.1 : Math.min(g.diameter / 4, 0.3))
+  // depth shown in the Geometry illustration
+  const diagramDepth = depthMatters
+    ? previewDepth
+    : draft.type === 'drill'
+      ? 1.7
+      : Math.max(0.1, Math.min(g.fluteLength, 0.4))
 
   return (
     <div className="flex flex-col gap-3">
       {/* Live preview */}
-      <div className="flex gap-4 rounded-lg border border-slate-800 bg-gradient-to-b from-slate-950 to-slate-900 p-3">
+      <div className="flex items-center gap-4 rounded-lg border border-slate-800 bg-gradient-to-b from-slate-950 to-slate-900 p-3">
         <div className="shrink-0 rounded-md bg-slate-950/70" data-testid="tool-preview">
           <ToolPreview tool={draft} width={230} height={290} />
         </div>
-        <div className="flex min-w-0 flex-1 flex-col gap-2">
-          <div>
-            <div className="text-sm font-semibold text-slate-100">{info.label}</div>
-            <p className="mt-0.5 text-xs leading-snug text-slate-400">{info.description}</p>
-            <p className="mt-1.5 text-xs leading-snug text-slate-500">
-              <span className="font-medium text-slate-400">Used for: </span>
-              {info.usedFor}
-            </p>
+        <div className="flex min-w-0 flex-1 flex-col gap-3">
+          <div className="flex items-center gap-1.5">
+            <span className="truncate text-base font-semibold text-slate-100">
+              {draft.name || info.label}
+            </span>
+            <HelpTip title={info.label}>
+              {info.description}
+              <div className="mt-1.5">
+                <span className="font-medium text-slate-100">Used for: </span>
+                {info.usedFor}
+              </div>
+            </HelpTip>
           </div>
-          {depthMatters ? (
-            <div className="mt-auto flex flex-col gap-1.5">
-              <div className="rounded-md bg-slate-950/70">
-                <CutDepthDiagram tool={draft} depth={previewDepth} width={400} height={150} />
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              ['Kind', info.label],
+              [
+                draft.type === 'drill' ? 'Hole size' : 'Cut width',
+                depthMatters
+                  ? `${fmtMm(cutWidthAt(draft, typicalDepth))} mm at ${fmtMm(typicalDepth)} mm deep`
+                  : `${fmtMm(g.diameter)} mm`
+              ],
+              ['Spindle', `${Math.round(f.spindleRpm).toLocaleString('en-US')} RPM`],
+              ['Cutting feed', `${f.feedXY} mm/min`]
+            ].map(([k, v]) => (
+              <div key={k} className="rounded-md border border-slate-800 bg-slate-950/50 px-2.5 py-1.5">
+                <div className="text-[10px] uppercase tracking-wide text-slate-500">{k}</div>
+                <div className="truncate text-xs text-slate-100">{v}</div>
               </div>
-              <div className="flex items-center gap-2 text-[11px] text-slate-400">
-                <span className="shrink-0">Try a depth:</span>
-                <input
-                  type="range"
-                  min={0.02}
-                  max={draft.type === 'vbit' ? 0.5 : Math.max(0.1, Math.min(2, g.diameter / 2))}
-                  step={0.01}
-                  value={previewDepth}
-                  aria-label="Preview cut depth"
-                  onChange={(e) => onPreviewDepthChange(Number(e.target.value))}
-                  className="h-1 flex-1 accent-sky-500"
-                />
-                <span className="w-16 text-right tabular-nums text-slate-300">
-                  {previewDepth.toFixed(2)} mm
-                </span>
-              </div>
-              <p className="text-[11px] leading-snug text-slate-500">
-                {draft.type === 'vbit' ? 'A V-bit' : 'A ball end mill'} cuts wider the deeper it goes.
-                {stepDepthHint !== null && ` This step normally cuts about ${stepDepthHint} mm deep.`}
-              </p>
-            </div>
-          ) : (
-            <p className="mt-auto rounded-md border border-slate-800 bg-slate-950/50 p-2 text-[11px] leading-snug text-slate-400">
-              {draft.type === 'drill'
-                ? `This drill makes round holes exactly ${fmtMm(g.diameter)} mm wide. It only moves straight down and back up.`
-                : `This cutter makes a groove exactly ${fmtMm(g.diameter)} mm wide at any depth.`}
-            </p>
-          )}
+            ))}
+          </div>
         </div>
       </div>
 
@@ -172,7 +174,38 @@ export function ToolEditor({
       )}
 
       <fieldset disabled={readOnly} className="flex flex-col gap-3">
-        <Section icon={<Tag />} title="Name & kind">
+        <Section
+          icon={<Tag />}
+          title="Name & kind"
+          help={
+            <>
+              The name you will recognise it by, what kind of cutter it is, and its number (T1, T2…) in the
+              G-code.
+              <div className="mt-2 flex items-end justify-between gap-1 rounded-md bg-slate-950/70 p-2">
+                {TOOL_TYPES.map((t) => (
+                  <div
+                    key={t}
+                    className={cn(
+                      'flex flex-col items-center gap-1 rounded px-1 pb-1 text-[10px]',
+                      t === draft.type
+                        ? 'bg-sky-500/15 text-sky-200 ring-1 ring-sky-500/50'
+                        : 'text-slate-500'
+                    )}
+                  >
+                    <ToolPreview
+                      tool={createTool(t)}
+                      width={36}
+                      height={72}
+                      compact
+                      spinning={t === draft.type}
+                    />
+                    {TOOL_TYPE_INFO[t].label.split(' ')[0]}
+                  </div>
+                ))}
+              </div>
+            </>
+          }
+        >
           <div className="grid grid-cols-[1fr_1fr_110px] gap-3">
             <TextField
               {...fh('name')}
@@ -201,7 +234,24 @@ export function ToolEditor({
           </div>
         </Section>
 
-        <Section icon={<Ruler />} title="Geometry" hint="Shape and size — watch the preview change">
+        <Section
+          icon={<Ruler />}
+          title="Geometry"
+          help={
+            <>
+              The shape and size of the cutter. Watch the big drawing change as you type.{' '}
+              {depthMatters
+                ? `${draft.type === 'vbit' ? 'A V-bit' : 'A ball end mill'} cuts wider the deeper it goes.`
+                : draft.type === 'drill'
+                  ? `This drill makes round holes exactly ${fmtMm(g.diameter)} mm wide; it only moves straight down and back up.`
+                  : `This cutter makes a groove exactly ${fmtMm(g.diameter)} mm wide at any depth.`}
+              {stepDepthHint !== null && ` This step normally cuts about ${stepDepthHint} mm deep.`}
+              <div className="mt-2 overflow-hidden rounded-md bg-slate-950/70">
+                <CutDepthDiagram tool={draft} depth={diagramDepth} width={340} height={150} animate />
+              </div>
+            </>
+          }
+        >
           <div className="grid grid-cols-2 gap-3">
             <NumberField
               {...fh('geometry.diameter')}
@@ -275,7 +325,24 @@ export function ToolEditor({
           )}
         </Section>
 
-        <Section icon={<Gauge />} title="Feeds & speeds" hint="How fast it spins and moves">
+        <Section
+          icon={<Gauge />}
+          title="Feeds & speeds"
+          help={
+            <>
+              How fast the bit spins and how fast it moves through the material. Each cutting edge takes a
+              small bite every turn: feed ÷ (speed × flutes). For tiny PCB bits a few micrometres is normal;
+              much more risks breaking the bit.
+              <div className="mt-2 flex items-center gap-3 rounded-md bg-slate-950/70 p-2">
+                <ToolPreview tool={draft} width={70} height={110} compact />
+                <span className="text-[11px] text-slate-400">
+                  Spinning at {Math.round(f.spindleRpm).toLocaleString('en-US')} RPM (slowed down so you can
+                  see it), moving at {f.feedXY} mm/min.
+                </span>
+              </div>
+            </>
+          }
+        >
           <div className="grid grid-cols-2 gap-3">
             <NumberField
               {...fh('feeds.spindleRpm')}
@@ -321,17 +388,24 @@ export function ToolEditor({
             />
           </div>
           {chipLoad > 0 && (
-            <p className="mt-2 rounded-md bg-slate-950/60 px-2 py-1.5 text-[11px] leading-snug text-slate-400">
-              At these settings each cutting edge takes a bite about{' '}
-              <b className="text-slate-200">{(chipLoad * 1000).toFixed(1)} µm</b> thick (feed ÷ (speed ×
-              flutes)). For tiny PCB bits a few micrometres is normal; much more risks breaking the bit.
+            <p className="mt-2 text-[11px] text-slate-400">
+              Chip load: <b className="text-slate-200">{(chipLoad * 1000).toFixed(1)} µm</b> per cutting edge
             </p>
           )}
           {draft.type !== 'drill' && (
-            <div className="mt-3 grid grid-cols-[1fr_auto] items-start gap-3">
+            <div className="mt-3 grid grid-cols-2 gap-3">
               <NumberField
                 {...fh('feeds.stepOver')}
                 description="0.4 = each new pass moves over 40% of the cut width (passes overlap by 60%)."
+                helpWide
+                help={
+                  <>
+                    {fh('feeds.stepOver').help}
+                    <div className="mt-2 overflow-hidden rounded-md">
+                      <StepoverDiagram stepOver={f.stepOver} width={340} height={124} />
+                    </div>
+                  </>
+                }
                 value={f.stepOver}
                 onChange={(stepOver) => setFeeds({ stepOver })}
                 min={0}
@@ -339,9 +413,6 @@ export function ToolEditor({
                 step={0.05}
                 error={fe['feeds.stepOver']}
               />
-              <div className="overflow-hidden rounded-md">
-                <StepoverDiagram stepOver={f.stepOver} width={300} height={124} />
-              </div>
             </div>
           )}
         </Section>

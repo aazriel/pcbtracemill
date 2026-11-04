@@ -84,6 +84,9 @@ const finite = (v: unknown): v is number => typeof v === 'number' && Number.isFi
 const fmt = (v: number): string => String(Math.round(v * 100) / 100)
 
 /** Validates the material against the board. Returns an empty list when everything is fine. */
+/** Largest copper-clad sheet TraceMill works with (mm, each side). */
+export const MAX_STOCK_SIZE = 300
+
 export function validateMaterial(m: Material, bbox: BBox): MaterialIssue[] {
   const out: MaterialIssue[] = []
   const add = (field: string, level: ValidationLevel, message: string): void => {
@@ -120,6 +123,10 @@ export function validateMaterial(m: Material, bbox: BBox): MaterialIssue[] {
     add('height', 'error', 'Stock height must be greater than 0 mm.')
     sizeOk.h = false
   }
+  if (finite(m.width) && m.width > MAX_STOCK_SIZE)
+    add('width', 'error', `The material can be at most ${MAX_STOCK_SIZE} mm wide.`)
+  if (finite(m.height) && m.height > MAX_STOCK_SIZE)
+    add('height', 'error', `The material can be at most ${MAX_STOCK_SIZE} mm high.`)
   if (finite(m.rotation) && Math.abs(m.rotation % 90) > 1e-6)
     add(
       'rotation',

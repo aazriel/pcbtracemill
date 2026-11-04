@@ -5,13 +5,17 @@ import { HelpTip } from './help'
 
 export interface FieldShellProps {
   label: string
-  /** Plain-language explanation shown inline under the field. */
+  /** Plain-language explanation (shown in the (?) tooltip, not under the field). */
   description?: ReactNode
-  /** Longer explanation shown in the (?) tooltip. */
+  /** Longer explanation, added to the (?) tooltip. */
   help?: ReactNode
+  /** The (?) holds an illustration: make the tooltip wider. */
+  helpWide?: boolean
   error?: string | null
   warning?: string | null
   className?: string
+  /** Hide the label row (the label is still used for accessibility). */
+  hideLabel?: boolean
   children: ReactNode
 }
 
@@ -22,19 +26,44 @@ export function FieldShell({
   error,
   warning,
   className,
+  hideLabel,
+  helpWide,
   children
 }: FieldShellProps): React.JSX.Element {
   return (
     <div className={cn('flex flex-col gap-1', className)}>
-      <div className="flex items-center gap-1.5 text-xs font-medium text-slate-300">
-        <span>{label}</span>
-        {help && <HelpTip title={label}>{help}</HelpTip>}
-      </div>
+      {!hideLabel && (
+        <div className="flex items-center gap-1.5 text-xs font-medium text-slate-300">
+          <span>{label}</span>
+          <FieldHelp label={label} description={description} help={help} wide={helpWide} />
+        </div>
+      )}
       {children}
-      {description && <p className="text-[11px] leading-snug text-slate-500">{description}</p>}
       {error && <p className="text-[11px] font-medium text-rose-400">✕ {error}</p>}
       {!error && warning && <p className="text-[11px] font-medium text-amber-400">! {warning}</p>}
     </div>
+  )
+}
+
+/** The (?) of a field: its description and any longer help, in one tooltip. */
+export function FieldHelp({
+  label,
+  description,
+  help,
+  wide
+}: {
+  label: string
+  description?: ReactNode
+  help?: ReactNode
+  wide?: boolean
+}): React.JSX.Element | null {
+  if (!description && !help) return null
+  return (
+    <HelpTip title={label} wide={wide}>
+      {description}
+      {description && help && <div className="mt-1.5" />}
+      {help}
+    </HelpTip>
   )
 }
 
@@ -200,9 +229,8 @@ export function Switch({
       <div className="min-w-0">
         <div className="flex items-center gap-1.5 text-xs font-medium text-slate-300">
           <span>{label}</span>
-          {help && <HelpTip title={label}>{help}</HelpTip>}
+          <FieldHelp label={label} description={description} help={help} />
         </div>
-        {description && <p className="mt-0.5 text-[11px] leading-snug text-slate-500">{description}</p>}
       </div>
       <SwitchPrimitive.Root
         checked={checked}
@@ -222,15 +250,24 @@ export function Segmented<T extends string>({
   value,
   onChange,
   options,
-  size = 'default'
+  size = 'default',
+  stretch
 }: {
   value: T
   onChange: (v: T) => void
   options: { value: T; label: ReactNode; title?: string }[]
   size?: 'default' | 'sm'
+  /** Fill the available width with equally wide options. */
+  stretch?: boolean
 }): React.JSX.Element {
   return (
-    <div className="inline-flex rounded-md border border-slate-700 bg-slate-950 p-0.5" role="radiogroup">
+    <div
+      className={cn(
+        'rounded-md border border-slate-700 bg-slate-950 p-0.5',
+        stretch ? 'grid auto-cols-fr grid-flow-col' : 'inline-flex'
+      )}
+      role="radiogroup"
+    >
       {options.map((o) => (
         <button
           key={o.value}
@@ -241,7 +278,7 @@ export function Segmented<T extends string>({
           onClick={() => onChange(o.value)}
           className={cn(
             'rounded px-2.5 font-medium transition-colors',
-            size === 'sm' ? 'py-0.5 text-[11px]' : 'py-1 text-xs',
+            size === 'sm' ? 'py-0.5 text-[11px]' : 'h-[26px] text-xs',
             o.value === value ? 'bg-sky-600 text-white' : 'text-slate-400 hover:text-slate-100'
           )}
         >

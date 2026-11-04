@@ -9,6 +9,7 @@ import type {
   Material,
   PolygonSet,
   Tool,
+  ToolpathProblem,
   Vec2
 } from '../model/types'
 import { applyAffine, transformPolygonSet, union, type Affine } from '../geometry'
@@ -35,6 +36,7 @@ export interface StepContext {
   m: Affine
   cut: CutContext
   warnings: string[]
+  problems: ToolpathProblem[]
 }
 
 export function makeContext(input: ToolpathInput): StepContext {
@@ -46,7 +48,8 @@ export function makeContext(input: ToolpathInput): StepContext {
     input,
     m: boardToWorkTransform(input.material, input.boardBBox, step.side),
     cut: { safeZ, approachZ: Math.min(safeZ, APPROACH_CLEARANCE), feedXY, feedZ },
-    warnings: []
+    warnings: [],
+    problems: []
   }
 }
 

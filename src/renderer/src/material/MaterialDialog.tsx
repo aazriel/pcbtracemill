@@ -1,13 +1,14 @@
 import { useMemo, useState, type ReactNode } from 'react'
-import { AlignCenter, Crosshair, Layers, Maximize2, Move, RotateCcw, SquareStack } from 'lucide-react'
+import { Crosshair, Layers, Maximize2, Move, RotateCcw, SquareStack } from 'lucide-react'
 import type { BBox, Material } from '@core/model/types'
 import { getHelp } from '@core/help'
 import { bboxIsEmpty } from '@core/geometry'
-import { resetMaterialToDefault, rotatedBoardSize, validateMaterial } from '@core/cam'
+import { MAX_STOCK_SIZE, resetMaterialToDefault, rotatedBoardSize, validateMaterial } from '@core/cam'
 import { Button } from '@renderer/components/ui/button'
 import { Dialog } from '@renderer/components/ui/dialog'
 import { NumberField, Segmented, Switch } from '@renderer/components/ui/fields'
 import { HelpTip } from '@renderer/components/ui/help'
+import { Tooltip } from '@renderer/components/ui/tooltip'
 import { StatusCircle, type StatusLevel } from '@renderer/components/ui/status'
 import { cn } from '@renderer/lib/utils'
 import { useBoardDrawing } from './boardDrawing'
@@ -56,34 +57,16 @@ function FormSection({
         />
         <span className="text-slate-400 [&_svg]:size-4">{icon}</span>
         <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-200">{title}</h3>
-        {helpText && <HelpTip title={title}>{helpText}</HelpTip>}
+        {(intro || helpText) && (
+          <HelpTip title={title}>
+            {intro}
+            {intro && helpText && <div className="mt-1.5" />}
+            {helpText}
+          </HelpTip>
+        )}
       </header>
-      {intro && <p className="mb-2.5 text-[11px] leading-snug text-slate-500">{intro}</p>}
       <div className="flex flex-col gap-3">{children}</div>
     </section>
-  )
-}
-
-function Chip({
-  active,
-  onClick,
-  children
-}: {
-  active: boolean
-  onClick: () => void
-  children: ReactNode
-}): React.JSX.Element {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        'rounded px-2 py-0.5 text-[11px] font-medium ring-1 transition-colors',
-        active ? 'bg-sky-600 text-white ring-sky-500' : 'text-slate-400 ring-slate-700 hover:text-slate-100'
-      )}
-    >
-      {children}
-    </button>
   )
 }
 
@@ -109,6 +92,28 @@ function AxisIcon({ axis }: { axis: 'x' | 'y' }): React.JSX.Element {
           <path d="M 47 20 L 50 22 L 51 18" fill="none" stroke="#c4b5fd" strokeWidth="1.6" />
         </>
       )}
+    </svg>
+  )
+}
+
+type PlacementId = 'top-left' | 'bottom-left' | 'center' | 'top-right' | 'bottom-right'
+const PLACE_MARGIN = 2.5
+const PLACEMENTS: { id: PlacementId; label: string }[] = [
+  { id: 'top-left', label: 'Top left (back left)' },
+  { id: 'bottom-left', label: 'Bottom left (front left)' },
+  { id: 'center', label: 'Centre of the material' },
+  { id: 'top-right', label: 'Top right (back right)' },
+  { id: 'bottom-right', label: 'Bottom right (front right)' }
+]
+
+/** Tiny picture of the material with the board in the chosen spot. */
+function PlacementIcon({ at }: { at: PlacementId }): React.JSX.Element {
+  const x = at === 'center' ? 11 : at.endsWith('left') ? 4 : 18
+  const y = at === 'center' ? 9 : at.startsWith('top') ? 4 : 14
+  return (
+    <svg viewBox="0 0 36 26" className="h-6 w-9">
+      <rect x="1" y="1" width="34" height="24" rx="2" fill="#c47f45" opacity="0.35" stroke="#c47f45" />
+      <rect x={x} y={y} width="14" height="8" rx="1" fill="#e2a06b" stroke="#fde68a" strokeWidth="0.8" />
     </svg>
   )
 }
@@ -181,6 +186,22 @@ export function MaterialDialog({
       { offsetX: r3((draft.width - board.width) / 2), offsetY: r3((draft.height - board.height) / 2) },
       true
     )
+
+  /** Puts the board in a corner (or the centre) of the material, keeping a small margin. */
+  const place = (at: PlacementId): void => {
+    if (at === 'center') return centre()
+    const free = { x: Math.max(0, draft.width - board.width), y: Math.max(0, draft.height - board.height) }
+    const gap = (f: number): number => r3(Math.min(PLACE_MARGIN, f / 2))
+    const left = at.endsWith('left')
+    const bottom = at.startsWith('bottom')
+    update(
+      {
+        offsetX: left ? gap(free.x) : r3(free.x - gap(free.x)),
+        offsetY: bottom ? gap(free.y) : r3(free.y - gap(free.y))
+      },
+      true
+    )
+  }
 
   const setDefault = (): void => setDraft((d) => resetMaterialToDefault(d, bbox))
 
@@ -258,21 +279,14 @@ export function MaterialDialog({
             icon={<Maximize2 />}
             level={lvl('size')}
             helpText={help('useDefaults')}
-            intro={
-              hasBoard ? (
-                <>
-                  Your board measures{' '}
-                  <span className="font-medium text-slate-300">
-                    {mm(board.width, 2)} × {mm(board.height, 2)} mm
-                  </span>
-                  {draft.rotation ? ` (after turning it ${mm(draft.rotation, 1)}°)` : ''}. The material must
-                  be at least this big.
-                </>
-              ) : (
-                'Import a board to compare its size with the material.'
-              )
-            }
+            intro={`The copper-clad sheet you put on the machine. It must be at least as big as the board, and at most ${MAX_STOCK_SIZE} × ${MAX_STOCK_SIZE} mm.`}
           >
+            {hasBoard && (
+              <div className="-mt-1 font-mono text-[11px] text-slate-400" data-testid="material-board-size">
+                Board {mm(board.width, 2)} × {mm(board.height, 2)} mm
+                {draft.rotation ? ` (turned ${mm(draft.rotation, 1)}°)` : ''}
+              </div>
+            )}
             <Switch
               label="Automatic size"
               description="Follows the board size plus 5 mm (2.5 mm each side). Typing a size turns this off."
@@ -287,6 +301,7 @@ export function MaterialDialog({
                 unit="mm"
                 step={0.5}
                 min={0}
+                max={MAX_STOCK_SIZE}
                 value={draft.width}
                 description="Left-to-right size."
                 help={help('width')}
@@ -298,6 +313,7 @@ export function MaterialDialog({
                 unit="mm"
                 step={0.5}
                 min={0}
+                max={MAX_STOCK_SIZE}
                 value={draft.height}
                 description="Front-to-back size."
                 help={help('height')}
@@ -311,22 +327,11 @@ export function MaterialDialog({
               step={0.1}
               min={0}
               value={draft.thickness}
-              description="Measure with calipers. 1.6 mm is the most common."
+              description="Measure with calipers. Almost every board is 1.6 mm."
               help={help('thickness')}
               {...msg('thickness')}
               onChange={(v) => update({ thickness: v })}
             />
-            <div className="-mt-1 flex flex-wrap gap-1">
-              {[0.8, 1.0, 1.2, 1.6, 2.0].map((v) => (
-                <Chip
-                  key={v}
-                  active={Math.abs(draft.thickness - v) < 1e-6}
-                  onClick={() => update({ thickness: v })}
-                >
-                  {v.toFixed(1)} mm
-                </Chip>
-              ))}
-            </div>
           </FormSection>
 
           <FormSection
@@ -337,25 +342,13 @@ export function MaterialDialog({
             helpText={help('copperThickness')}
             intro="The thin copper layer on top. Isolation cuts only need to go slightly deeper than this. Check the sheet's label; “1 oz” is most common."
           >
-            <Segmented
-              value={
-                [0.018, 0.035, 0.07].find((v) => Math.abs(v - draft.copperThickness) < 1e-6)?.toString() ??
-                'custom'
-              }
-              onChange={(v) => update({ copperThickness: Number(v) })}
-              options={[
-                { value: '0.018', label: '18 µm (½ oz)', title: 'Thin copper, 0.018 mm' },
-                { value: '0.035', label: '35 µm (1 oz)', title: 'Most common, 0.035 mm' },
-                { value: '0.07', label: '70 µm (2 oz)', title: 'Thick copper, 0.07 mm' }
-              ]}
-            />
             <NumberField
-              label="Exact copper thickness"
+              label="Copper thickness"
               unit="mm"
               step={0.005}
               min={0}
               value={draft.copperThickness}
-              description="In millimetres: 0.035 mm = 35 µm = 1 oz."
+              description="In millimetres. Almost every board has 0.035 mm (35 µm, “1 oz”); some have 0.018 mm (½ oz) or 0.07 mm (2 oz)."
               help={help('copperThickness')}
               {...msg('copperThickness')}
               onChange={(v) => update({ copperThickness: v })}
@@ -391,14 +384,37 @@ export function MaterialDialog({
                 onChange={(v) => update({ offsetY: v }, true)}
               />
             </div>
-            <Button variant="outline" size="sm" className="self-start" onClick={centre} disabled={!hasBoard}>
-              <AlignCenter /> Centre the board on the material
-            </Button>
+            <div className="flex flex-col gap-1">
+              <div className="text-xs font-medium text-slate-300">Quick placement</div>
+              <div className="grid grid-cols-5 gap-1" data-testid="material-placement">
+                {PLACEMENTS.map((pl) => (
+                  <Tooltip key={pl.id} content={pl.label}>
+                    <button
+                      type="button"
+                      disabled={!hasBoard}
+                      onClick={() => place(pl.id)}
+                      aria-label={pl.label}
+                      data-testid={`material-place-${pl.id}`}
+                      className="flex h-11 items-center justify-center rounded-md border border-slate-700 bg-slate-950 transition-colors hover:border-sky-500 disabled:opacity-40"
+                    >
+                      <PlacementIcon at={pl.id} />
+                    </button>
+                  </Tooltip>
+                ))}
+              </div>
+            </div>
             <div className="flex flex-col gap-1">
               <div className="flex items-center gap-1.5 text-xs font-medium text-slate-300">
-                Rotation <HelpTip title="Board rotation">{help('rotation')}</HelpTip>
+                Rotation{' '}
+                <HelpTip title="Board rotation">
+                  Turns the board anticlockwise on the material — useful to fit a long board on a sheet the
+                  other way round. {help('rotation')}
+                  {draft.useDefaults && hasBoard
+                    ? ' Rotating resizes the material once and turns off automatic size.'
+                    : ''}
+                </HelpTip>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-start gap-2">
                 <Segmented
                   value={
                     rotSeg.includes(rotNorm as (typeof rotSeg)[number]) && Number.isInteger(draft.rotation)
@@ -412,8 +428,9 @@ export function MaterialDialog({
                     title: `Turn the board ${v}° anticlockwise`
                   }))}
                 />
-                <div className="w-28">
+                <div className="w-24">
                   <NumberField
+                    hideLabel
                     label="Rotation angle"
                     unit="°"
                     step={90}
@@ -425,13 +442,6 @@ export function MaterialDialog({
                   />
                 </div>
               </div>
-              <p className="text-[11px] leading-snug text-slate-500">
-                Turns the board anticlockwise on the material — useful to fit a long board on a sheet the
-                other way round.
-                {draft.useDefaults && hasBoard
-                  ? ' Rotating resizes the material once and turns off automatic size.'
-                  : ''}
-              </p>
             </div>
           </FormSection>
 
@@ -455,6 +465,7 @@ export function MaterialDialog({
             intro="Single-sided: traces only on top. Double-sided: you mill the top, flip the board over and mill the bottom."
           >
             <Segmented
+              stretch
               value={draft.doubleSided ? 'double' : 'single'}
               onChange={(v) =>
                 update(
@@ -507,19 +518,15 @@ export function MaterialDialog({
                             )}
                           >
                             <AxisIcon axis={axis} />
-                            <span className="min-w-0">
-                              <span
-                                className={cn(
-                                  'block text-xs font-medium',
-                                  active ? 'text-violet-200' : 'text-slate-200'
-                                )}
-                              >
-                                {AXIS_TEXT[axis].title}
-                              </span>
-                              <span className="block text-[11px] leading-snug text-slate-500">
-                                {AXIS_TEXT[axis].body}
-                              </span>
+                            <span
+                              className={cn(
+                                'min-w-0 flex-1 text-xs font-medium',
+                                active ? 'text-violet-200' : 'text-slate-200'
+                              )}
+                            >
+                              {AXIS_TEXT[axis].title}
                             </span>
+                            <HelpTip title={AXIS_TEXT[axis].title}>{AXIS_TEXT[axis].body}</HelpTip>
                           </button>
                         )
                       })}

@@ -20,6 +20,7 @@ import { Segmented, Switch } from '@renderer/components/ui/fields'
 import { Tooltip } from '@renderer/components/ui/tooltip'
 import { cn } from '@renderer/lib/utils'
 import { StepsPanel } from '@renderer/steps/StepsPanel'
+import { ProblemsPanel } from '@renderer/steps/ProblemsPanel'
 import { GenerationFooter } from '@renderer/steps/GenerationFooter'
 import { AddStepDialog } from '@renderer/steps/AddStepDialog'
 import { StepEditorDialog } from '@renderer/steps/StepEditorDialog'
@@ -38,6 +39,8 @@ export function ManufactureStage(): React.JSX.Element {
   const camStale = useUi((s) => s.camStale)
   const generating = useUi((s) => s.generating)
   const selectedStepId = useUi((s) => s.selectedStepId)
+  const problemStepId = useUi((s) => s.problemStepId)
+  const problemFocus = useUi((s) => s.problemFocus)
   const setUi = useUi((s) => s.set)
   const [showRapids, setShowRapids] = useState(false)
   const [showPaths, setShowPaths] = useState(true)
@@ -80,6 +83,20 @@ export function ManufactureStage(): React.JSX.Element {
     // Toolpaths only change with a new CAM result; steps/tools are read for colour and width.
   }, [cam, material, bbox, steps, tools, colorIndex])
 
+  // Places the steps cannot machine (board coordinates), and the one the view is zoomed to.
+  const problems = useMemo(() => {
+    const enabled = new Set(steps.filter((s) => s.enabled).map((s) => s.id))
+    return (cam?.toolpaths ?? [])
+      .filter((t) => enabled.has(t.stepId))
+      .flatMap((t) => (t.problems ?? []).map((p, i) => ({ ...p, stepId: t.stepId, side: t.side, n: i + 1 })))
+  }, [cam, steps])
+  const focusBox: BBox | null = useMemo(() => {
+    const p = problems.find((q) => q.id === problemFocus)
+    if (!p) return null
+    const r = 1.5
+    return { minX: p.x - r, minY: p.y - r, maxX: p.x + r, maxY: p.y + r }
+  }, [problems, problemFocus])
+
   const underlay: OverlayDraw = useCallback(
     (ctx, _v, zoom) => {
       if (stockCorners) drawStock(ctx, stockCorners, zoom)
@@ -91,8 +108,20 @@ export function ManufactureStage(): React.JSX.Element {
       if (showPaths)
         drawToolpaths(ctx, prepared, zoom, { side: viewSide, selectedId: selectedStepId, showRapids })
       if (material && !bboxIsEmpty(bbox)) drawOrigin(ctx, view, material, bbox, viewSide)
+      drawProblems(ctx, zoom, problems, viewSide, problemStepId, problemFocus)
     },
-    [prepared, viewSide, selectedStepId, showRapids, showPaths, material, bbox]
+    [
+      prepared,
+      viewSide,
+      selectedStepId,
+      showRapids,
+      showPaths,
+      material,
+      bbox,
+      problems,
+      problemStepId,
+      problemFocus
+    ]
   )
 
   const sideSteps = steps
@@ -120,6 +149,7 @@ export function ManufactureStage(): React.JSX.Element {
           realistic={settings.realisticColors}
           highlight={false}
           fitBox={fitBox}
+          focusBox={focusBox}
           underlay={underlay}
           overlay={overlay}
           toolbar={
@@ -230,10 +260,57 @@ export function ManufactureStage(): React.JSX.Element {
             </div>
           </div>
         )}
+        <ProblemsPanel />
       </section>
 
       <AddStepDialog />
       <StepEditorDialog />
     </div>
   )
+}
+
+/** Red rings where a step cannot machine; the listed step's places are numbered, the focused one glows. */
+function drawProblems(
+  ctx: CanvasRenderingContext2D,
+  zoom: number,
+  problems: { id: string; x: number; y: number; stepId: string; side: string; n: number }[],
+  side: string,
+  listedStepId: string | null,
+  focusId: string | null
+): void {
+  const px = 1 / zoom
+  ctx.save()
+  for (const p of problems) {
+    if (p.side !== side) continue
+    const focused = p.id === focusId
+    const listed = p.stepId === listedStepId
+    const r = (focused ? 13 : 9) * px
+    ctx.beginPath()
+    ctx.arc(p.x, p.y, r, 0, Math.PI * 2)
+    ctx.fillStyle = focused ? 'rgba(251,191,36,0.25)' : 'rgba(244,63,94,0.18)'
+    ctx.fill()
+    ctx.lineWidth = (focused ? 2.5 : 1.8) * px
+    ctx.strokeStyle = focused ? '#fbbf24' : '#f43f5e'
+    ctx.stroke()
+    if (listed) {
+      // number label (the canvas may be mirrored for the bottom view: draw text un-mirrored)
+      const t = ctx.getTransform()
+      const sx = t.a * p.x + t.c * p.y + t.e
+      const sy = t.b * p.x + t.d * p.y + t.f
+      ctx.save()
+      ctx.setTransform(1, 0, 0, 1, 0, 0)
+      const dpr = Math.hypot(t.a, t.b) * px
+      ctx.font = `bold ${11 * dpr}px ui-sans-serif, system-ui`
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillStyle = '#0b0f14'
+      ctx.beginPath()
+      ctx.arc(sx + 11 * dpr, sy - 11 * dpr, 7 * dpr, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.fillStyle = focused ? '#fde68a' : '#fecdd3'
+      ctx.fillText(String(p.n), sx + 11 * dpr, sy - 10.5 * dpr)
+      ctx.restore()
+    }
+  }
+  ctx.restore()
 }

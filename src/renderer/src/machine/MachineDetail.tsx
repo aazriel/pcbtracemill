@@ -185,12 +185,7 @@ function ReadRow({ m, spec }: { m: MachineProfile; spec: Spec }): React.JSX.Elem
         <span>{help.label}</span>
         <HelpTip title={help.label}>{help.description}</HelpTip>
       </div>
-      <div className="min-w-0 text-xs text-slate-100">
-        {readValue(m, spec)}
-        {spec.kind !== 'text' && (
-          <p className="mt-0.5 text-[11px] leading-snug text-slate-500">{help.description}</p>
-        )}
-      </div>
+      <div className="min-w-0 text-xs text-slate-100">{readValue(m, spec)}</div>
     </div>
   )
 }
@@ -228,7 +223,6 @@ function EditRow({
             />
           ))}
         </div>
-        <p className="text-[11px] leading-snug text-slate-500">{h.description}</p>
       </div>
     )
   }
@@ -370,6 +364,18 @@ export function MachineDetail({
             <header className="mb-2 flex items-center gap-2">
               <span className="text-slate-400 [&_svg]:size-4">{g.icon}</span>
               <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-300">{g.title}</h4>
+              <HelpTip title={g.title} wide={g.id === 'heights'}>
+                {g.intro}
+                {g.id === 'heights' && (
+                  <div className="mt-2 overflow-hidden rounded-md border border-slate-800">
+                    <HeightsIllustration
+                      safeZ={machine.safeZ}
+                      travelZ={machine.travelZ}
+                      toolChangeZ={machine.toolChangeZ}
+                    />
+                  </div>
+                )}
+              </HelpTip>
               <span className="ml-auto">
                 <StatusCircle
                   level={groupErrors ? 'error' : 'ok'}
@@ -378,16 +384,6 @@ export function MachineDetail({
                 />
               </span>
             </header>
-            <p className="mb-2 text-[11px] text-slate-500">{g.intro}</p>
-            {g.id === 'heights' && (
-              <div className="mb-2 overflow-hidden rounded-md border border-slate-800">
-                <HeightsIllustration
-                  safeZ={machine.safeZ}
-                  travelZ={machine.travelZ}
-                  toolChangeZ={machine.toolChangeZ}
-                />
-              </div>
-            )}
             <div className={cn(editable ? 'flex flex-col gap-3' : 'flex flex-col')}>
               {g.specs.map((s) =>
                 editable ? (

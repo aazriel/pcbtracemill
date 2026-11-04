@@ -308,6 +308,11 @@ export interface IsolationParams {
   direction: CutDirection
   /** Extra clearance added to the first pass offset, mm. */
   extraClearance: number
+  /**
+   * Places where copper features are closer than this (mm) are not reported: such tiny gaps (e.g.
+   * inside a ground pour) usually belong together anyway. 0 / missing = report every narrow place.
+   */
+  ignoreGapsBelow?: number
 }
 
 export interface ClearParams {
@@ -371,6 +376,8 @@ export interface CamStep {
   /** Safe Z override, null → machine default. */
   safeZ: number | null
   params: StepParams
+  /** Ids of ToolpathProblems the user chose to ignore for this step. */
+  ignoredProblems?: string[]
 }
 
 export type ValidationLevel = 'ok' | 'warning' | 'error'
@@ -416,6 +423,22 @@ export interface ToolpathSegment {
   moves: Move[]
 }
 
+/** A place the step cannot machine as designed (shown on the board, can be ignored by id). */
+export interface ToolpathProblem {
+  /** Stable id (kind + position), used to ignore this place. */
+  id: string
+  kind: 'narrow-gap' | 'uncleared'
+  /** Position in BOARD coordinates (mm), as drawn in the Board / Manufacture views. */
+  x: number
+  y: number
+  /** narrow-gap: the actual distance between the two copper features (mm). */
+  gap?: number
+  /** narrow-gap: the room the tool needs (cut width + clearance, mm). */
+  needed?: number
+  /** uncleared: area left (mm²). */
+  area?: number
+}
+
 export interface Toolpath {
   stepId: string
   stepName: string
@@ -426,6 +449,8 @@ export interface Toolpath {
   /** Estimated cutting length mm and time seconds. */
   stats: ToolpathStats
   warnings: string[]
+  /** Places that cannot be machined as designed (already filtered by the step's ignore settings). */
+  problems?: ToolpathProblem[]
 }
 
 export interface ToolpathStats {

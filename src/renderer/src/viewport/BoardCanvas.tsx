@@ -29,6 +29,8 @@ export interface BoardCanvasProps {
   highlight: boolean
   /** Extents used for "fit"; usually stock ∪ board. */
   fitBox: BBox | null
+  /** When set (or changed), the view zooms to this box, e.g. a place that needs attention. */
+  focusBox?: BBox | null
   /** Drawn under the layers in world coords (e.g. stock material). */
   underlay?: OverlayDraw
   /** Drawn above the layers in world coords (e.g. toolpaths, origin marker). */
@@ -46,8 +48,19 @@ interface Hit {
 }
 
 export function BoardCanvas(props: BoardCanvasProps): React.JSX.Element {
-  const { layers, side, realistic, highlight, fitBox, underlay, overlay, toolbar, className, redrawKey } =
-    props
+  const {
+    layers,
+    side,
+    realistic,
+    highlight,
+    fitBox,
+    focusBox,
+    underlay,
+    overlay,
+    toolbar,
+    className,
+    redrawKey
+  } = props
   const wrapRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [size, setSize] = useState({ w: 800, h: 600 })
@@ -87,6 +100,14 @@ export function BoardCanvas(props: BoardCanvasProps): React.JSX.Element {
       doFit()
     }
   }, [fitBox, size.w, doFit])
+
+  // Zoom to a requested box (keeps the user's view otherwise).
+  useEffect(() => {
+    if (focusBox && focusBox.minX <= focusBox.maxX && size.w > 10)
+      setView(fitView(focusBox, size.w, size.h, side === 'bottom'))
+    // only when the requested box changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusBox])
 
   useEffect(() => setView((v) => ({ ...v, mirror: side === 'bottom' })), [side])
 

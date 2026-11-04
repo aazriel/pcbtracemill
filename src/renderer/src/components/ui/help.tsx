@@ -2,10 +2,23 @@ import { HelpCircle } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Tooltip } from './tooltip'
 
-/** Small (?) icon that explains a concept in plain language. Every input in TraceMill has one. */
-export function HelpTip({ title, children }: { title?: string; children: ReactNode }): React.JSX.Element {
+/**
+ * Small (?) icon that explains a concept in plain language. Every input in TraceMill has one; the
+ * explanation (and any illustration) lives here so the forms themselves stay uncluttered.
+ * `wide` makes room for an illustration.
+ */
+export function HelpTip({
+  title,
+  children,
+  wide
+}: {
+  title?: string
+  children: ReactNode
+  wide?: boolean
+}): React.JSX.Element {
   return (
     <Tooltip
+      className={wide ? 'max-w-[380px]' : undefined}
       content={
         <div>
           {title && <div className="mb-1 font-semibold text-slate-100">{title}</div>}

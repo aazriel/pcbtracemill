@@ -108,7 +108,12 @@ describe('isolation', () => {
   it('warns where features are closer than the tool can fit', () => {
     const geo = union(twoPads(2.15), unionPaths([rectPath(40, 10, 2, 2)]))
     const tp = isolate({}, tool('flat', 0.2), geo)
-    expect(tp.warnings.join(' ')).toMatch(/^1 place where traces are closer than the 0\.20 mm tool/)
+    expect(tp.warnings.join(' ')).toMatch(/^1 place where copper is closer than the 0\.20 mm tool/)
+    expect(tp.warnings.join(' ')).not.toMatch(/\(\d/) // no coordinates in the text
+    expect(tp.problems).toHaveLength(1)
+    expect(tp.problems![0].kind).toBe('narrow-gap')
+    expect(tp.problems![0].gap).toBeCloseTo(0.15, 3)
+    expect(tp.problems![0].needed).toBeCloseTo(0.2, 6)
     const ok = isolate({}, tool('flat', 0.2), twoPads(2.25))
     expect(ok.warnings).toEqual([])
   })
@@ -116,7 +121,27 @@ describe('isolation', () => {
   it('counts several narrow places', () => {
     const geo = unionPaths([rectPath(10, 10, 2, 2), rectPath(12.1, 10, 2, 2), rectPath(14.2, 10, 2, 2)])
     const tp = isolate({}, tool('flat', 0.2), geo)
-    expect(tp.warnings[0]).toMatch(/^2 places where traces are closer than the 0\.20 mm tool can fit/)
+    expect(tp.warnings[0]).toMatch(/^2 places where copper is closer than the 0\.20 mm tool can fit/)
+    expect(tp.problems!.map((p) => p.gap!.toFixed(2))).toEqual(['0.10', '0.10'])
+  })
+
+  it('skips narrow places below the ignore size, and places the user ignored', () => {
+    const geo = unionPaths([rectPath(10, 10, 2, 2), rectPath(12.05, 10, 2, 2), rectPath(14.2, 10, 2, 2)])
+    const base = step('isolate', ['cu'])
+    const all = isolate({}, tool('flat', 0.2), geo)
+    expect(all.problems!.map((p) => p.gap!.toFixed(2)).sort()).toEqual(['0.05', '0.15'])
+
+    const tiny = isolate(
+      { params: { ...base.params, isolation: { ...base.params.isolation, ignoreGapsBelow: 0.1 } } },
+      tool('flat', 0.2),
+      geo
+    )
+    expect(tiny.problems!.map((p) => p.gap!.toFixed(2))).toEqual(['0.15'])
+    expect(tiny.warnings[0]).toMatch(/^1 place where/)
+
+    const waived = isolate({ ignoredProblems: all.problems!.map((p) => p.id) }, tool('flat', 0.2), geo)
+    expect(waived.problems).toEqual([])
+    expect(waived.warnings).toEqual([])
   })
 
   it('handles a 500-pad board quickly', () => {

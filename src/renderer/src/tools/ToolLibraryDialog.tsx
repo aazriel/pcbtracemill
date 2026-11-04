@@ -24,6 +24,7 @@ import { useUi } from '@renderer/store/ui'
 import { Dialog } from '@renderer/components/ui/dialog'
 import { Button } from '@renderer/components/ui/button'
 import { Tooltip } from '@renderer/components/ui/tooltip'
+import { HelpTip } from '@renderer/components/ui/help'
 import { cn, uid } from '@renderer/lib/utils'
 import { ToolCard } from './ToolCard'
 import { ToolEditor } from './ToolEditor'
@@ -91,7 +92,7 @@ function ToolLibraryBody({
   const [isNew, setIsNew] = useState(false)
   const [confirm, setConfirm] = useState<Confirm>(null)
   const [blocked, setBlocked] = useState<string | null>(null)
-  const [previewDepth, setPreviewDepth] = useState(0.1)
+  const previewDepth = 0.1
 
   const stored = draft ? (tools.find((t) => t.id === draft.id) ?? null) : null
   const dirty = !!draft && !draft.builtIn && (isNew || !sameTool(draft, stored))
@@ -301,13 +302,12 @@ function ToolLibraryBody({
         {stepInfo && stepKind && (
           <div className="flex items-start gap-2 rounded-lg border border-sky-800/70 bg-sky-950/40 px-3 py-2 text-xs text-sky-100">
             <Info className="mt-px size-4 shrink-0 text-sky-400" />
-            <div>
-              <b>{stepNeedsText(stepKind)}.</b>{' '}
-              <span className="text-sky-200/80">
-                Best results: {typeList(stepInfo.preferredToolTypes)}. Tools marked{' '}
-                <span className="text-emerald-300">Recommended</span> suit this step best; greyed-out tools
-                cannot be used for it.
-              </span>
+            <div className="flex flex-1 items-center gap-1.5">
+              <b>{stepNeedsText(stepKind)}.</b>
+              <HelpTip title="Tools for this step">
+                Best results: {typeList(stepInfo.preferredToolTypes)}. Tools marked Recommended suit this step
+                best; greyed-out tools cannot be used for it.
+              </HelpTip>
             </div>
           </div>
         )}
@@ -348,22 +348,15 @@ function ToolLibraryBody({
                   value={t.value}
                   className="flex min-h-0 flex-1 flex-col gap-2 outline-none"
                 >
-                  <p className="rounded-md bg-slate-800/50 px-2.5 py-1.5 text-[11px] leading-snug text-slate-400">
-                    {t.value === 'all' ? (
-                      'Every tool in this project. Use the tabs to see one kind of tool at a time.'
-                    ) : (
-                      <>
-                        <b className="text-slate-200">{TOOL_TYPE_INFO[t.value].label}: </b>
-                        {TOOL_TYPE_INFO[t.value].description}
-                        {stepInfo && !stepInfo.allowedToolTypes.includes(t.value) && (
-                          <span className="mt-1 block text-amber-300/90">
-                            Not usable for “{stepInfo.label}”. {stepNeedsText(stepKind as StepKind)}.
-                          </span>
-                        )}
-                      </>
-                    )}
-                  </p>
-                  <div className="flex gap-2">
+                  {t.value !== 'all' && stepInfo && !stepInfo.allowedToolTypes.includes(t.value) && (
+                    <p className="text-[11px] text-amber-300/90">Not usable for “{stepInfo.label}”.</p>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <HelpTip title={t.value === 'all' ? 'All tools' : TOOL_TYPE_INFO[t.value].label}>
+                      {t.value === 'all'
+                        ? 'Every tool in this project. Use the tabs to see one kind of tool at a time.'
+                        : TOOL_TYPE_INFO[t.value].description}
+                    </HelpTip>
                     <label className="relative flex-1">
                       <Search className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-slate-500" />
                       <input
@@ -482,7 +475,6 @@ function ToolLibraryBody({
                       errors={errors}
                       otherTools={tools}
                       previewDepth={previewDepth}
-                      onPreviewDepthChange={setPreviewDepth}
                       stepKind={stepKind}
                     />
                   </div>
@@ -724,91 +716,5 @@ function CreateMenu({
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
     </DropdownMenu.Root>
-  )
-}
-
-// ─────────────────────────────────────────────────────────────── Recommendations (inside the step dialog)
-
-export interface ToolRecommendationsProps {
-  stepKind: StepKind
-  selectedToolId?: string | null
-  onSelect: (toolId: string) => void
-  onOpenLibrary: () => void
-  /** Max number of recommended cards (default 4). */
-  limit?: number
-}
-
-/**
- * Compact list of the best tools for a step, shown in the step dialog's "Tool" section. The currently selected
- * tool is always shown; "Other tool…" opens the full library.
- */
-export function ToolRecommendations({
-  stepKind,
-  selectedToolId = null,
-  onSelect,
-  onOpenLibrary,
-  limit = 4
-}: ToolRecommendationsProps): React.JSX.Element {
-  const tools = useProject((s) => s.tools)
-  const entries = useMemo(() => toolsForStep(stepKind, tools), [stepKind, tools])
-  const info = STEP_KIND_INFO[stepKind]
-  const recommended = entries.filter((e) => e.recommended)
-  let shown = (recommended.length ? recommended : entries).slice(0, limit)
-  const selected = tools.find((t) => t.id === selectedToolId) ?? null
-  if (selected && !shown.some((e) => e.tool.id === selected.id)) {
-    const entry = entries.find((e) => e.tool.id === selected.id)
-    const sel = entry ?? {
-      tool: selected,
-      recommended: false,
-      reason: isToolAllowed(stepKind, selected).message
-    }
-    shown = [sel, ...shown.slice(0, Math.max(0, limit - 1))]
-  }
-  const selectedBad = selected ? !isToolAllowed(stepKind, selected).ok : false
-
-  return (
-    <div className="flex flex-col gap-2" data-testid="tool-recommendations">
-      <p className="text-[11px] leading-snug text-slate-500">
-        {recommended.length
-          ? `Recommended for “${info.label}”. ${stepNeedsText(stepKind)}.`
-          : `${stepNeedsText(stepKind)}.`}
-      </p>
-      {shown.length ? (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-1.5" role="radiogroup">
-          {shown.map((e) => (
-            <ToolCard
-              key={e.tool.id}
-              tool={e.tool}
-              size="sm"
-              role="radio"
-              aria-checked={e.tool.id === selectedToolId}
-              active={e.tool.id === selectedToolId}
-              recommended={e.recommended}
-              incompatible={!isToolAllowed(stepKind, e.tool).ok}
-              reason={e.reason}
-              onClick={() => isToolAllowed(stepKind, e.tool).ok && onSelect(e.tool.id)}
-            />
-          ))}
-        </div>
-      ) : (
-        <div className="rounded-md border border-dashed border-slate-700 p-3 text-xs text-slate-400">
-          You have no {typeList(info.allowedToolTypes)} yet. Open the tool library to create one.
-        </div>
-      )}
-      {selectedBad && selected && (
-        <p className="flex items-start gap-1.5 text-[11px] text-rose-300">
-          <Ban className="mt-px size-3.5 shrink-0" /> {isToolAllowed(stepKind, selected).message}
-        </p>
-      )}
-      <Button
-        variant="outline"
-        size="sm"
-        className="self-start"
-        data-testid="tool-open-library"
-        onClick={onOpenLibrary}
-      >
-        <Library /> Other tool… open the tool library
-      </Button>
-    </div>
   )
 }

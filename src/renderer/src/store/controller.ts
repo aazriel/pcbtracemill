@@ -5,6 +5,7 @@
 import { useMemo } from 'react'
 import type {
   BBox,
+  CamStep,
   EdaTool,
   ImportedLayer,
   Material,
@@ -403,6 +404,47 @@ export function applyRecipe(): void {
   const steps = recipe({ layers, tools: s.tools, material, machine: s.machine, newId: () => uid('S') })
   s.setSteps(steps)
   scheduleRegenerate(true)
+}
+
+// ───────────────────────────────────────── places a step cannot machine
+
+/** Opens the problem list of a step on the Manufacture board (on the side the step works on). */
+export function showProblems(stepId: string): void {
+  const step = useProject.getState().steps.find((s) => s.id === stepId)
+  if (!step) return
+  useUi.getState().set({
+    stage: 'manufacture',
+    problemStepId: stepId,
+    problemFocus: null,
+    selectedStepId: stepId,
+    viewSide: step.side
+  })
+}
+
+function patchStep(stepId: string, fn: (s: CamStep) => CamStep): void {
+  const p = useProject.getState()
+  const step = p.steps.find((s) => s.id === stepId)
+  if (step) p.upsertStep(fn(structuredClone(step)))
+}
+
+/** Stops reporting places (they stay unmachined, the warning goes away). */
+export function ignoreProblem(stepId: string, problemIds: string | string[]): void {
+  const ids = Array.isArray(problemIds) ? problemIds : [problemIds]
+  patchStep(stepId, (s) => ({ ...s, ignoredProblems: [...new Set([...(s.ignoredProblems ?? []), ...ids])] }))
+  if (ids.includes(useUi.getState().problemFocus ?? '')) useUi.getState().set({ problemFocus: null })
+}
+
+/** Reports every place of a step again. */
+export function restoreProblems(stepId: string): void {
+  patchStep(stepId, (s) => ({ ...s, ignoredProblems: [] }))
+}
+
+/** Isolation: places where copper is closer than `mm` are not reported (0 = report all). */
+export function setIgnoreGapsBelow(stepId: string, mm: number): void {
+  patchStep(stepId, (s) => ({
+    ...s,
+    params: { ...s.params, isolation: { ...s.params.isolation, ignoreGapsBelow: Math.max(0, mm) } }
+  }))
 }
 
 export function newStep(kind: StepKind) {

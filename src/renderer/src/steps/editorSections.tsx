@@ -1,13 +1,24 @@
 /** Layer, Tool, General and Results sections of the Step editor dialog. */
 import { useState } from 'react'
-import { ArrowLeft, Check, Clock, Info, Ruler, ArrowDownToLine, Route as RouteIcon } from 'lucide-react'
+import {
+  ArrowLeft,
+  Clock,
+  Info,
+  Library,
+  Ruler,
+  ArrowDownToLine,
+  Route as RouteIcon,
+  Wrench
+} from 'lucide-react'
 import type { CamStep, ImportedLayer, Toolpath, ValidationIssue } from '@core/model/types'
 import { STEP_KIND_INFO, defaultCutDepth, isToolAllowed, layersForStep } from '@core/cam'
-import { TOOL_TYPE_INFO, effectiveCutWidth } from '@core/tools'
+import { effectiveCutWidth } from '@core/tools'
 import { useProject } from '@renderer/store/project'
 import { useUi } from '@renderer/store/ui'
 import { useLayersWithParsed } from '@renderer/store/controller'
-import { ToolLibraryDialog, ToolRecommendations } from '@renderer/tools/ToolLibraryDialog'
+import { ToolLibraryDialog } from '@renderer/tools/ToolLibraryDialog'
+import { ToolPickerDialog } from '@renderer/tools/ToolPickerDialog'
+import { ToolCard } from '@renderer/tools/ToolCard'
 import { Button } from '@renderer/components/ui/button'
 import { NumberField, Segmented, Switch, TextField, FieldShell } from '@renderer/components/ui/fields'
 import { HelpTip } from '@renderer/components/ui/help'
@@ -131,6 +142,7 @@ export function ToolSection({ draft, update }: SectionProps): React.JSX.Element 
   const tools = useProject((s) => s.tools)
   const machine = useProject((s) => s.machine)
   const [libOpen, setLibOpen] = useState(false)
+  const [pickOpen, setPickOpen] = useState(false)
   const tool = tools.find((t) => t.id === draft.toolId)
   const select = (id: string): void => {
     const t = tools.find((x) => x.id === id)
@@ -144,35 +156,39 @@ export function ToolSection({ draft, update }: SectionProps): React.JSX.Element 
   }
   const fit = tool ? isToolAllowed(draft.kind, tool) : null
   return (
-    <div className="flex flex-col gap-3">
-      <p className="text-[11.5px] text-slate-400">{help('step.tool')}</p>
-      <ToolRecommendations
+    <div className="flex flex-col gap-3" data-testid="tool-section">
+      {tool ? (
+        <div className="flex flex-col gap-1.5">
+          <ToolCard tool={tool} chosen={fit?.ok} incompatible={fit ? !fit.ok : false} tabIndex={-1} />
+          {fit && !fit.ok && <p className="text-[11px] text-rose-300">✕ {fit.message}</p>}
+        </div>
+      ) : (
+        <div className="rounded-lg border border-dashed border-slate-700 p-3 text-center text-xs text-slate-400">
+          No tool chosen yet.
+        </div>
+      )}
+      <div className="flex flex-wrap gap-2">
+        <Button onClick={() => setPickOpen(true)} data-testid="tool-choose">
+          <Wrench /> {tool ? 'Choose another tool…' : 'Choose a tool…'}
+        </Button>
+        <Button variant="secondary" onClick={() => setLibOpen(true)} data-testid="tool-open-library">
+          <Library /> Tool library…
+        </Button>
+        <HelpTip title="Tool">
+          {help('step.tool')} Speeds and feeds belong to the tool; change them in the tool library.
+          {machine &&
+            !machine.supportsToolChange &&
+            ' Your machine pauses so you can change the bit by hand.'}
+        </HelpTip>
+      </div>
+      <ToolPickerDialog
+        open={pickOpen}
+        onOpenChange={setPickOpen}
         stepKind={draft.kind}
         selectedToolId={draft.toolId}
         onSelect={select}
         onOpenLibrary={() => setLibOpen(true)}
       />
-      {tool && (
-        <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-2.5 text-[11px] text-slate-400">
-          <div className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-slate-200">
-            Selected: {tool.name}
-            {fit?.ok && <Check className="size-3.5 text-emerald-400" />}
-          </div>
-          {fit && <div className={fit.ok ? 'text-slate-400' : 'text-rose-300'}>{fit.message}</div>}
-          <div className="mt-1.5 grid grid-cols-2 gap-x-4 gap-y-0.5 sm:grid-cols-4">
-            <span>Type: {TOOL_TYPE_INFO[tool.type]?.label ?? tool.type}</span>
-            <span>Spindle: {tool.feeds.spindleRpm} RPM</span>
-            <span>Cutting feed: {tool.feeds.feedXY} mm/min</span>
-            <span>Depth per pass: {tool.feeds.stepDown} mm</span>
-          </div>
-          <div className="mt-1 text-[10.5px] text-slate-600">
-            Speeds and feeds belong to the tool; change them in the tool library.
-            {machine &&
-              !machine.supportsToolChange &&
-              ' Your machine pauses so you can change the bit by hand.'}
-          </div>
-        </div>
-      )}
       <ToolLibraryDialog
         open={libOpen}
         onOpenChange={setLibOpen}
@@ -214,7 +230,17 @@ export function GeneralSection({ draft, update, issues }: SectionProps): React.J
         <FieldShell
           label="Side facing up"
           description="Bottom-side steps are mirrored automatically so they line up after you flip the board."
-          help={help('step.side')}
+          helpWide
+          help={
+            <>
+              {help('step.side')}
+              <div className="mt-2">
+                <Figure>
+                  <SideIllustration side={draft.side} />
+                </Figure>
+              </div>
+            </>
+          }
           warning={sideWarn}
         >
           <div data-testid="step-side">
@@ -228,9 +254,6 @@ export function GeneralSection({ draft, update, issues }: SectionProps): React.J
             />
           </div>
         </FieldShell>
-        <Figure>
-          <SideIllustration side={draft.side} />
-        </Figure>
         <Switch
           label="Include this step in the G-code"
           checked={draft.enabled}
@@ -247,43 +270,51 @@ export function GeneralSection({ draft, update, issues }: SectionProps): React.J
           min={0}
           value={draft.cutDepth}
           onChange={(v) => update((d) => ({ ...d, cutDepth: v }))}
-          description={
+          description="How deep the bit goes below the copper surface (Z0)."
+          helpWide
+          help={
             <>
-              How deep the bit goes below the copper surface (Z0).
-              {recommended !== null && (
-                <>
-                  {' '}
-                  Suggested: <b className="text-slate-300">{r3(recommended)} mm</b>
-                  {Math.abs(recommended - draft.cutDepth) > 1e-6 && (
-                    <button
-                      type="button"
-                      className="ml-1 text-sky-400 hover:underline"
-                      onClick={() => update((d) => ({ ...d, cutDepth: recommended }))}
-                    >
-                      use it
-                    </button>
-                  )}
-                </>
-              )}
-              {width !== null && tool?.type === 'vbit' && (
-                <> At this depth the V-bit cuts a {r3(width)} mm wide groove.</>
+              {help('step.cutDepth')}
+              {material && (
+                <div className="mt-2">
+                  <Figure caption="Not to scale: the thin copper is drawn much thicker so you can see it.">
+                    <DepthCrossSection
+                      depth={draft.cutDepth}
+                      copper={material.copperThickness}
+                      thickness={material.thickness}
+                      toolType={tool?.type ?? null}
+                      tipAngle={tool?.geometry.tipAngle}
+                    />
+                  </Figure>
+                </div>
               )}
             </>
           }
-          help={help('step.cutDepth')}
           error={depthErr}
           warning={depthWarn}
         />
-        {material && (
-          <Figure caption="Not to scale: the thin copper is drawn much thicker so you can see it.">
-            <DepthCrossSection
-              depth={draft.cutDepth}
-              copper={material.copperThickness}
-              thickness={material.thickness}
-              toolType={tool?.type ?? null}
-              tipAngle={tool?.geometry.tipAngle}
-            />
-          </Figure>
+        {(recommended !== null || (width !== null && tool?.type === 'vbit')) && (
+          <p className="-mt-3 text-[11px] text-slate-500">
+            {recommended !== null && (
+              <>
+                Suggested <b className="text-slate-300">{r3(recommended)} mm</b>
+                {Math.abs(recommended - draft.cutDepth) > 1e-6 && (
+                  <button
+                    type="button"
+                    className="ml-1 text-sky-400 hover:underline"
+                    onClick={() => update((d) => ({ ...d, cutDepth: recommended }))}
+                  >
+                    use it
+                  </button>
+                )}
+              </>
+            )}
+            {width !== null && tool?.type === 'vbit' && (
+              <>
+                {recommended !== null && ' · '}cuts a {r3(width)} mm wide groove
+              </>
+            )}
+          </p>
         )}
         <div className="flex flex-col gap-2">
           <Switch

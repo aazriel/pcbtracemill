@@ -83,7 +83,8 @@ export function generateToolpath(input: ToolpathInput): Toolpath {
     toolId: tool.id,
     segments,
     stats: computeStats(segments, machine),
-    warnings: ctx.warnings
+    warnings: ctx.warnings,
+    problems: ctx.problems
   }
 }
 
