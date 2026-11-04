@@ -4,7 +4,7 @@
  */
 import type { ReactNode } from 'react'
 import type { MachineProfile } from '@core/model/types'
-import { Bit, BoardSide, Code, Dial, H, Label, Scene, W } from '@renderer/components/illustrations/kit'
+import { Bit, BoardSide, Code, Dial, Label, Scene, W } from '@renderer/components/illustrations/kit'
 import { HeightsIllustration } from './HeightsIllustration'
 import type { MachineFieldKey } from './machineMeta'
 
