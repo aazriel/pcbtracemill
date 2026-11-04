@@ -20,6 +20,7 @@ import { HelpTip } from '@renderer/components/ui/help'
 import { StatusCircle } from '@renderer/components/ui/status'
 import { cn } from '@renderer/lib/utils'
 import { HeightsIllustration } from './HeightsIllustration'
+import { machineFigure } from './machineFigures'
 import { MachineIcon } from './MachineCard'
 import { POST_OPTIONS, errorsByField, type MachineFieldKey } from './machineMeta'
 
@@ -177,13 +178,23 @@ function readValue(m: MachineProfile, s: Spec): ReactNode {
   }
 }
 
+/** The (?) content of a machine setting: its explanation plus its illustration. */
+function fieldHelp(key: MachineFieldKey, m: MachineProfile): { text: string; figure: ReactNode | null } {
+  return { text: MACHINE_FIELD_HELP[key].description, figure: machineFigure(key, m) }
+}
+
 function ReadRow({ m, spec }: { m: MachineProfile; spec: Spec }): React.JSX.Element {
-  const help = MACHINE_FIELD_HELP[spec.kind === 'workArea' ? 'workArea' : spec.key]
+  const key: MachineFieldKey = spec.kind === 'workArea' ? 'workArea' : spec.key
+  const help = MACHINE_FIELD_HELP[key]
+  const fh = fieldHelp(key, m)
   return (
     <div className="grid grid-cols-[minmax(0,150px)_1fr] gap-x-3 border-b border-slate-800/60 py-1.5 last:border-0">
       <div className="flex items-start gap-1 text-xs text-slate-400">
         <span>{help.label}</span>
-        <HelpTip title={help.label}>{help.description}</HelpTip>
+        <HelpTip title={help.label} wide={!!fh.figure}>
+          {fh.text}
+          {fh.figure && <div className="mt-2">{fh.figure}</div>}
+        </HelpTip>
       </div>
       <div className="min-w-0 text-xs text-slate-100">{readValue(m, spec)}</div>
     </div>
@@ -207,7 +218,10 @@ function EditRow({
       <div className="flex flex-col gap-1">
         <div className="flex items-center gap-1.5 text-xs font-medium text-slate-300">
           {h.label}
-          <HelpTip title={h.label}>{h.description}</HelpTip>
+          <HelpTip title={h.label} wide>
+            {h.description}
+            <div className="mt-2">{machineFigure('workArea', m)}</div>
+          </HelpTip>
         </div>
         <div className="grid grid-cols-3 gap-2">
           {(['x', 'y', 'z'] as const).map((axis) => (
@@ -228,11 +242,14 @@ function EditRow({
   }
   const h = MACHINE_FIELD_HELP[spec.key]
   const error = errors.get(spec.key)?.join(' ') ?? null
+  const figure = machineFigure(spec.key, m)
+  const figureProps = figure ? { help: <div className="mt-1">{figure}</div>, helpWide: true } : {}
   switch (spec.kind) {
     case 'number':
       return (
         <NumberField
           label={h.label}
+          {...figureProps}
           description={h.description}
           unit={h.unit}
           value={m[spec.key]}
@@ -247,6 +264,7 @@ function EditRow({
       return (
         <Switch
           label={h.label}
+          {...figureProps}
           description={h.description}
           checked={m[spec.key]}
           onChange={(v) => onChange({ ...m, [spec.key]: v })}
@@ -256,6 +274,7 @@ function EditRow({
       return (
         <SelectField
           label={h.label}
+          {...figureProps}
           description={h.description}
           value={m[spec.key]}
           options={spec.options}
@@ -267,6 +286,7 @@ function EditRow({
       return (
         <TextField
           label={h.label}
+          {...figureProps}
           description={h.description}
           value={m[spec.key]}
           multiline={spec.multiline}
