@@ -4,6 +4,7 @@ import type { BBox, GerberObject, ImportedLayer } from '@core/model/types'
 import { Button } from '@renderer/components/ui/button'
 import { Tooltip } from '@renderer/components/ui/tooltip'
 import { cn } from '@renderer/lib/utils'
+import { fmtLength, lengthValue, unitLabel, useUnits } from '@renderer/lib/units'
 import {
   ObjectIndex,
   REAL,
@@ -69,6 +70,7 @@ export function BoardCanvas(props: BoardCanvasProps): React.JSX.Element {
   const [frozen, setFrozen] = useState<Hit | null>(null)
   const [cursor, setCursor] = useState<[number, number] | null>(null)
   const [measuring, setMeasuring] = useState(false)
+  const units = useUnits()
   const [measure, setMeasure] = useState<{ a: [number, number]; b: [number, number] | null } | null>(null)
   const dragRef = useRef<{ x: number; y: number; cx: number; cy: number; moved: boolean } | null>(null)
   const fittedRef = useRef(false)
@@ -183,6 +185,41 @@ export function BoardCanvas(props: BoardCanvasProps): React.JSX.Element {
         ctx.arc(p[0], p[1], 3 * px, 0, Math.PI * 2)
         ctx.fill()
       }
+      // distance label next to the middle of the line, drawn in screen pixels
+      if (b) {
+        const t = ctx.getTransform()
+        const mx = (measure.a[0] + b[0]) / 2
+        const my = (measure.a[1] + b[1]) / 2
+        const sx = t.a * mx + t.c * my + t.e
+        const sy = t.b * mx + t.d * my + t.f
+        const dpr = window.devicePixelRatio || 1
+        const lines = [
+          fmtLength(dist(measure.a, b), units),
+          `ΔX ${fmtLength(Math.abs(b[0] - measure.a[0]), units)}  ΔY ${fmtLength(Math.abs(b[1] - measure.a[1]), units)}`
+        ]
+        ctx.setTransform(1, 0, 0, 1, 0, 0)
+        ctx.font = `600 ${13 * dpr}px ui-sans-serif, system-ui`
+        const w1 = ctx.measureText(lines[0]).width
+        ctx.font = `${11 * dpr}px ui-monospace, monospace`
+        const w2 = ctx.measureText(lines[1]).width
+        const w = Math.max(w1, w2) + 16 * dpr
+        const h = 40 * dpr
+        const x = sx + 10 * dpr
+        const y = sy - h - 8 * dpr
+        ctx.fillStyle = 'rgba(15,23,42,0.92)'
+        ctx.strokeStyle = '#facc15'
+        ctx.lineWidth = 1 * dpr
+        ctx.beginPath()
+        ctx.roundRect(x, y, w, h, 6 * dpr)
+        ctx.fill()
+        ctx.stroke()
+        ctx.fillStyle = '#fde047'
+        ctx.font = `600 ${13 * dpr}px ui-sans-serif, system-ui`
+        ctx.fillText(lines[0], x + 8 * dpr, y + 17 * dpr)
+        ctx.fillStyle = '#cbd5e1'
+        ctx.font = `${11 * dpr}px ui-monospace, monospace`
+        ctx.fillText(lines[1], x + 8 * dpr, y + 33 * dpr)
+      }
       ctx.restore()
     }
   }, [
@@ -198,6 +235,7 @@ export function BoardCanvas(props: BoardCanvasProps): React.JSX.Element {
     underlay,
     overlay,
     measure,
+    units,
     cursor,
     redrawKey
   ])
@@ -297,6 +335,11 @@ export function BoardCanvas(props: BoardCanvasProps): React.JSX.Element {
         data-testid="board-canvas"
       />
       <div className="absolute left-3 top-3 flex items-center gap-2">{toolbar}</div>
+      {measuring && (!measure || !measure.b) && (
+        <div className="pointer-events-none absolute left-1/2 top-16 -translate-x-1/2 rounded-full border border-yellow-400/50 bg-slate-900/90 px-3 py-1 text-xs text-yellow-100 shadow-lg">
+          {measure ? 'Click the second point' : 'Measure: click the first point'}
+        </div>
+      )}
       <div className="absolute right-3 top-3 flex flex-col gap-1 rounded-lg border border-slate-700 bg-slate-900/90 p-1 shadow-lg">
         <Tooltip content="Zoom in (or scroll the mouse wheel)" side="left">
           <Button size="icon" variant="ghost" onClick={() => zoomBy(1.3)} aria-label="Zoom in">
@@ -314,7 +357,7 @@ export function BoardCanvas(props: BoardCanvasProps): React.JSX.Element {
           </Button>
         </Tooltip>
         <Tooltip
-          content="Measure: click two points to see the distance between them in millimetres"
+          content="Measure: click two points to see the distance between them. Click the button again to stop."
           side="left"
         >
           <Button
@@ -340,10 +383,10 @@ export function BoardCanvas(props: BoardCanvasProps): React.JSX.Element {
         </span>
         {cursor && (
           <span>
-            X {cursor[0].toFixed(3)} Y {cursor[1].toFixed(3)} mm
+            X {lengthValue(cursor[0], units)} Y {lengthValue(cursor[1], units)} {unitLabel(units)}
           </span>
         )}
-        {measureLen !== null && <span className="text-yellow-300">Δ {measureLen.toFixed(3)} mm</span>}
+        {measureLen !== null && <span className="text-yellow-300">Δ {fmtLength(measureLen, units)}</span>}
         <span>{(view.zoom * 25.4).toFixed(0)} px/in</span>
       </div>
       {info && (

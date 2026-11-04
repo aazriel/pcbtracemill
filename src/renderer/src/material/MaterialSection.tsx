@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Pencil } from 'lucide-react'
 import { defaultMaterial } from '@core/cam'
+import { lengthValue, unitLabel, useUnits } from '@renderer/lib/units'
 import { useProject } from '@renderer/store/project'
 import { useBoardBBox, useMaterialIssues } from '@renderer/store/controller'
 import { Button } from '@renderer/components/ui/button'
@@ -8,13 +9,14 @@ import { HelpTip } from '@renderer/components/ui/help'
 import { PanelSection } from '@renderer/components/ui/section'
 import { StatusCircle } from '@renderer/components/ui/status'
 import { MaterialDialog } from './MaterialDialog'
-import { ORIGIN_LABEL, copperLabel, mm, overallLevel } from './materialIssues'
+import { overallLevel } from './materialIssues'
 
 /** Manufacture-stage panel section: material size summary + Edit dialog. */
 export function MaterialSection(): React.JSX.Element {
   const material = useProject((s) => s.material)
   const setMaterial = useProject((s) => s.setMaterial)
   const bbox = useBoardBBox()
+  const units = useUnits()
   const issues = useMaterialIssues()
   const [open, setOpen] = useState(false)
   const errors = useMemo(() => issues.filter((i) => i.level === 'error'), [issues])
@@ -51,18 +53,9 @@ export function MaterialSection(): React.JSX.Element {
           className="flex w-full flex-col gap-2 rounded-lg border border-slate-800 bg-slate-950/50 p-2.5 text-left transition-colors hover:border-slate-600"
           data-testid="material-summary"
         >
-          <div className="min-w-0 text-[11px] leading-snug">
-            <div
-              className="font-mono text-base font-semibold tabular-nums text-slate-100"
-              title="Width × height × thickness"
-            >
-              {mm(material.width)} × {mm(material.height)} × {mm(material.thickness, 2)} mm
-            </div>
-            <div className="mt-0.5 text-slate-400">
-              Copper {copperLabel(material.copperThickness)} ·{' '}
-              {material.doubleSided ? 'double-sided' : 'single-sided'} · X0 Y0{' '}
-              {ORIGIN_LABEL[material.origin].toLowerCase()}
-            </div>
+          <div className="text-xs tabular-nums text-slate-200" title="Width × height × thickness">
+            {lengthValue(material.width, units, 1)} × {lengthValue(material.height, units, 1)} ×{' '}
+            {lengthValue(material.thickness, units, 2)} {unitLabel(units)}
           </div>
           {errors.slice(0, 2).map((e) => (
             <p key={e.message} className="text-[11px] font-medium text-rose-400">

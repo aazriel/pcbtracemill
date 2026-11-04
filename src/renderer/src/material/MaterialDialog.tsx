@@ -218,6 +218,7 @@ export function MaterialDialog({
       title="Material"
       description="Describe the copper-clad sheet you will put on the machine, where the board sits on it, and where the machine's zero point is."
       className="w-[min(96vw,1180px)]"
+      bodyClassName="overflow-hidden"
       footer={
         <>
           <div className="mr-auto flex items-center gap-3">
@@ -270,7 +271,7 @@ export function MaterialDialog({
     >
       <div
         data-testid="material-dialog"
-        className="grid h-[min(72vh,760px)] grid-cols-[minmax(0,410px)_minmax(0,1fr)] gap-4"
+        className="grid h-[min(66vh,720px)] grid-cols-[minmax(0,410px)_minmax(0,1fr)] gap-4"
       >
         <div className="flex min-h-0 flex-col gap-3 overflow-y-auto pr-1">
           <FormSection

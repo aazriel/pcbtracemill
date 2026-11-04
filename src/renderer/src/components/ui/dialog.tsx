@@ -11,6 +11,7 @@ export function Dialog({
   children,
   footer,
   className,
+  bodyClassName,
   dismissable = true
 }: {
   open: boolean
@@ -20,6 +21,8 @@ export function Dialog({
   children: ReactNode
   footer?: ReactNode
   className?: string
+  /** Extra classes for the body, e.g. 'overflow-hidden' when the content scrolls by itself. */
+  bodyClassName?: string
   dismissable?: boolean
 }): React.JSX.Element {
   return (
@@ -53,7 +56,7 @@ export function Dialog({
               </DialogPrimitive.Close>
             )}
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">{children}</div>
+          <div className={cn('min-h-0 flex-1 overflow-y-auto px-5 py-4', bodyClassName)}>{children}</div>
           {footer && (
             <div className="flex items-center justify-end gap-2 border-t border-slate-800 px-5 py-3">
               {footer}

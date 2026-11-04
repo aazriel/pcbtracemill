@@ -3,6 +3,7 @@ import { FilePlus2, FolderOpen, HelpCircle, Redo2, Save, Undo2, Loader2 } from '
 import type { EdaTool } from '@core/model/types'
 import { TooltipProvider, Tooltip } from '@renderer/components/ui/tooltip'
 import { Button } from '@renderer/components/ui/button'
+import { Segmented } from '@renderer/components/ui/fields'
 import { Toasts } from '@renderer/components/Toasts'
 import { Stepper } from '@renderer/layout/Stepper'
 import { EdaDialog } from '@renderer/layers/EdaDialog'
@@ -40,6 +41,8 @@ export function App(): React.JSX.Element {
   const helpOpen = useUi((s) => s.helpOpen)
   const helpTopic = useUi((s) => s.helpTopic)
   const eda = useProject((s) => s.settings.edaTool)
+  const units = useProject((s) => s.settings.units ?? 'mm')
+  const setSettings = useProject((s) => s.setSettings)
   const boardHint = useBoardHint()
   const generating = useUi((s) => s.generating)
   const name = useProject((s) => s.name)
@@ -67,6 +70,8 @@ export function App(): React.JSX.Element {
       else if (cmd === 'shortcuts') useUi.getState().set({ helpOpen: true, helpTopic: 'shortcuts' })
       else if (cmd === 'about') useUi.getState().set({ helpOpen: true, helpTopic: 'about' })
       else if (cmd.startsWith('set-eda:')) void changeEda(cmd.slice('set-eda:'.length) as EdaTool)
+      else if (cmd === 'set-units:mm' || cmd === 'set-units:inch')
+        useProject.getState().setSettings({ units: cmd === 'set-units:inch' ? 'inch' : 'mm' })
     })
     const onKey = (e: KeyboardEvent): void => {
       const target = e.target as HTMLElement
@@ -99,8 +104,8 @@ export function App(): React.JSX.Element {
 
   // Keep the Settings menu showing the current design program.
   useEffect(() => {
-    window.tracemill?.setMenuState({ eda })
-  }, [eda])
+    window.tracemill?.setMenuState({ eda, units })
+  }, [eda, units])
 
   return (
     <TooltipProvider>
@@ -134,6 +139,22 @@ export function App(): React.JSX.Element {
                 <Loader2 className="size-3.5 animate-spin" /> Generating…
               </span>
             )}
+            <Tooltip
+              content="Units for every size, distance and feed in the app (also in Settings). Values are converted, nothing changes on the board."
+              side="bottom"
+            >
+              <div className="mr-1" data-testid="units-toggle">
+                <Segmented
+                  size="sm"
+                  value={units}
+                  onChange={(v) => setSettings({ units: v })}
+                  options={[
+                    { value: 'mm', label: 'mm' },
+                    { value: 'inch', label: 'in' }
+                  ]}
+                />
+              </div>
+            </Tooltip>
             <Tooltip content="Help: how TraceMill works, shortcuts and a glossary (F1)" side="bottom">
               <Button
                 size="icon"

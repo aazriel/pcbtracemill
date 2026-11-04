@@ -2,6 +2,7 @@ import * as SwitchPrimitive from '@radix-ui/react-switch'
 import { useEffect, useState, type ReactNode } from 'react'
 import { cn } from '@renderer/lib/utils'
 import { HelpTip } from './help'
+import { convertUnit, useUnits } from '@renderer/lib/units'
 
 export interface FieldShellProps {
   label: string
@@ -67,6 +68,13 @@ export function FieldHelp({
   )
 }
 
+/** Rounds a converted step to a tidy value (0.001, 0.005, 0.01 …). */
+function niceStep(raw: number): number {
+  const p = 10 ** Math.floor(Math.log10(raw))
+  const m = raw / p
+  return (m < 1.5 ? 1 : m < 3.5 ? 2 : m < 7.5 ? 5 : 10) * p
+}
+
 const inputCls =
   'h-8 w-full rounded-md border border-slate-700 bg-slate-950 px-2 text-sm text-slate-100 outline-none transition-colors focus:border-sky-500 disabled:opacity-50'
 
@@ -88,22 +96,32 @@ export function NumberField({
   step?: number
   disabled?: boolean
 }): React.JSX.Element {
+  // Lengths and feeds follow the project's display units (values are always stored in mm).
+  const units = useUnits()
+  const conv = convertUnit(unit, units)
+  const f = conv.factor
+  const shownValue = value * f
+  const shownMin = min === undefined ? undefined : min * f
+  const shownMax = max === undefined ? undefined : max * f
+  const shownStep = f === 1 ? step : niceStep(step * f)
+  const fmt = (v: number): string => String(Number(v.toFixed(f === 1 ? 6 : 5)))
   // Local text state lets users type "0." or "-" without being clobbered.
-  const [text, setText] = useState(String(value))
+  const [text, setText] = useState(fmt(shownValue))
   useEffect(() => {
-    setText((t) => (Number(t) === value ? t : String(Number(value.toFixed(6)))))
-  }, [value])
+    setText((t) => (Math.abs(Number(t) - shownValue) < 1e-9 ? t : fmt(shownValue)))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shownValue])
   const commit = (t: string): void => {
     const n = Number(t)
     if (t.trim() === '' || !Number.isFinite(n)) {
-      setText(String(value))
+      setText(fmt(shownValue))
       return
     }
     let v = n
-    if (min !== undefined) v = Math.max(min, v)
-    if (max !== undefined) v = Math.min(max, v)
-    if (v !== n) setText(String(v))
-    onChange(v)
+    if (shownMin !== undefined) v = Math.max(shownMin, v)
+    if (shownMax !== undefined) v = Math.min(shownMax, v)
+    if (v !== n) setText(fmt(v))
+    onChange(v / f)
   }
   return (
     <FieldShell {...shell}>
@@ -112,14 +130,14 @@ export function NumberField({
           type="number"
           className={cn(
             inputCls,
-            unit && 'pr-12',
+            conv.unit && 'pr-12',
             shell.error && 'border-rose-500',
             !shell.error && shell.warning && 'border-amber-500'
           )}
           value={text}
-          step={step}
-          min={min}
-          max={max}
+          step={shownStep}
+          min={shownMin}
+          max={shownMax}
           disabled={disabled}
           aria-label={shell.label}
           onChange={(e) => {
@@ -128,17 +146,17 @@ export function NumberField({
             if (
               e.target.value.trim() !== '' &&
               Number.isFinite(n) &&
-              (min === undefined || n >= min) &&
-              (max === undefined || n <= max)
+              (shownMin === undefined || n >= shownMin) &&
+              (shownMax === undefined || n <= shownMax)
             )
-              onChange(n)
+              onChange(n / f)
           }}
           onBlur={(e) => commit(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && commit((e.target as HTMLInputElement).value)}
         />
-        {unit && (
+        {conv.unit && (
           <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-500">
-            {unit}
+            {conv.unit}
           </span>
         )}
       </div>

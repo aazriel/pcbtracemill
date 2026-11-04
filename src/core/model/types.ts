@@ -535,7 +535,11 @@ export interface ProjectSettings {
   autoLevelApply?: boolean
   /** Which side was facing up while the board was probed (the map only fits that side). */
   autoLevelSide?: 'top' | 'bottom'
+  /** Units shown and typed in the app (everything is stored in mm). Missing = mm. */
+  units?: DisplayUnits
 }
+
+export type DisplayUnits = 'mm' | 'inch'
 
 export interface Project {
   /** File format version for .tmill. */

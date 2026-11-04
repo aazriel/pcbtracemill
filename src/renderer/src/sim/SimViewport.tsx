@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Crosshair, Maximize, Minus, Plus } from 'lucide-react'
 import type { Tool } from '@core/model/types'
+import { lengthValue, unitLabel, useUnits } from '@renderer/lib/units'
 import { Button } from '@renderer/components/ui/button'
 import { Tooltip } from '@renderer/components/ui/tooltip'
 import { cn } from '@renderer/lib/utils'
@@ -106,6 +107,7 @@ export function SimViewport(): React.JSX.Element {
   const status = useSim((s) => s.status)
   const data = useSim((s) => s.data)
   const view3d = useSim((s) => s.view3d)
+  const units = useUnits()
 
   const markDirty = useCallback(() => {
     dirty.current.gl = true
@@ -534,7 +536,8 @@ export function SimViewport(): React.JSX.Element {
       )}
       {cursor && origin && status === 'ready' && (
         <div className="pointer-events-none absolute bottom-3 left-3 rounded bg-slate-900/80 px-2 py-1 font-mono text-[11px] text-slate-300">
-          cursor X {(cursor.x - origin.x).toFixed(2)} Y {(cursor.y - origin.y).toFixed(2)} mm
+          cursor X {lengthValue(cursor.x - origin.x, units, 2)} Y {lengthValue(cursor.y - origin.y, units, 2)}{' '}
+          {unitLabel(units)}
         </div>
       )}
     </div>
