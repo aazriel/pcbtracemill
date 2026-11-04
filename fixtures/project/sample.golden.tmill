@@ -1,0 +1,215 @@
+{
+  "format": "tracemill-project",
+  "version": 1,
+  "name": "demo",
+  "layers": [
+    {
+      "id": "l1",
+      "fileName": "board-F_Cu.gbr",
+      "rawText": "G04 test*\nM02*\n",
+      "type": "copper",
+      "side": "top",
+      "autoDetected": true,
+      "confidence": 0.9,
+      "visible": true,
+      "color": "#c87533",
+      "order": 0,
+      "stats": {
+        "widthMm": 10,
+        "heightMm": 5,
+        "points": 4,
+        "pads": 0,
+        "tracks": 1
+      }
+    }
+  ],
+  "machine": {
+    "id": "test",
+    "name": "GRBL 3018",
+    "description": "",
+    "builtIn": false,
+    "postProcessor": "grbl",
+    "workArea": {
+      "x": 300,
+      "y": 200,
+      "z": 60
+    },
+    "maxFeedXY": 2000,
+    "maxFeedZ": 500,
+    "spindleMin": 1000,
+    "spindleMax": 10000,
+    "spindleSpinUpSec": 3,
+    "spindleSpeedControl": true,
+    "supportsToolChange": false,
+    "supportsArcs": true,
+    "supportsCannedCycles": true,
+    "supportsProbing": true,
+    "probeCommand": "G38.2",
+    "outputUnits": "mm",
+    "decimals": 3,
+    "safeZ": 5,
+    "travelZ": 2,
+    "toolChangeZ": 30,
+    "fileExtension": "nc",
+    "lineNumbers": true,
+    "customHeader": "",
+    "customFooter": "",
+    "commentStyle": "parens"
+  },
+  "material": {
+    "width": 15,
+    "height": 10,
+    "thickness": 1.6,
+    "copperThickness": 0.035,
+    "offsetX": 2.5,
+    "offsetY": 2.5,
+    "rotation": 0,
+    "origin": "bottom-left",
+    "doubleSided": false,
+    "alignment": {
+      "enabled": false,
+      "axis": "x",
+      "pinDiameter": 3,
+      "margin": 5
+    },
+    "useDefaults": true
+  },
+  "tools": [
+    {
+      "id": "t-vbit",
+      "name": "30deg V-bit 0.1",
+      "type": "vbit",
+      "number": 1,
+      "geometry": {
+        "diameter": 3.175,
+        "fluteLength": 6,
+        "flutes": 2,
+        "tipAngle": 30,
+        "tipDiameter": 0.1
+      },
+      "feeds": {
+        "spindleRpm": 12000,
+        "feedXY": 300,
+        "feedZ": 60,
+        "stepDown": 0.6,
+        "stepOver": 0.4
+      },
+      "notes": "",
+      "builtIn": false
+    },
+    {
+      "id": "t-drill",
+      "name": "0.8 mm drill",
+      "type": "drill",
+      "number": 2,
+      "geometry": {
+        "diameter": 0.8,
+        "fluteLength": 6,
+        "flutes": 2
+      },
+      "feeds": {
+        "spindleRpm": 10000,
+        "feedXY": 100,
+        "feedZ": 100,
+        "stepDown": 0.6,
+        "stepOver": 0.4
+      },
+      "notes": "",
+      "builtIn": false
+    },
+    {
+      "id": "t-mill",
+      "name": "1.0 mm end mill",
+      "type": "flat",
+      "number": 3,
+      "geometry": {
+        "diameter": 1,
+        "fluteLength": 6,
+        "flutes": 2
+      },
+      "feeds": {
+        "spindleRpm": 15000,
+        "feedXY": 200,
+        "feedZ": 50,
+        "stepDown": 0.6,
+        "stepOver": 0.4
+      },
+      "notes": "",
+      "builtIn": false
+    }
+  ],
+  "steps": [
+    {
+      "id": "s1",
+      "kind": "isolate",
+      "name": "Isolation",
+      "enabled": true,
+      "side": "top",
+      "layerIds": [
+        "l1"
+      ],
+      "toolId": "t-vbit",
+      "cutDepth": 0.05,
+      "safeZ": null,
+      "params": {
+        "isolation": {
+          "passes": 2,
+          "overlap": 0.4,
+          "direction": "climb",
+          "extraClearance": 0
+        },
+        "clear": {
+          "overlap": 0.4,
+          "direction": "climb",
+          "minIslandArea": 0,
+          "clearMargin": 0
+        },
+        "cutout": {
+          "tabs": 4,
+          "tabWidth": 2,
+          "tabHeight": 0.5,
+          "outside": true
+        },
+        "drill": {
+          "peck": 0,
+          "retract": 1,
+          "minDiameter": 0,
+          "maxDiameter": 10,
+          "includeSlots": false
+        },
+        "holeMill": {
+          "minDiameter": 1.2,
+          "maxDiameter": 10,
+          "helical": true
+        }
+      }
+    }
+  ],
+  "heightMap": {
+    "config": {
+      "minX": 0,
+      "minY": 0,
+      "maxX": 10,
+      "maxY": 10,
+      "countX": 2,
+      "countY": 2,
+      "probeFeed": 50,
+      "probeDepth": -2,
+      "clearanceZ": 2
+    },
+    "z": [
+      0,
+      0.1,
+      -0.1,
+      0.05
+    ],
+    "source": "probe"
+  },
+  "settings": {
+    "edaTool": "kicad",
+    "autoRegenerate": true,
+    "exportGrouping": "combined",
+    "realisticColors": true,
+    "highlightOnHover": true
+  }
+}

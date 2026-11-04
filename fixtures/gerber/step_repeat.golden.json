@@ -1,0 +1,32 @@
+{
+  "sourceUnits": "mm",
+  "objects": 10,
+  "kinds": {
+    "flash/dark": 10
+  },
+  "strokes": 0,
+  "polygons": 10,
+  "holes": 0,
+  "area": 15.102,
+  "objectAreas": [
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    0.776,
+    0.776,
+    0.776,
+    0.776
+  ],
+  "bbox": {
+    "minX": -0.5,
+    "minY": -1,
+    "maxX": 22.5,
+    "maxY": 10.499
+  },
+  "pointsApprox": 120,
+  "fileAttributes": {},
+  "warnings": []
+}

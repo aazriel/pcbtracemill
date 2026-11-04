@@ -1,0 +1,142 @@
+{
+  "skipped": [
+    {
+      "name": "bom.csv",
+      "reason": "KiCad report / placement / netlist"
+    },
+    {
+      "name": "board-job.gbrjob",
+      "reason": "KiCad job file"
+    }
+  ],
+  "layers": [
+    {
+      "id": "L0",
+      "fileName": "board-B_Cu.gbr",
+      "type": "copper",
+      "side": "bottom",
+      "plating": null,
+      "confidence": 0.95,
+      "color": "#408add",
+      "stats": {
+        "widthMm": 10,
+        "heightMm": 10,
+        "points": 4,
+        "pads": 2,
+        "tracks": 2
+      }
+    },
+    {
+      "id": "L1",
+      "fileName": "board-Edge_Cuts.gbr",
+      "type": "outline",
+      "side": "all",
+      "plating": null,
+      "confidence": 0.95,
+      "color": "#faf13d",
+      "stats": {
+        "widthMm": 10,
+        "heightMm": 10,
+        "points": 4,
+        "pads": 2,
+        "tracks": 2
+      }
+    },
+    {
+      "id": "L2",
+      "fileName": "board-F_Cu.gbr",
+      "type": "copper",
+      "side": "top",
+      "plating": null,
+      "confidence": 0.95,
+      "color": "#dd352c",
+      "stats": {
+        "widthMm": 10,
+        "heightMm": 10,
+        "points": 4,
+        "pads": 2,
+        "tracks": 2
+      }
+    },
+    {
+      "id": "L3",
+      "fileName": "board-NPTH.drl",
+      "type": "drill",
+      "side": "all",
+      "plating": "npth",
+      "confidence": 0.99,
+      "color": "#a0a3ab",
+      "stats": {
+        "widthMm": 63.2,
+        "heightMm": 53.2,
+        "points": 160,
+        "pads": 4,
+        "tracks": 0
+      }
+    },
+    {
+      "id": "L4",
+      "fileName": "board-PTH.drl",
+      "type": "drill",
+      "side": "all",
+      "plating": "pth",
+      "confidence": 0.99,
+      "color": "#909a9d",
+      "stats": {
+        "widthMm": 32.8,
+        "heightMm": 20.8,
+        "points": 156,
+        "pads": 7,
+        "tracks": 1
+      }
+    },
+    {
+      "id": "L5",
+      "fileName": "board-F_Mask.gbr",
+      "type": "soldermask",
+      "side": "top",
+      "plating": null,
+      "confidence": 0.95,
+      "color": "#5cbca0",
+      "stats": {
+        "widthMm": 10,
+        "heightMm": 10,
+        "points": 4,
+        "pads": 2,
+        "tracks": 2
+      }
+    }
+  ],
+  "status": [
+    {
+      "key": "copper",
+      "requirement": "required",
+      "present": true
+    },
+    {
+      "key": "outline",
+      "requirement": "recommended",
+      "present": true
+    },
+    {
+      "key": "drill",
+      "requirement": "recommended",
+      "present": true
+    },
+    {
+      "key": "silkscreen",
+      "requirement": "optional",
+      "present": false
+    },
+    {
+      "key": "soldermask",
+      "requirement": "optional",
+      "present": true
+    },
+    {
+      "key": "fab",
+      "requirement": "optional",
+      "present": false
+    }
+  ]
+}

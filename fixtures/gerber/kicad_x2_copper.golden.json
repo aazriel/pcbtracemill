@@ -1,0 +1,44 @@
+{
+  "sourceUnits": "mm",
+  "objects": 12,
+  "kinds": {
+    "flash/dark": 5,
+    "draw/dark": 4,
+    "arc/dark": 1,
+    "region/dark": 2
+  },
+  "strokes": 5,
+  "polygons": 4,
+  "holes": 0,
+  "area": 153.672,
+  "objectAreas": [
+    1.5,
+    1.5,
+    1.621,
+    1.995,
+    0.494,
+    1.297,
+    2.547,
+    2.01,
+    1.297,
+    1.297,
+    100,
+    39.22
+  ],
+  "bbox": {
+    "minX": 9.25,
+    "minY": 0,
+    "maxX": 55,
+    "maxY": 20.125
+  },
+  "pointsApprox": 190,
+  "fileAttributes": {
+    ".GenerationSoftware": "KiCad,Pcbnew,8.0.4",
+    ".CreationDate": "2026-01-01T12:00:00+00:00",
+    ".ProjectId": "demo,64656d6f,rev?",
+    ".SameCoordinates": "Original",
+    ".FileFunction": "Copper,L1,Top",
+    ".FilePolarity": "Positive"
+  },
+  "warnings": []
+}

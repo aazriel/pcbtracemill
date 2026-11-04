@@ -1,0 +1,44 @@
+{
+  "format": "excellon",
+  "sourceUnits": "mm",
+  "plating": "pth",
+  "holeCount": 1,
+  "slotCount": 2,
+  "tools": {
+    "T2": 0.8,
+    "T1": 1
+  },
+  "holes": [
+    [
+      30,
+      30,
+      0.8,
+      "P",
+      2
+    ]
+  ],
+  "slots": [
+    [
+      10,
+      10,
+      15,
+      10,
+      1
+    ],
+    [
+      20,
+      20,
+      20,
+      25,
+      1
+    ]
+  ],
+  "bbox": [
+    9.5,
+    9.5,
+    30.4,
+    30.4
+  ],
+  "polygons": 3,
+  "warnings": []
+}

@@ -1,0 +1,31 @@
+{
+  "sourceUnits": "mm",
+  "objects": 5,
+  "kinds": {
+    "draw/dark": 4,
+    "arc/dark": 1
+  },
+  "strokes": 5,
+  "polygons": 1,
+  "holes": 1,
+  "area": 7.893,
+  "objectAreas": [
+    2.502,
+    1.252,
+    0.395,
+    2.252,
+    1.502
+  ],
+  "bbox": {
+    "minX": -0.025,
+    "minY": -0.025,
+    "maxX": 50.025,
+    "maxY": 30.025
+  },
+  "pointsApprox": 70,
+  "fileAttributes": {
+    ".GenerationSoftware": "KiCad,Pcbnew,8.0.4",
+    ".FileFunction": "Profile,NP"
+  },
+  "warnings": []
+}
