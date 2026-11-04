@@ -24,6 +24,7 @@ import { NumberField, Segmented, Switch, TextField, FieldShell } from '@renderer
 import { HelpTip } from '@renderer/components/ui/help'
 import { cn, formatDuration } from '@renderer/lib/utils'
 import { DepthCrossSection, Figure, SideIllustration } from './illustrations'
+import { HeightsIllustration } from '@renderer/machine/HeightsIllustration'
 import { help, layerLabel, withSide } from './stepUtils'
 
 export interface SectionProps {
@@ -315,7 +316,20 @@ export function GeneralSection({ draft, update, issues }: SectionProps): React.J
             checked={draft.safeZ === null}
             onChange={(v) => update((d) => ({ ...d, safeZ: v ? null : machineSafe }))}
             description="Safe height is how high the bit lifts above the board to travel between cuts."
-            help={`${help('step.safeZ')} ${help('concept.safeZ')}`}
+            helpWide
+            help={
+              <>
+                {help('step.safeZ')} {help('concept.safeZ')}
+                <div className="mt-2 overflow-hidden rounded-md border border-slate-800">
+                  <HeightsIllustration
+                    safeZ={draft.safeZ ?? machineSafe}
+                    travelZ={machine?.travelZ ?? 2}
+                    toolChangeZ={machine?.toolChangeZ ?? 30}
+                    highlight="safe"
+                  />
+                </div>
+              </>
+            }
           />
           {draft.safeZ !== null && (
             <NumberField
@@ -326,7 +340,20 @@ export function GeneralSection({ draft, update, issues }: SectionProps): React.J
               value={draft.safeZ}
               onChange={(v) => update((d) => ({ ...d, safeZ: v }))}
               description="Height above the copper surface for travel moves. Must clear clamps and screws."
-              help={help('concept.safeZ')}
+              helpWide
+              help={
+                <>
+                  {help('concept.safeZ')}
+                  <div className="mt-2 overflow-hidden rounded-md border border-slate-800">
+                    <HeightsIllustration
+                      safeZ={draft.safeZ ?? machineSafe}
+                      travelZ={machine?.travelZ ?? 2}
+                      toolChangeZ={machine?.toolChangeZ ?? 30}
+                      highlight="safe"
+                    />
+                  </div>
+                </>
+              }
               error={safeErr}
             />
           )}

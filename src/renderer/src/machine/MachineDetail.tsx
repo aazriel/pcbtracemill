@@ -243,7 +243,17 @@ function EditRow({
   const h = MACHINE_FIELD_HELP[spec.key]
   const error = errors.get(spec.key)?.join(' ') ?? null
   const figure = machineFigure(spec.key, m)
-  const figureProps = figure ? { help: <div className="mt-1">{figure}</div>, helpWide: true } : {}
+  const figureProps = figure
+    ? {
+        help: (
+          <>
+            {h.description}
+            <div className="mt-2">{figure}</div>
+          </>
+        ),
+        helpWide: true
+      }
+    : {}
   switch (spec.kind) {
     case 'number':
       return (
