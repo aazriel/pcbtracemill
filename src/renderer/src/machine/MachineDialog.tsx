@@ -66,6 +66,7 @@ export function MachineDialog({
       title="Choose your machine"
       description="Pick the CNC machine you will mill on. Its settings decide what kind of G-code file is written and which safety limits are checked."
       className="w-[min(96vw,1060px)]"
+      bodyClassName="overflow-hidden"
       footer={
         <>
           <div className="mr-auto text-xs text-slate-400">
@@ -100,7 +101,7 @@ export function MachineDialog({
     >
       <div
         data-testid="machine-dialog"
-        className="grid h-[min(72vh,740px)] grid-cols-[minmax(0,1fr)_minmax(0,480px)] gap-4"
+        className="grid h-[min(66vh,700px)] grid-cols-[minmax(0,1fr)_minmax(0,480px)] gap-4"
       >
         <div className="min-h-0 overflow-y-auto pr-1">
           <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">

@@ -254,13 +254,6 @@ export function GeneralSection({ draft, update, issues }: SectionProps): React.J
             />
           </div>
         </FieldShell>
-        <Switch
-          label="Include this step in the G-code"
-          checked={draft.enabled}
-          onChange={(v) => update((d) => ({ ...d, enabled: v }))}
-          description="Turn off to keep the step in the list without milling it."
-          help={help('step.enabled')}
-        />
       </div>
       <div className="flex flex-col gap-4">
         <NumberField

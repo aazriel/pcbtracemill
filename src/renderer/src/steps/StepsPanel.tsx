@@ -7,8 +7,6 @@ import {
   ArrowDown,
   ArrowUp,
   Copy,
-  Eye,
-  EyeOff,
   GripVertical,
   MapPin,
   Pencil,
@@ -263,6 +261,24 @@ function StepCard({
       />
       <div className="flex items-center gap-1.5">
         <GripVertical className="size-3.5 shrink-0 cursor-grab text-slate-600" />
+        <Tooltip
+          content={
+            step.enabled
+              ? 'Included in the G-code. Untick to keep the step but skip it (no toolpath, no G-code).'
+              : 'Skipped: not in the G-code. Tick to include it again.'
+          }
+        >
+          <input
+            type="checkbox"
+            checked={step.enabled}
+            onChange={(e) => upsertStep({ ...step, enabled: e.target.checked })}
+            onClick={(e) => e.stopPropagation()}
+            onDoubleClick={(e) => e.stopPropagation()}
+            className="size-3.5 shrink-0 cursor-pointer accent-sky-500"
+            aria-label="Include this step in the G-code"
+            data-testid="step-toggle"
+          />
+        </Tooltip>
         <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-slate-800 text-[10px] font-bold text-slate-200">
           {index + 1}
         </span>
@@ -314,7 +330,7 @@ function StepCard({
           </Tooltip>
         )}
       </div>
-      <div className="mt-1 flex flex-wrap items-center gap-1 pl-[3.25rem] text-[10.5px] text-slate-400">
+      <div className="mt-1 flex flex-wrap items-center gap-1 pl-[4.25rem] text-[10.5px] text-slate-400">
         <span
           className={cn(
             'rounded px-1 py-px text-[9.5px] font-bold tracking-wide',
@@ -323,9 +339,7 @@ function StepCard({
         >
           {step.side === 'top' ? 'TOP' : 'BOTTOM'}
         </span>
-        {!step.enabled && (
-          <span className="text-[10px] font-semibold text-slate-400">disabled — skipped</span>
-        )}
+        {!step.enabled && <span className="text-[10px] font-semibold text-slate-400">not in the G-code</span>}
         {needsLayer ? (
           stepLayers.length ? (
             stepLayers.map((l) => (
@@ -341,7 +355,7 @@ function StepCard({
           <span>uses material pins</span>
         )}
       </div>
-      <div className="mt-0.5 flex items-center gap-1 pl-[3.25rem]">
+      <div className="mt-0.5 flex items-center gap-1 pl-[4.25rem]">
         <span
           className={cn('min-w-0 flex-1 truncate text-[10.5px]', tool ? 'text-slate-400' : 'text-rose-400')}
         >
@@ -373,15 +387,6 @@ function StepCard({
           </IconBtn>
           <IconBtn label="Duplicate step" onClick={onDuplicate} testId="step-duplicate">
             <Copy />
-          </IconBtn>
-          <IconBtn
-            label={
-              step.enabled ? 'Disable: keep the step but skip it (no toolpath, no G-code)' : 'Enable step'
-            }
-            onClick={() => upsertStep({ ...step, enabled: !step.enabled })}
-            testId="step-toggle"
-          >
-            {step.enabled ? <Eye /> : <EyeOff />}
           </IconBtn>
           {confirmDel ? (
             <Button

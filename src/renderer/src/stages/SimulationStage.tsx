@@ -20,6 +20,7 @@ import {
 import type { PolygonSet } from '@core/model/types'
 import { chooseResolution } from '@core/sim'
 import { workOriginInStock } from '@core/toolpath'
+import { lengthValue, useUnits } from '@renderer/lib/units'
 import { useProject } from '@renderer/store/project'
 import { useUi } from '@renderer/store/ui'
 import { useBoardBBox, useLayersWithParsed } from '@renderer/store/controller'
@@ -536,6 +537,7 @@ function Position(): React.JSX.Element {
       activityCls = 'text-rose-300'
     }
   }
+  const units = useUnits()
   const axes: { k: string; v: number; cls: string }[] = [
     { k: 'X', v: data && ts ? ts.x - data.origin.x : 0, cls: 'text-rose-300' },
     { k: 'Y', v: data && ts ? ts.y - data.origin.y : 0, cls: 'text-emerald-300' },
@@ -554,7 +556,7 @@ function Position(): React.JSX.Element {
           {axes.map((a) => (
             <div key={a.k} className="flex flex-col">
               <span className={cn('text-[10px] font-semibold', a.cls)}>{a.k}</span>
-              <span className="text-[15px] leading-5 text-slate-100">{a.v.toFixed(3)}</span>
+              <span className="text-[15px] leading-5 text-slate-100">{lengthValue(a.v, units)}</span>
             </div>
           ))}
         </div>

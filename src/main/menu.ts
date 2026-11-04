@@ -14,7 +14,7 @@ const EDA_MENU: { id: string; label: string }[] = [
   { id: 'other', label: 'Other / not sure' }
 ]
 
-let state: MenuState = { eda: null }
+let state: MenuState = { eda: null, units: 'mm' }
 
 export function buildMenu(): void {
   const isMac = process.platform === 'darwin'
@@ -73,7 +73,21 @@ export function buildMenu(): void {
           type: 'radio',
           checked: e.id === state.eda,
           click: () => send(`set-eda:${e.id}`)
-        }))
+        })),
+        { type: 'separator' },
+        { label: 'Units', enabled: false },
+        {
+          label: 'Millimetres (mm)',
+          type: 'radio',
+          checked: state.units !== 'inch',
+          click: () => send('set-units:mm')
+        },
+        {
+          label: 'Inches (in)',
+          type: 'radio',
+          checked: state.units === 'inch',
+          click: () => send('set-units:inch')
+        }
       ]
     },
     { role: 'windowMenu' },
@@ -92,7 +106,7 @@ export function buildMenu(): void {
 
 /** The renderer reports what the menu should show; the menu is rebuilt when it changes. */
 ipcMain.on('menu:state', (_e, next: MenuState) => {
-  if (next?.eda === state.eda) return
-  state = { eda: next?.eda ?? null }
+  if (next?.eda === state.eda && next?.units === state.units) return
+  state = { eda: next?.eda ?? null, units: next?.units === 'inch' ? 'inch' : 'mm' }
   buildMenu()
 })

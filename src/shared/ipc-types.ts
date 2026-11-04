@@ -35,10 +35,14 @@ export interface TraceMillApi {
 export interface MenuState {
   /** Current design program id, or null while none was chosen. */
   eda: string | null
+  /** Display units of the project. */
+  units: 'mm' | 'inch'
 }
 
 export type MenuCommand =
   | `set-eda:${string}`
+  | 'set-units:mm'
+  | 'set-units:inch'
   | 'help'
   | 'shortcuts'
   | 'about'

@@ -3,6 +3,7 @@ import { ArrowRight, ChevronDown, ChevronRight, Loader2, MousePointerClick, File
 import type { BBox } from '@core/model/types'
 import { bboxIsEmpty, bboxUnion } from '@core/geometry'
 import { boardToStockTransform, stockRectInWork } from '@core/toolpath'
+import { lengthValue, unitLabel, useUnits } from '@renderer/lib/units'
 import { useProject } from '@renderer/store/project'
 import { useUi } from '@renderer/store/ui'
 import {
@@ -47,6 +48,7 @@ export function BoardStage(): React.JSX.Element {
   const status = useLayerStatus()
   const stageStatus = useStageStatus()
   const hint = useBoardHint()
+  const units = useUnits()
   const bbox = useBoardBBox()
 
   const statusEntries: LayerStatusEntry[] = useMemo(
@@ -224,9 +226,11 @@ export function BoardStage(): React.JSX.Element {
         </ImportDropZone>
         {!empty && stockSize && (
           <div className="pointer-events-none absolute bottom-2 right-3 rounded bg-slate-950/80 px-2 py-1 font-mono text-[11px] text-slate-400">
-            Board {(bbox.maxX - bbox.minX).toFixed(1)}×{(bbox.maxY - bbox.minY).toFixed(1)} mm · material{' '}
+            Board {lengthValue(bbox.maxX - bbox.minX, units, 1)}×
+            {lengthValue(bbox.maxY - bbox.minY, units, 1)} {unitLabel(units)} · material{' '}
             <span className="text-amber-400/90">
-              {material!.width.toFixed(1)}×{material!.height.toFixed(1)} mm
+              {lengthValue(material!.width, units, 1)}×{lengthValue(material!.height, units, 1)}{' '}
+              {unitLabel(units)}
             </span>
           </div>
         )}
