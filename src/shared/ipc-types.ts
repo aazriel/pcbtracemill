@@ -12,6 +12,21 @@ export interface SaveFileRequest {
   filters: { name: string; extensions: string[] }[]
 }
 
+/** One folder as the in-app folder browser shows it. */
+export interface FolderListing {
+  path: string
+  /** Null at the root of a drive. */
+  parent: string | null
+  folders: string[]
+  files: string[]
+}
+
+export interface FolderPlace {
+  label: string
+  path: string
+  kind: 'place' | 'drive'
+}
+
 export interface TraceMillApi {
   openFiles(opts: {
     directory?: boolean
@@ -20,6 +35,12 @@ export interface TraceMillApi {
     extensions?: string[]
   }): Promise<OpenedFile[]>
   readPaths(paths: string[]): Promise<OpenedFile[]>
+  /** Lists a folder (null = the last folder imported from, else Documents). */
+  listFolder(path: string | null): Promise<FolderListing>
+  /** Shortcuts (Desktop, Documents...) and drives for the folder browser. */
+  folderPlaces(): Promise<FolderPlace[]>
+  /** Reads a folder recursively, only files with these extensions; remembers it for next time. */
+  readFolder(path: string, extensions?: string[]): Promise<OpenedFile[]>
   saveFile(req: SaveFileRequest): Promise<string | null>
   /** Save several files into a user-chosen directory. Returns directory or null. */
   saveFilesToDir(files: { name: string; content: string }[]): Promise<string | null>

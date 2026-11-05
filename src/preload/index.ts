@@ -4,6 +4,9 @@ import type { MenuCommand, TraceMillApi } from '../shared/ipc-types'
 const api: TraceMillApi & { pathForFile(f: File): string } = {
   openFiles: (opts) => ipcRenderer.invoke('files:open', opts),
   readPaths: (paths) => ipcRenderer.invoke('files:read', paths),
+  listFolder: (path) => ipcRenderer.invoke('folder:list', path),
+  folderPlaces: () => ipcRenderer.invoke('folder:places'),
+  readFolder: (path, extensions) => ipcRenderer.invoke('folder:read', path, extensions),
   saveFile: (req) => ipcRenderer.invoke('files:save', req),
   saveFilesToDir: (files) => ipcRenderer.invoke('files:saveToDir', files),
   openProject: () => ipcRenderer.invoke('project:open'),

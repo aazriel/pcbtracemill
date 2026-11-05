@@ -535,11 +535,15 @@ void main() {
 
   if (uShowDesign > 0.5 && inside) {
     float dm = texture(uDesign, w / uTexMm).r;
+    // a clean, thin outline of the designed copper (no tint inside, so the copper keeps its colour),
+    // with a dark rim for contrast; it fades out when it would be thinner than a pixel
     float dfw = max(fwidth(dm), 1e-4);
-    float edge = 1.0 - smoothstep(dfw * 0.6, dfw * 2.2, abs(dm - 0.5));
-    float fill = smoothstep(0.5 - dfw, 0.5 + dfw, dm);
-    col = mix(col, lin(vec3(0.25, 0.85, 1.0)), fill * 0.22);
-    col = mix(col, lin(vec3(0.55, 0.95, 1.0)), edge * 0.85);
+    float d = abs(dm - 0.5);
+    float edge = 1.0 - smoothstep(dfw * 0.6, dfw * 1.4, d);
+    float rim = (1.0 - smoothstep(dfw * 1.4, dfw * 2.6, d)) - edge;
+    float fade = 1.0 - smoothstep(0.18, 0.4, dfw);
+    col = mix(col, col * 0.35, max(rim, 0.0) * 0.6 * fade);
+    col = mix(col, lin(vec3(0.40, 0.92, 1.0)), edge * 0.95 * fade);
   }
 
   // Cutting glow on the material around the tool tip.
@@ -736,11 +740,14 @@ export class SimGL {
     gl.bindTexture(gl.TEXTURE_2D, face.mat)
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RG8, f.nx, f.ny, 0, gl.RG, gl.UNSIGNED_BYTE, matToRG(f.mat, f.top, f))
     const n = f.nx * f.ny
-    const d = new Uint8Array(n)
-    if (f.design && f.design.length === n) for (let i = 0; i < n; i++) d[i] = f.design[i] ? 255 : 0
+    // the design mask is blurred a little so its 0.5 outline is a smooth curve, not cell steps
+    const d = f.design && f.design.length === n ? smoothMask(f.design, f.nx, f.ny) : new Uint8Array(n)
     face.hasDesign = !!f.design
     gl.bindTexture(gl.TEXTURE_2D, face.design)
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, f.nx, f.ny, 0, gl.RED, gl.UNSIGNED_BYTE, d)
+    // mipmaps: seen from far away the outline fades smoothly instead of sparkling
+    gl.generateMipmap(gl.TEXTURE_2D)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR)
   }
 
   /** Uploads a rectangular region of heights (row-major (x1-x0)×(y1-y0), cells x0..x1-1, y0..y1-1). */
@@ -868,4 +875,27 @@ export class SimGL {
     gl.deleteVertexArray(this.vao)
     gl.deleteProgram(this.prog)
   }
+}
+
+/** Blurs a 0/1 cell mask (three separable box passes ≈ Gaussian) into 0..255, for smooth outlines. */
+function smoothMask(mask: Uint8Array, nx: number, ny: number): Uint8Array {
+  const a = new Float32Array(nx * ny)
+  for (let i = 0; i < a.length; i++) a[i] = mask[i] ? 1 : 0
+  const b = new Float32Array(nx * ny)
+  for (let pass = 0; pass < 3; pass++) {
+    for (let y = 0; y < ny; y++) {
+      const r = y * nx
+      for (let x = 0; x < nx; x++)
+        b[r + x] = (a[r + Math.max(0, x - 1)] + a[r + x] + a[r + Math.min(nx - 1, x + 1)]) / 3
+    }
+    for (let y = 0; y < ny; y++) {
+      const up = Math.max(0, y - 1) * nx
+      const dn = Math.min(ny - 1, y + 1) * nx
+      const r = y * nx
+      for (let x = 0; x < nx; x++) a[r + x] = (b[up + x] + b[r + x] + b[dn + x]) / 3
+    }
+  }
+  const out = new Uint8Array(nx * ny)
+  for (let i = 0; i < out.length; i++) out[i] = Math.round(a[i] * 255)
+  return out
 }

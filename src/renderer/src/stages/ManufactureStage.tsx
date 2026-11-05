@@ -133,7 +133,7 @@ export function ManufactureStage(): React.JSX.Element {
 
   return (
     <div className="flex h-full">
-      <aside className="flex w-[340px] shrink-0 flex-col border-r border-slate-800 bg-slate-900/40">
+      <aside className="flex w-[400px] shrink-0 flex-col border-r border-slate-800 bg-slate-900/40">
         <div className="min-h-0 flex-1 overflow-y-auto" data-testid="manufacture-left">
           <MachineSection />
           <MaterialSection />

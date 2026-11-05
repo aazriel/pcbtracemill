@@ -1,8 +1,8 @@
-import { dialog, ipcMain, BrowserWindow } from 'electron'
+import { app, dialog, ipcMain, BrowserWindow } from 'electron'
 import { promises as fs } from 'node:fs'
-import { basename, join, extname } from 'node:path'
+import { basename, join, extname, dirname, parse as parsePath } from 'node:path'
 import Store from 'electron-store'
-import type { OpenedFile, SaveFileRequest } from '../shared/ipc-types'
+import type { FolderListing, FolderPlace, OpenedFile, SaveFileRequest } from '../shared/ipc-types'
 
 const store = new Store({ name: 'tracemill-settings' })
 const BINARY_EXT = new Set(['.zip'])
@@ -29,7 +29,65 @@ async function readOne(path: string, only?: Set<string>): Promise<OpenedFile[]> 
   ]
 }
 
+/** Lists one folder for the in-app folder browser (files are shown but cannot be chosen). */
+async function listFolder(path: string): Promise<FolderListing> {
+  const entries = await fs.readdir(path, { withFileTypes: true })
+  const folders: string[] = []
+  const files: string[] = []
+  for (const e of entries) {
+    if (e.name.startsWith('.') || e.name.startsWith('$') || e.name.startsWith('~$')) continue
+    if (e.isDirectory()) folders.push(e.name)
+    else if (e.isFile()) files.push(e.name)
+  }
+  const cmp = (a: string, b: string): number =>
+    a.localeCompare(b, undefined, { sensitivity: 'base', numeric: true })
+  const root = parsePath(path).root
+  return {
+    path,
+    parent: path === root ? null : dirname(path),
+    folders: folders.sort(cmp),
+    files: files.sort(cmp)
+  }
+}
+
+async function folderPlaces(): Promise<FolderPlace[]> {
+  const out: FolderPlace[] = []
+  const names = { desktop: 'Desktop', documents: 'Documents', downloads: 'Downloads', home: 'Home' } as const
+  for (const [n, label] of Object.entries(names)) {
+    try {
+      out.push({ label, path: app.getPath(n as keyof typeof names), kind: 'place' })
+    } catch {
+      /* not available on this system */
+    }
+  }
+  if (process.platform === 'win32') {
+    for (const c of 'CDEFGHIJKLMNOPQRSTUVWXYZ') {
+      const p = `${c}:\\`
+      try {
+        await fs.access(p)
+        out.push({ label: `${c}:`, path: p, kind: 'drive' })
+      } catch {
+        /* no such drive */
+      }
+    }
+  } else out.push({ label: '/', path: '/', kind: 'drive' })
+  return out
+}
+
 export function registerIpc(): void {
+  ipcMain.handle('folder:list', async (_e, path: string | null) => {
+    const start = path || (store.get('lastImportFolder', '') as string) || app.getPath('documents')
+    try {
+      return await listFolder(start)
+    } catch {
+      return await listFolder(app.getPath('documents'))
+    }
+  })
+  ipcMain.handle('folder:places', () => folderPlaces())
+  ipcMain.handle('folder:read', async (_e, path: string, extensions?: string[]) => {
+    store.set('lastImportFolder', path)
+    return readOne(path, extensions?.length ? new Set(extensions) : undefined)
+  })
   ipcMain.handle(
     'files:open',
     async (

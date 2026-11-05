@@ -2,6 +2,7 @@
  * Controller: orchestrates the stores and the workers. UI components call these functions
  * instead of talking to workers directly.
  */
+import { pickFolder } from '@renderer/layers/FolderBrowserDialog'
 import { useMemo } from 'react'
 import type {
   BBox,
@@ -290,7 +291,16 @@ async function browse(kind: BrowseKind, eda: EdaTool): Promise<void> {
     return !!m && (exts.includes(m[1].toLowerCase()) || m[1].toLowerCase() === 'zip')
   }
   let files: DroppedFile[] = []
-  if (window.tracemill) {
+  if (window.tracemill && kind === 'folder') {
+    // TraceMill's own folder browser: unlike the Windows one it shows the files inside
+    const path = await pickFolder(exts, info.short)
+    if (!path) return
+    const opened = await window.tracemill.readFolder(path, [...exts, 'zip'])
+    files = opened.map((f) => ({
+      name: f.name,
+      data: f.encoding === 'base64' ? Uint8Array.from(atob(f.data), (c) => c.charCodeAt(0)) : f.data
+    }))
+  } else if (window.tracemill) {
     const opened = await window.tracemill.openFiles({
       directory: kind === 'folder',
       filters:
