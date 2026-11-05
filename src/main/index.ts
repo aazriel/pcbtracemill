@@ -3,6 +3,9 @@ import { join } from 'node:path'
 import { registerIpc } from './ipc'
 import { buildMenu } from './menu'
 
+// Automated tests and screenshots run with their own profile so they never touch the user's settings
+if (process.env.TRACEMILL_USER_DATA) app.setPath('userData', process.env.TRACEMILL_USER_DATA)
+
 function createWindow(): void {
   const win = new BrowserWindow({
     width: 1440,

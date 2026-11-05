@@ -11,6 +11,7 @@ import type {
   ImportedLayer,
   Material,
   ParsedLayer,
+  Project,
   StepKind,
   StepValidation
 } from '@core/model/types'
@@ -606,21 +607,28 @@ export async function openProject(): Promise<void> {
   }
   if (!content) return
   try {
-    const project = deserializeProject(content)
-    const parsed: Record<string, ParsedLayer> = {}
-    for (const l of project.layers) {
-      const fresh = await camWorker().parseOne(l.fileName, l.rawText, project.settings.edaTool, l.id, l.order)
-      if (fresh.parsed) parsed[l.id] = fresh.parsed
-    }
-    useProject.getState().loadProject(project, parsed, path)
-    useProject.temporal.getState().clear()
+    const project = await loadProjectText(content, path)
     useProject.getState().markClean()
-    useUi.getState().set({ stage: 'board', cam: null, camStale: true })
+    useUi.getState().set({ stage: 'board' })
     useUi.getState().toast('success', `Opened "${project.name}".`)
-    void regenerate()
   } catch (e) {
     useUi.getState().toast('error', e instanceof Error ? e.message : String(e))
   }
+}
+
+/** Loads .tmill text into the stores (re-parsing every layer) and starts a regeneration. Throws on bad input. */
+export async function loadProjectText(content: string, path: string | null): Promise<Project> {
+  const project = deserializeProject(content)
+  const parsed: Record<string, ParsedLayer> = {}
+  for (const l of project.layers) {
+    const fresh = await camWorker().parseOne(l.fileName, l.rawText, project.settings.edaTool, l.id, l.order)
+    if (fresh.parsed) parsed[l.id] = fresh.parsed
+  }
+  useProject.getState().loadProject(project, parsed, path)
+  useProject.temporal.getState().clear()
+  useUi.getState().set({ cam: null, camStale: true })
+  void regenerate()
+  return project
 }
 
 export function downloadText(name: string, text: string): void {
