@@ -157,31 +157,40 @@ export function ToolSection({ draft, update }: SectionProps): React.JSX.Element 
   }
   const fit = tool ? isToolAllowed(draft.kind, tool) : null
   return (
-    <div className="flex flex-col gap-3" data-testid="tool-section">
-      {tool ? (
-        <div className="flex flex-col gap-1.5">
-          <ToolCard tool={tool} chosen={fit?.ok} incompatible={fit ? !fit.ok : false} tabIndex={-1} />
-          {fit && !fit.ok && <p className="text-[11px] text-rose-300">✕ {fit.message}</p>}
+    <div className="flex flex-col gap-1.5" data-testid="tool-section">
+      <div className="flex items-stretch gap-2">
+        <div className="min-w-0 flex-1">
+          {tool ? (
+            <ToolCard tool={tool} chosen={fit?.ok} incompatible={fit ? !fit.ok : false} tabIndex={-1} />
+          ) : (
+            <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-slate-700 p-3 text-center text-xs text-slate-400">
+              No tool chosen yet.
+            </div>
+          )}
         </div>
-      ) : (
-        <div className="rounded-lg border border-dashed border-slate-700 p-3 text-center text-xs text-slate-400">
-          No tool chosen yet.
+        <div className="flex w-48 shrink-0 flex-col justify-center gap-1.5">
+          <Button onClick={() => setPickOpen(true)} data-testid="tool-choose" className="justify-start">
+            <Wrench /> {tool ? 'Choose another tool…' : 'Choose a tool…'}
+          </Button>
+          <div className="flex items-center gap-1.5">
+            <Button
+              variant="secondary"
+              onClick={() => setLibOpen(true)}
+              data-testid="tool-open-library"
+              className="flex-1 justify-start"
+            >
+              <Library /> Tool library…
+            </Button>
+            <HelpTip title="Tool">
+              {help('step.tool')} Speeds and feeds belong to the tool; change them in the tool library.
+              {machine &&
+                !machine.supportsToolChange &&
+                ' Your machine pauses so you can change the bit by hand.'}
+            </HelpTip>
+          </div>
         </div>
-      )}
-      <div className="flex flex-wrap gap-2">
-        <Button onClick={() => setPickOpen(true)} data-testid="tool-choose">
-          <Wrench /> {tool ? 'Choose another tool…' : 'Choose a tool…'}
-        </Button>
-        <Button variant="secondary" onClick={() => setLibOpen(true)} data-testid="tool-open-library">
-          <Library /> Tool library…
-        </Button>
-        <HelpTip title="Tool">
-          {help('step.tool')} Speeds and feeds belong to the tool; change them in the tool library.
-          {machine &&
-            !machine.supportsToolChange &&
-            ' Your machine pauses so you can change the bit by hand.'}
-        </HelpTip>
       </div>
+      {tool && fit && !fit.ok && <p className="text-[11px] text-rose-300">✕ {fit.message}</p>}
       <ToolPickerDialog
         open={pickOpen}
         onOpenChange={setPickOpen}
@@ -189,6 +198,15 @@ export function ToolSection({ draft, update }: SectionProps): React.JSX.Element 
         selectedToolId={draft.toolId}
         onSelect={select}
         onOpenLibrary={() => setLibOpen(true)}
+        fit={
+          draft.kind === 'isolate'
+            ? {
+                layerIds: draft.layerIds,
+                cutDepth: draft.cutDepth,
+                ignoreGapsBelow: draft.params.isolation.ignoreGapsBelow ?? 0
+              }
+            : undefined
+        }
       />
       <ToolLibraryDialog
         open={libOpen}

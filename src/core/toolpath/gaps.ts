@@ -157,3 +157,15 @@ export function findNarrowGaps(copper: PolygonSet, radius: number): GapReport {
 export function problemId(kind: string, p: Vec2): string {
   return `${kind}:${p.x.toFixed(2)},${p.y.toFixed(2)}`
 }
+
+/**
+ * The narrowest distance between two different copper features, if any are closer than `limit`
+ * mm (null when everything is at least `limit` apart). Places narrower than `ignoreBelow` are
+ * skipped, like the isolation step does.
+ */
+export function narrowestGap(copper: PolygonSet, limit = 1, ignoreBelow = 0): number | null {
+  const r = findNarrowGaps(copper, limit / 2)
+  let best = Infinity
+  for (const w of r.widths) if (w > 1e-6 && w >= ignoreBelow && w < best) best = w
+  return Number.isFinite(best) ? best : null
+}

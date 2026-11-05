@@ -8,57 +8,126 @@ import { createTool, TOOL_TYPE_INFO, type ToolFieldKey } from '@core/tools'
 import { Bit, BoardSide, Code, Label, Scene, W } from '@renderer/components/illustrations/kit'
 import { cn } from '@renderer/lib/utils'
 import { ToolPreview } from './ToolPreview'
-import { StepoverDiagram } from './ToolDiagrams'
 import { BitDimensionFigure } from './BitDimensions'
 import { fmtMm, TOOL_TYPES } from './toolMeta'
 
 const bitKind = (t: Tool): 'flat' | 'vbit' | 'ball' | 'drill' =>
   t.type === 'vbit' ? 'vbit' : t.type === 'ball' ? 'ball' : t.type === 'drill' ? 'drill' : 'flat'
 
-const box = (node: ReactNode): ReactNode => (
-  <div className="overflow-hidden rounded-md bg-slate-950/70">{node}</div>
-)
-
+/**
+ * Flutes: the bit from the side (spiral grooves turning) and from the tip, where every flute's
+ * cutting edge is drawn in yellow and numbered, so the count is easy to see.
+ */
 function flutes(t: Tool): ReactNode {
   const n = Math.max(1, Math.min(8, Math.round(t.geometry.flutes) || 1))
-  const R = 46
-  const cx = W / 2
-  const cy = 75
+  // side view
+  const sx = 46
+  const sw = 44
+  const top = 22
+  const len = 104
+  const pitch = 64
+  const gapY = pitch / n
+  const bands: ReactNode[] = []
+  for (let k = -n - 2; k <= Math.ceil(len / gapY) + n + 2; k++) {
+    const y = top + k * gapY
+    bands.push(
+      <path
+        key={k}
+        d={`M ${sx} ${y + 22} L ${sx + sw} ${y} L ${sx + sw} ${y + gapY * 0.45} L ${sx} ${y + 22 + gapY * 0.45} Z`}
+        fill="#475569"
+      />
+    )
+  }
+  // tip view: n teeth, each a radial cutting face (yellow) with the flute gash behind it
+  const cx = 222
+  const cy = 72
+  const R = 50
+  const core = R * 0.36
+  const step = (Math.PI * 2) / n
+  const pt = (a: number, r: number): string => `${cx + Math.cos(a) * r} ${cy + Math.sin(a) * r}`
+  let body = ''
+  const faces: ReactNode[] = []
+  const tips: ReactNode[] = []
+  for (let i = 0; i < n; i++) {
+    const a = i * step
+    const land = a + step * (n === 1 ? 0.62 : 0.5)
+    const gash = a + step * 0.8
+    const next = a + step
+    body +=
+      (i === 0 ? `M ${pt(a, R)} ` : '') +
+      `A ${R} ${R} 0 ${land - a > Math.PI ? 1 : 0} 1 ${pt(land, R)} ` +
+      `Q ${pt(gash, R * 0.62)} ${pt(next, core)} ` +
+      `L ${pt(next, R)} `
+    faces.push(
+      <line
+        key={i}
+        x1={cx + Math.cos(next) * core}
+        y1={cy + Math.sin(next) * core}
+        x2={cx + Math.cos(next) * R}
+        y2={cy + Math.sin(next) * R}
+        stroke="#facc15"
+        strokeWidth={3}
+        strokeLinecap="round"
+      />
+    )
+    tips.push(
+      <text
+        key={i}
+        x={cx + Math.cos(next + Math.min(0.45, step * 0.12)) * (R - 9)}
+        y={cy + Math.sin(next + Math.min(0.45, step * 0.12)) * (R - 9) + 4}
+        fontSize={10}
+        fontWeight={700}
+        fill="#0b1220"
+        textAnchor="middle"
+      >
+        {i + 1}
+      </text>
+    )
+  }
+  body += 'Z'
   return (
     <Scene
-      caption={`Seen from the tip: ${n} cutting edge${n === 1 ? '' : 's'}. More edges = more bites per turn (smoother, but clogs easier).`}
+      caption={`${n} flute${n === 1 ? '' : 's'} = ${n} cutting edge${n === 1 ? '' : 's'} (yellow). Each turn every edge takes one bite: more edges cut smoother, fewer edges clear chips better (best for soft or sticky material).`}
     >
+      <defs>
+        <clipPath id="flute-side-clip">
+          <rect x={sx} y={top} width={sw} height={len} />
+        </clipPath>
+      </defs>
+      <rect x={sx} y={top} width={sw} height={len} fill="#cbd5e1" />
+      <g clipPath="url(#flute-side-clip)">
+        <g>
+          <animateTransform
+            attributeName="transform"
+            type="translate"
+            values={`0 0;0 ${-gapY}`}
+            dur="0.9s"
+            repeatCount="indefinite"
+          />
+          {bands}
+        </g>
+      </g>
+      <rect x={sx} y={top} width={sw} height={len} fill="none" stroke="#1e293b" />
+      <Label x={sx + sw / 2} y={top + len + 14} anchor="middle" color="#94a3b8" size={10}>
+        from the side
+      </Label>
       <g>
         <animateTransform
           attributeName="transform"
           type="rotate"
-          values={`0 ${cx} ${cy};360 ${cx} ${cy}`}
-          dur="2.4s"
+          values={`0 ${cx} ${cy};-360 ${cx} ${cy}`}
+          dur="6s"
           repeatCount="indefinite"
         />
-        <circle cx={cx} cy={cy} r={R} fill="#cbd5e1" stroke="#1e293b" />
-        {Array.from({ length: n }).map((_, i) => {
-          const a = (i / n) * Math.PI * 2
-          const x = cx + Math.cos(a) * R * 0.55
-          const y = cy + Math.sin(a) * R * 0.55
-          return <circle key={i} cx={x} cy={y} r={R * 0.32} fill="#0b1220" />
-        })}
-        {Array.from({ length: n }).map((_, i) => {
-          const a = (i / n) * Math.PI * 2 + 0.5
-          return (
-            <line
-              key={`e${i}`}
-              x1={cx}
-              y1={cy}
-              x2={cx + Math.cos(a) * R}
-              y2={cy + Math.sin(a) * R}
-              stroke="#fbbf24"
-              strokeWidth={2}
-            />
-          )
-        })}
+        <path d={body} fill="#cbd5e1" stroke="#1e293b" strokeWidth={1} />
+        {faces}
+        {tips}
       </g>
-      <Label x={14} y={22} color="#fcd34d" size={11}>
+      <circle cx={cx} cy={cy} r={3} fill="#1e293b" />
+      <Label x={cx} y={top + len + 14} anchor="middle" color="#94a3b8" size={10}>
+        from the tip
+      </Label>
+      <Label x={W - 8} y={16} anchor="end" color="#fcd34d" size={12}>
         {n} flute{n === 1 ? '' : 's'}
       </Label>
     </Scene>
@@ -132,27 +201,59 @@ function feedZ(t: Tool): ReactNode {
   )
 }
 
+/**
+ * Depth per pass: the bit plunges to the next level first, then cuts along at that depth; the
+ * material is removed only where it has passed. Drills peck instead.
+ */
 function stepDown(t: Tool): ReactNode {
   const drill = t.type === 'drill'
-  const levels = [118, 126, 134]
+  const surface = 110
+  const lvl = 9
+  const levels = [surface + lvl, surface + 2 * lvl, surface + 3 * lvl]
+  const x0 = 60
+  const x1 = 260
+  const dur = '6s'
+  // per pass: plunge [s, s+0.05], cut [s+0.05, s+0.3]; passes at 0, 0.3, 0.6; hold to 1
+  const starts = [0, 0.3, 0.6]
+  const toolValues: string[] = []
+  const toolTimes: string[] = []
+  starts.forEach((s, i) => {
+    const from = i % 2 === 0 ? x0 : x1
+    const to = i % 2 === 0 ? x1 : x0
+    toolValues.push(
+      `${from} ${i === 0 ? surface - 16 : levels[i - 1]}`,
+      `${from} ${levels[i]}`,
+      `${to} ${levels[i]}`
+    )
+    toolTimes.push(s.toFixed(2), (s + 0.05).toFixed(2), (s + 0.3).toFixed(2))
+  })
+  toolValues.push(`${x0} ${levels[2]}`)
+  toolTimes.push('1')
+  // the hold at the end keeps the tool where it finished
+  toolValues[toolValues.length - 1] = `${x1} ${levels[2]}`
   return (
     <Scene
       caption={
         drill
           ? `Pecking: the drill goes ${fmtMm(t.feeds.stepDown)} mm deeper each time, then pulls out to clear the chips.`
-          : `Deep cuts are split into passes of at most ${fmtMm(t.feeds.stepDown)} mm.`
+          : `Deep cuts are made in steps: the bit goes down ${fmtMm(t.feeds.stepDown)} mm, cuts the whole length at that depth, then goes down one more step and cuts again.`
       }
     >
-      <BoardSide y={110} thick={30} />
-      {levels.map((y) => (
-        <line key={y} x1={40} x2={280} y1={y} y2={y} stroke="#a78bfa" strokeDasharray="3 3" opacity={0.6} />
+      <BoardSide y={surface} thick={32} />
+      {levels.map((y, i) => (
+        <g key={y}>
+          <line x1={30} x2={290} y1={y} y2={y} stroke="#a78bfa" strokeDasharray="3 3" opacity={0.55} />
+          <Label x={292} y={y + 3} color="#c4b5fd" size={8}>
+            {i + 1}
+          </Label>
+        </g>
       ))}
       {drill ? (
         <g>
           <animateTransform
             attributeName="transform"
             type="translate"
-            values="160 80;160 118;160 80;160 126;160 80;160 134;160 80"
+            values={`160 80;160 ${levels[0]};160 80;160 ${levels[1]};160 80;160 ${levels[2]};160 80`}
             dur="4s"
             repeatCount="indefinite"
           />
@@ -160,22 +261,39 @@ function stepDown(t: Tool): ReactNode {
         </g>
       ) : (
         <>
-          <rect x={60} y={110} width={200} fill="#0b1220">
-            <animate
-              attributeName="height"
-              values="0;8;8;16;16;24;24"
-              keyTimes="0;0.15;0.33;0.48;0.66;0.81;1"
-              dur="4.5s"
-              repeatCount="indefinite"
-            />
-          </rect>
+          {starts.map((s, i) => {
+            const ltr = i % 2 === 0
+            const y = surface + i * lvl
+            const a = (s + 0.05).toFixed(2)
+            const b = (s + 0.3).toFixed(2)
+            return (
+              <rect key={i} x={ltr ? x0 : x1} y={y} width={0} height={lvl} fill="#0b1220">
+                <animate
+                  attributeName="width"
+                  values={`0;0;${x1 - x0};${x1 - x0}`}
+                  keyTimes={`0;${a};${b};1`}
+                  dur={dur}
+                  repeatCount="indefinite"
+                />
+                {!ltr && (
+                  <animate
+                    attributeName="x"
+                    values={`${x1};${x1};${x0};${x0}`}
+                    keyTimes={`0;${a};${b};1`}
+                    dur={dur}
+                    repeatCount="indefinite"
+                  />
+                )}
+              </rect>
+            )
+          })}
           <g>
             <animateTransform
               attributeName="transform"
               type="translate"
-              values="60 118;260 118;60 126;260 126;60 134;260 134"
-              keyTimes="0;0.3;0.33;0.63;0.66;1"
-              dur="4.5s"
+              values={toolValues.join(';')}
+              keyTimes={toolTimes.join(';')}
+              dur={dur}
               repeatCount="indefinite"
             />
             <Bit kind={bitKind(t)} />
@@ -261,8 +379,6 @@ export function toolFigure(key: ToolFieldKey, t: Tool): ReactNode | null {
       return feedZ(t)
     case 'feeds.stepDown':
       return stepDown(t)
-    case 'feeds.stepOver':
-      return box(<StepoverDiagram stepOver={t.feeds.stepOver} width={340} height={124} />)
     default:
       return null
   }

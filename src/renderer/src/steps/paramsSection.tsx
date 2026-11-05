@@ -111,11 +111,14 @@ function HowItWorks({ children }: { children: React.ReactNode }): React.JSX.Elem
 function Grid({
   children,
   how,
-  side
+  side,
+  row
 }: {
   children: React.ReactNode
   how?: React.ReactNode
   side?: React.ReactNode
+  /** All fields side by side on one line. */
+  row?: boolean
 }): React.JSX.Element {
   return (
     <div className="flex flex-col gap-3">
@@ -126,7 +129,14 @@ function Grid({
           <div className="flex flex-col gap-3">{side}</div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 items-start gap-x-6 gap-y-4 lg:grid-cols-2">{children}</div>
+        <div
+          className={cn(
+            'grid grid-cols-1 items-start gap-y-4',
+            row ? 'gap-x-4 sm:grid-cols-2 lg:grid-cols-4' : 'gap-x-6 lg:grid-cols-2'
+          )}
+        >
+          {children}
+        </div>
       )}
     </div>
   )
@@ -408,6 +418,7 @@ export function ParamsSection({
       const c = p.cutout
       return (
         <Grid
+          row
           how={
             <Figure caption="The bit follows the dashed line all the way around; the yellow tabs stay uncut so the board stays attached until you snap it free.">
               <CutoutDiagram

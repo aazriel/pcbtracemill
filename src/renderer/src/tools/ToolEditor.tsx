@@ -28,7 +28,6 @@ export function fieldErrors(errors: string[]): Partial<Record<ToolFieldKey, stri
     [/cutting feed/i, 'feeds.feedXY'],
     [/plunge/i, 'feeds.feedZ'],
     [/depth per pass/i, 'feeds.stepDown'],
-    [/stepover/i, 'feeds.stepOver'],
     [/tool type/i, 'type']
   ]
   for (const e of errors) {
@@ -411,20 +410,6 @@ export function ToolEditor({
             <p className="mt-2 text-[11px] text-slate-400">
               Chip load: <b className="text-slate-200">{(chipLoad * 1000).toFixed(1)} µm</b> per cutting edge
             </p>
-          )}
-          {draft.type !== 'drill' && (
-            <div className="mt-3 grid grid-cols-2 gap-3">
-              <NumberField
-                {...fh('feeds.stepOver')}
-                description="0.4 = each new pass moves over 40% of the cut width (passes overlap by 60%)."
-                value={f.stepOver}
-                onChange={(stepOver) => setFeeds({ stepOver })}
-                min={0}
-                max={1}
-                step={0.05}
-                error={fe['feeds.stepOver']}
-              />
-            </div>
           )}
         </Section>
 

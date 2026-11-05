@@ -4,13 +4,16 @@ import { importFiles, parseOne } from '@core/pipeline/import'
 import { runCam, type CamRequest } from '@core/pipeline/cam'
 import { interpretGcode } from '@core/gcode'
 import { applyHeightMap, buildHeightMap, parseProbeResults, generateProbeProgram } from '@core/heightmap'
-import type { HeightMap, MachineProfile, ProbeGridConfig } from '@core/model/types'
+import { narrowestGap } from '@core/toolpath'
+import type { HeightMap, MachineProfile, PolygonSet, ProbeGridConfig } from '@core/model/types'
 
 const api = {
   importFiles,
   parseOne,
-  runCam: (req: CamRequest) => runCam(req),
+  runCam: (req: CamRequest, onStep?: (stepId: string | null) => void) => runCam(req, onStep),
   interpret: (text: string) => interpretGcode(text),
+  narrowestGap: (copper: PolygonSet, limit: number, ignoreBelow: number) =>
+    narrowestGap(copper, limit, ignoreBelow),
   probeProgram: (cfg: ProbeGridConfig, machine: MachineProfile) => generateProbeProgram(cfg, machine),
   importProbe(
     text: string,
