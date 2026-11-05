@@ -6,9 +6,9 @@ import { Button } from '@renderer/components/ui/button'
 import { HelpTip } from '@renderer/components/ui/help'
 import { PanelSection } from '@renderer/components/ui/section'
 import { StatusCircle } from '@renderer/components/ui/status'
-import { CapabilityBadge, MachineIcon } from './MachineCard'
+import { MachineIcon } from './MachineCard'
 import { MachineDialog } from './MachineDialog'
-import { CAPABILITIES, outputSummary, workAreaSummary } from './machineMeta'
+import { outputSummary, workAreaSummary } from './machineMeta'
 
 /** Manufacture-stage panel section: shows the selected machine and opens the machine chooser. */
 export function MachineSection(): React.JSX.Element {
@@ -55,11 +55,6 @@ export function MachineSection(): React.JSX.Element {
               <div className="text-[11px] text-slate-400">Output: {outputSummary(machine)}</div>
               <div className="text-[11px] text-slate-500">Work area {workAreaSummary(machine)}</div>
             </div>
-          </div>
-          <div className="flex flex-wrap gap-1">
-            {CAPABILITIES.map((c) => (
-              <CapabilityBadge key={c.key} label={c.label} active={!!machine[c.key]} title={c.short} />
-            ))}
           </div>
           {errors.length > 0 && <p className="text-[11px] font-medium text-rose-400">✕ {errors[0]}</p>}
         </button>

@@ -41,11 +41,10 @@ export function fieldErrors(errors: string[]): Partial<Record<ToolFieldKey, stri
 /** Field props from TOOL_FIELD_HELP: label, unit, and the (?) text plus the field's illustration. */
 function fieldProps(
   key: ToolFieldKey,
-  tool: Tool,
-  depth: number
+  tool: Tool
 ): { label: string; description: string; help?: ReactNode; helpWide?: boolean; unit?: string } {
   const h = TOOL_FIELD_HELP[key]
-  const figure = toolFigure(key, tool, depth)
+  const figure = toolFigure(key, tool)
   return {
     label: h.label,
     description: h.description,
@@ -124,7 +123,7 @@ export function ToolEditor({
   const g = draft.geometry
   const f = draft.feeds
   const fe = fieldErrors(errors)
-  const fh = (key: ToolFieldKey): ReturnType<typeof fieldProps> => fieldProps(key, draft, previewDepth)
+  const fh = (key: ToolFieldKey): ReturnType<typeof fieldProps> => fieldProps(key, draft)
   const info = TOOL_TYPE_INFO[draft.type]
   const setGeo = (patch: Partial<Tool['geometry']>): void =>
     onChange({ ...draft, geometry: { ...g, ...patch } })

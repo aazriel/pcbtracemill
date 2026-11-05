@@ -153,9 +153,12 @@ export function ManufactureStage(): React.JSX.Element {
           underlay={underlay}
           overlay={overlay}
           toolbar={
-            <div className="flex items-center gap-3 rounded-lg border border-slate-700 bg-slate-900/90 px-3 py-1.5 shadow-lg">
+            <div className="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-900/90 p-1.5 shadow-lg">
               <Tooltip content="Look at the board from the top, or from the bottom (mirrored, as it lies on the machine after flipping). Each side shows the toolpaths milled while that side faces up.">
-                <span>
+                <div className="flex items-center gap-2 rounded-md border border-slate-700/80 bg-slate-950/60 px-2 py-1">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                    View
+                  </span>
                   <Segmented
                     size="sm"
                     value={viewSide}
@@ -165,9 +168,9 @@ export function ManufactureStage(): React.JSX.Element {
                       { value: 'bottom', label: 'Bottom' }
                     ]}
                   />
-                </span>
+                </div>
               </Tooltip>
-              <div>
+              <div className="w-36 rounded-md border border-slate-700/80 bg-slate-950/60 px-2.5 py-1.5">
                 <Switch
                   label="Toolpaths"
                   checked={showPaths}
@@ -175,7 +178,7 @@ export function ManufactureStage(): React.JSX.Element {
                   help="Shows where the bit will cut. The coloured line is the centre of the bit, the faint band around it is the width of material removed."
                 />
               </div>
-              <div>
+              <div className="w-44 rounded-md border border-slate-700/80 bg-slate-950/60 px-2.5 py-1.5">
                 <Switch
                   label="Travel moves"
                   checked={showRapids}
@@ -183,7 +186,7 @@ export function ManufactureStage(): React.JSX.Element {
                   help="Dashed lines show the fast moves in the air between cuts (the bit is lifted to the safe height)."
                 />
               </div>
-              <div>
+              <div className="w-48 rounded-md border border-slate-700/80 bg-slate-950/60 px-2.5 py-1.5">
                 <Switch
                   label="Realistic colours"
                   checked={settings.realisticColors}

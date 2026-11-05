@@ -1,7 +1,7 @@
-import { Check, CircuitBoard, Cpu, Plus, Settings2, Terminal, Wrench, X } from 'lucide-react'
+import { CircuitBoard, Cpu, Plus, Settings2, Terminal, Wrench } from 'lucide-react'
 import type { MachineProfile } from '@core/model/types'
 import { cn } from '@renderer/lib/utils'
-import { CAPABILITIES, outputSummary, workAreaSummary } from './machineMeta'
+import { outputSummary, workAreaSummary } from './machineMeta'
 
 export function MachineIcon({
   machine,
@@ -15,32 +15,6 @@ export function MachineIcon({
     : ({ mach3: Cpu, grbl: CircuitBoard, linuxcnc: Terminal, generic: Settings2 }[machine.postProcessor] ??
       Settings2)
   return <Icon className={className} />
-}
-
-/** Small pill showing whether a machine has a capability. */
-export function CapabilityBadge({
-  label,
-  active,
-  title
-}: {
-  label: string
-  active: boolean
-  title?: string
-}): React.JSX.Element {
-  return (
-    <span
-      title={title}
-      className={cn(
-        'inline-flex items-center gap-0.5 rounded px-1.5 py-px text-[10px] font-medium ring-1',
-        active
-          ? 'bg-emerald-500/10 text-emerald-300 ring-emerald-500/30'
-          : 'bg-slate-800/40 text-slate-500 ring-slate-700/60'
-      )}
-    >
-      {active ? <Check className="size-2.5" strokeWidth={3} /> : <X className="size-2.5" strokeWidth={3} />}
-      {label}
-    </span>
-  )
 }
 
 /** A selectable machine card (it IS a button). */
@@ -101,11 +75,6 @@ export function MachineCard({
       {machine.description && (
         <p className="line-clamp-2 text-[11px] leading-snug text-slate-500">{machine.description}</p>
       )}
-      <div className="flex flex-wrap gap-1">
-        {CAPABILITIES.map((c) => (
-          <CapabilityBadge key={c.key} label={c.label} active={!!machine[c.key]} title={c.short} />
-        ))}
-      </div>
     </button>
   )
 }

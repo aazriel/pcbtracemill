@@ -8,8 +8,9 @@ import { createTool, TOOL_TYPE_INFO, type ToolFieldKey } from '@core/tools'
 import { Bit, BoardSide, Code, Label, Scene, W } from '@renderer/components/illustrations/kit'
 import { cn } from '@renderer/lib/utils'
 import { ToolPreview } from './ToolPreview'
-import { CutDepthDiagram, StepoverDiagram } from './ToolDiagrams'
-import { cutWidthAt, fmtMm, TOOL_TYPES } from './toolMeta'
+import { StepoverDiagram } from './ToolDiagrams'
+import { BitDimensionFigure } from './BitDimensions'
+import { fmtMm, TOOL_TYPES } from './toolMeta'
 
 const bitKind = (t: Tool): 'flat' | 'vbit' | 'ball' | 'drill' =>
   t.type === 'vbit' ? 'vbit' : t.type === 'ball' ? 'ball' : t.type === 'drill' ? 'drill' : 'flat'
@@ -17,88 +18,6 @@ const bitKind = (t: Tool): 'flat' | 'vbit' | 'ball' | 'drill' =>
 const box = (node: ReactNode): ReactNode => (
   <div className="overflow-hidden rounded-md bg-slate-950/70">{node}</div>
 )
-
-/** Top view: the cutter travels along and leaves a groove as wide as it cuts. */
-function grooveTopView(t: Tool, depth: number): ReactNode {
-  const w = cutWidthAt(t, depth)
-  const px = 46
-  return (
-    <Scene
-      caption={
-        t.type === 'drill'
-          ? `Makes round holes ${fmtMm(w)} mm wide.`
-          : `Seen from above: the groove it leaves is ${fmtMm(w)} mm wide${t.type === 'vbit' || t.type === 'ball' ? ` at ${fmtMm(depth)} mm deep` : ''}.`
-      }
-    >
-      <rect x={0} y={40} width={W} height={70} fill="#c47a3a" />
-      {t.type === 'drill' ? (
-        [80, 160, 240].map((x, i) => (
-          <circle key={x} cx={x} cy={75} r={px / 2} fill="#3f5a2a" opacity={0}>
-            <animate
-              attributeName="opacity"
-              values="0;0;1;1"
-              keyTimes={`0;${(i / 3).toFixed(2)};${((i + 0.3) / 3).toFixed(2)};1`}
-              dur="3s"
-              repeatCount="indefinite"
-            />
-          </circle>
-        ))
-      ) : (
-        <>
-          <rect x={30} y={75 - px / 2} height={px} fill="#3f5a2a">
-            <animate
-              attributeName="width"
-              values="0;260;260"
-              keyTimes="0;0.8;1"
-              dur="3s"
-              repeatCount="indefinite"
-            />
-          </rect>
-          <circle cy={75} r={px / 2} fill="none" stroke="#e2e8f0" strokeWidth={1.5}>
-            <animate
-              attributeName="cx"
-              values="30;290;290"
-              keyTimes="0;0.8;1"
-              dur="3s"
-              repeatCount="indefinite"
-            />
-          </circle>
-        </>
-      )}
-      <g stroke="#38bdf8" fill="#38bdf8">
-        <line x1={300} x2={300} y1={75 - px / 2} y2={75 + px / 2} />
-        <Label x={296} y={30} anchor="end" color="#7dd3fc" size={11}>
-          {fmtMm(w)} mm
-        </Label>
-      </g>
-    </Scene>
-  )
-}
-
-function fluteLength(t: Tool): ReactNode {
-  return (
-    <Scene
-      caption={`The cutting part is ${fmtMm(t.geometry.fluteLength)} mm long: it can cut at most this deep.`}
-    >
-      <BoardSide y={100} thick={40} />
-      <g>
-        <animateTransform
-          attributeName="transform"
-          type="translate"
-          values="160 60;160 134;160 134;160 60"
-          keyTimes="0;0.5;0.7;1"
-          dur="3s"
-          repeatCount="indefinite"
-        />
-        <Bit kind={bitKind(t)} r={8} len={40} />
-        <rect x={-10} y={-40} width={20} height={40} fill="none" stroke="#a78bfa" strokeDasharray="3 2" />
-      </g>
-      <Label x={14} y={22} color="#c4b5fd" size={11}>
-        cutting length {fmtMm(t.geometry.fluteLength)} mm
-      </Label>
-    </Scene>
-  )
-}
 
 function flutes(t: Tool): ReactNode {
   const n = Math.max(1, Math.min(8, Math.round(t.geometry.flutes) || 1))
@@ -316,27 +235,22 @@ function kinds(t: Tool): ReactNode {
   )
 }
 
-/** Typical cut depth used by the illustrations. */
-export function figureDepth(t: Tool, preview = 0.1): number {
-  if (t.type === 'vbit' || t.type === 'ball') return preview
-  return t.type === 'drill' ? 1.7 : Math.max(0.1, Math.min(t.geometry.fluteLength, 0.4))
-}
-
-export function toolFigure(key: ToolFieldKey, t: Tool, depth = 0.1): ReactNode | null {
-  const d = figureDepth(t, depth)
+export function toolFigure(key: ToolFieldKey, t: Tool): ReactNode | null {
   switch (key) {
     case 'type':
       return kinds(t)
     case 'number':
       return number(t)
     case 'geometry.diameter':
-      return grooveTopView(t, d)
+      return <BitDimensionFigure tool={t} dim="diameter" />
     case 'geometry.tipAngle':
+      return <BitDimensionFigure tool={t} dim="tipAngle" />
     case 'geometry.tipDiameter':
+      return <BitDimensionFigure tool={t} dim="tipDiameter" />
     case 'geometry.pointAngle':
-      return box(<CutDepthDiagram tool={t} depth={d} width={340} height={150} animate />)
+      return <BitDimensionFigure tool={t} dim="pointAngle" />
     case 'geometry.fluteLength':
-      return fluteLength(t)
+      return <BitDimensionFigure tool={t} dim="fluteLength" />
     case 'geometry.flutes':
       return flutes(t)
     case 'feeds.spindleRpm':
