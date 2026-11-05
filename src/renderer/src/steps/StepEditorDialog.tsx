@@ -15,10 +15,11 @@ import { cn } from '@renderer/lib/utils'
 import { useStepEditor } from './editorStore'
 import { GeneralSection, LayerSection, ResultsSection, ToolSection } from './editorSections'
 import { ParamsSection } from './paramsSection'
+import { SkipSection, useShowSkip } from './SkipSection'
 import { IssueList } from './IssueList'
 import { PARAMS_TITLE, stepIcon, summarize, useValidationCtx } from './stepUtils'
 
-type SectionId = ValidationIssue['section']
+type SectionId = ValidationIssue['section'] | 'skip'
 
 export function StepEditorDialog(): React.JSX.Element {
   const draft = useStepEditor((s) => s.draft)
@@ -64,12 +65,13 @@ function useDraftStatus(draft: CamStep): {
       cam?.validations.find((v) => v.stepId === draft.id)?.issues.filter((i) => i.section === 'results') ?? []
     const hasToolpath = !!cam?.toolpaths.some((t) => t.stepId === draft.id)
     const all = [...live, ...results]
-    const ids: SectionId[] = ['layer', 'tool', 'general', 'params', 'results']
+    const ids: SectionId[] = ['layer', 'tool', 'general', 'params', 'skip', 'results']
     const bySection = Object.fromEntries(
       ids.map((id) => {
         const issues = all.filter((i) => i.section === id)
         let level: StatusLevel = ctx ? summarize(issues).level : 'pending'
         if (id === 'results' && !issues.length) level = hasToolpath && draft.enabled ? 'ok' : 'pending'
+        if (id === 'skip') level = draft.skip?.enabled && draft.skip.items.length ? 'warning' : 'ok'
         return [id, { level, issues }]
       })
     ) as Record<SectionId, { level: StatusLevel; issues: ValidationIssue[] }>
@@ -89,12 +91,14 @@ function Body({ draft }: { draft: CamStep }): React.JSX.Element {
   const refs = useRef<Partial<Record<SectionId, HTMLElement | null>>>({})
   const toolpath = cam?.toolpaths.find((t) => t.stepId === draft.id)
   const changed = !saved || JSON.stringify(saved) !== JSON.stringify(draft)
+  const showSkip = useShowSkip(draft)
 
   const sections: { id: SectionId; title: string; hint: string }[] = [
     { id: 'layer', title: 'Layer', hint: 'What to work on' },
     { id: 'tool', title: 'Tool', hint: 'Which bit to use' },
     { id: 'general', title: 'General', hint: 'Name, side, depth' },
     { id: 'params', title: PARAMS_TITLE[draft.kind], hint: 'How to cut' },
+    ...(showSkip ? [{ id: 'skip' as const, title: 'Skip parts', hint: 'Advanced: leave parts out' }] : []),
     { id: 'results', title: 'Results', hint: 'Time and length' }
   ]
 
@@ -177,6 +181,7 @@ function Body({ draft }: { draft: CamStep }): React.JSX.Element {
                   onEditMaterial={editMaterial}
                 />
               )}
+              {s.id === 'skip' && <SkipSection draft={draft} update={update} issues={st.issues} />}
               {s.id === 'results' && (
                 <ResultsSection draft={draft} toolpath={toolpath} stale={changed || camStale} />
               )}

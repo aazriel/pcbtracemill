@@ -49,6 +49,8 @@ export interface UiState {
   importing: boolean
   skippedFiles: { name: string; reason: string }[]
   toasts: Toast[]
+  /** App preference (Settings -> Advanced): steps can skip parts of the board. */
+  advancedSkip: boolean
   /** Step currently highlighted in Manufacture (e.g. to show its toolpath). */
   selectedStepId: string | null
   /** Step whose problem places are listed on the Manufacture board (panel open). */
@@ -70,6 +72,7 @@ export const useUi = create<UiState>()((set) => ({
   camVersion: 0,
   generating: false,
   generatingStepId: null,
+  advancedSkip: false,
   camStale: true,
   camError: null,
   pendingImport: null,

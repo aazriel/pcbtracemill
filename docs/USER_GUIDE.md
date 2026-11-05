@@ -52,6 +52,7 @@ Steps are the milling operations, run top to bottom:
 - Edit, duplicate, disable (skipped in G-code) or delete a step; drag to reorder.
 - **↻ Flip the board here** markers appear where the job changes side.
 - G-code is regenerated automatically after each change; switch **Auto-regenerate** off while making many edits and press **Generate** when done.
+- **Skip parts (advanced).** Turn on *Settings → Allow skipping traces and holes in a step*. Isolation, drilling and hole-milling steps then get a **Skip parts** section: click a trace/pad or a hole on the board to leave it out of that step (red), click again to bring it back. Skipped parts are drawn in red in the Manufacture view, the step card shows ⊘ and a warning, so it is always visible that something is left alone. A skipped copper area gets no isolation groove and stays connected to the copper around it.
 
 ### Tool library
 Six tabs: All, Flat end mill, Ball end mill, Drill, V-bit, Corn/PCB router. The **starter kit** contains common PCB tools (locked — duplicate them to customise). **Create my own tool** to add yours: name, kind, geometry, feeds & speeds and notes, with a live drawing of the tool. In a step, only compatible tools can be selected; double-click a tool to use it.
@@ -70,4 +71,4 @@ Copper is only 0.035 mm thick and no board is perfectly flat, so TraceMill can m
 2. **Import probe results** — load the log your controller produced. TraceMill shows a colour heat map and a 3D surface and, when enabled, corrects Z in every exported file.
 
 ## Projects
-Save your work as a `.tmill` project (File → Save). It contains the original files, machine, material, tools, steps and height map. Undo/redo with Ctrl+Z / Ctrl+Shift+Z.
+Save your work as a `.tmill` project (File → Save). It contains the original files, machine, material, tools, steps and height map. Undo/redo with Ctrl+Z / Ctrl+Shift+Z. TraceMill also keeps your current work by itself: when you start it again it offers to **restore the last session**. The short welcome tour can be opened again from *Help → Take the Tour*.

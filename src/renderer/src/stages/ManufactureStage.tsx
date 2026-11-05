@@ -1,7 +1,9 @@
 import { useCallback, useMemo, useState } from 'react'
 import { Loader2 } from 'lucide-react'
-import type { BBox, Toolpath } from '@core/model/types'
-import { bboxIsEmpty, bboxUnion } from '@core/geometry'
+import type { BBox, PolygonSet, Toolpath } from '@core/model/types'
+import { bboxIsEmpty, bboxUnion, union } from '@core/geometry'
+import { activeSkips, skippedIslands } from '@core/toolpath'
+import { polygonSetPath } from '@renderer/viewport/boardRender'
 import { effectiveCutWidth } from '@core/tools'
 import { useProject } from '@renderer/store/project'
 import { useUi } from '@renderer/store/ui'
@@ -97,6 +99,24 @@ export function ManufactureStage(): React.JSX.Element {
     return { minX: p.x - r, minY: p.y - r, maxX: p.x + r, maxY: p.y + r }
   }, [problems, problemFocus])
 
+  // Parts the steps skip on purpose (advanced): drawn in red so it is clear what is left alone.
+  const skipLayers = useLayersWithParsed()
+  const skipped = useMemo(() => {
+    const out: { side: string; polys: PolygonSet; holes: { x: number; y: number; d: number }[] }[] = []
+    for (const s of steps) {
+      const items = s.enabled ? activeSkips(s) : []
+      if (!items.length) continue
+      const ls = skipLayers.filter((l) => s.layerIds.includes(l.id) && l.parsed)
+      const polys =
+        s.kind === 'isolate'
+          ? skippedIslands(union(...ls.map((l) => l.parsed!.geometry).filter((g) => g.length)), items).islands
+          : []
+      const holes = items.filter((i) => i.kind === 'hole').map((i) => ({ x: i.x, y: i.y, d: i.d ?? 0.5 }))
+      out.push({ side: s.side, polys, holes })
+    }
+    return out
+  }, [steps, skipLayers])
+
   const underlay: OverlayDraw = useCallback(
     (ctx, _v, zoom) => {
       if (stockCorners) drawStock(ctx, stockCorners, zoom)
@@ -109,8 +129,10 @@ export function ManufactureStage(): React.JSX.Element {
         drawToolpaths(ctx, prepared, zoom, { side: viewSide, selectedId: selectedStepId, showRapids })
       if (material && !bboxIsEmpty(bbox)) drawOrigin(ctx, view, material, bbox, viewSide)
       drawProblems(ctx, zoom, problems, viewSide, problemStepId, problemFocus)
+      drawSkipped(ctx, zoom, skipped, viewSide)
     },
     [
+      skipped,
       prepared,
       viewSide,
       selectedStepId,
@@ -273,6 +295,40 @@ export function ManufactureStage(): React.JSX.Element {
 }
 
 /** Red rings where a step cannot machine; the listed step's places are numbered, the focused one glows. */
+function drawSkipped(
+  ctx: CanvasRenderingContext2D,
+  zoom: number,
+  skipped: { side: string; polys: PolygonSet; holes: { x: number; y: number; d: number }[] }[],
+  side: string
+): void {
+  const px = 1 / zoom
+  ctx.save()
+  ctx.strokeStyle = '#f43f5e'
+  ctx.fillStyle = 'rgba(244,63,94,0.35)'
+  for (const s of skipped) {
+    if (s.side !== side) continue
+    if (s.polys.length) {
+      const p = polygonSetPath(s.polys)
+      ctx.fill(p, 'evenodd')
+      ctx.lineWidth = 1.5 * px
+      ctx.stroke(p)
+    }
+    ctx.lineWidth = 2 * px
+    for (const h of s.holes) {
+      const r = h.d / 2 + 3 * px
+      const k = r * 0.7
+      ctx.beginPath()
+      ctx.arc(h.x, h.y, r, 0, Math.PI * 2)
+      ctx.moveTo(h.x - k, h.y - k)
+      ctx.lineTo(h.x + k, h.y + k)
+      ctx.moveTo(h.x + k, h.y - k)
+      ctx.lineTo(h.x - k, h.y + k)
+      ctx.stroke()
+    }
+  }
+  ctx.restore()
+}
+
 function drawProblems(
   ctx: CanvasRenderingContext2D,
   zoom: number,

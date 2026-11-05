@@ -329,6 +329,17 @@ export function clipLinesInside(lines: Path[], region: PolygonSet): Path[] {
   return open.map(fromPath64)
 }
 
+/** Clip open polylines by a polygon set; returns pieces OUTSIDE the set. */
+export function clipLinesOutside(lines: Path[], region: PolygonSet): Path[] {
+  const c = new Clipper64()
+  c.addOpenSubject(toPaths64(lines))
+  c.addClip(polySetToPaths64(region))
+  const closed: Paths64 = []
+  const open: Paths64 = []
+  c.execute(ClipType.Difference, FillRule.NonZero, closed, open)
+  return open.map(fromPath64)
+}
+
 export function pointInPolygonSet(pt: Vec2, set: PolygonSet): boolean {
   const p = { x: Math.round(pt.x * SCALE), y: Math.round(pt.y * SCALE) }
   for (const poly of set) {

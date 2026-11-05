@@ -384,6 +384,20 @@ export interface CamStep {
   params: StepParams
   /** Ids of ToolpathProblems the user chose to ignore for this step. */
   ignoredProblems?: string[]
+  /** Advanced: parts of the board this step leaves alone (only used while `enabled`). */
+  skip?: { enabled: boolean; items: SkipRef[] }
+}
+
+/**
+ * A part of the board picked by the user (BOARD coordinates): a copper area that is not isolated
+ * (any point inside it), or a hole that is not drilled / milled (its centre and diameter).
+ */
+export interface SkipRef {
+  kind: 'copper' | 'hole'
+  x: number
+  y: number
+  /** Hole diameter (mm). */
+  d?: number
 }
 
 export type ValidationLevel = 'ok' | 'warning' | 'error'

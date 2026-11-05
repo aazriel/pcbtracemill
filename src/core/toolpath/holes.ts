@@ -10,6 +10,7 @@
  */
 import type { Move, ToolpathSegment, Vec2 } from '../model/types'
 import { applyAffine } from '../geometry'
+import { activeSkips, withoutSkippedHoles } from './skip'
 import { effectiveCutWidth } from '../tools/geometry'
 import { fmt, pointToWork, selectedDrills, selectedLayers, ToolpathError, type StepContext } from './context'
 import { alignmentPinPositions, stockRectInWork, stockSideToWork } from './frame'
@@ -79,11 +80,18 @@ export function drillPoints(
   return { segments, order }
 }
 
+function skippedHolesNote(n: number, what: string): string {
+  return `${n} hole${n === 1 ? ' is' : 's are'} skipped as you chose and will not be ${what}.`
+}
+
 export function generateDrill(ctx: StepContext): ToolpathSegment[] {
   const { step, tool, material, machine } = ctx.input
   if (selectedLayers(ctx.input).length === 0) throw new ToolpathError('No parsed drill layer selected.')
   const p = step.params.drill
-  const { holes, slots } = selectedDrills(ctx.input)
+  const all = selectedDrills(ctx.input)
+  const { holes, skipped } = withoutSkippedHoles(all.holes, activeSkips(step))
+  const slots = all.slots
+  if (skipped) ctx.warnings.push(skippedHolesNote(skipped, 'drilled'))
   const inRange = (d: number): boolean => d >= p.minDiameter - DIAM_EPS && d <= p.maxDiameter + DIAM_EPS
   const sel = holes.filter((h) => inRange(h.diameter))
   // Holes outside this step's range are expected (drilling is split by size across steps);
@@ -196,7 +204,9 @@ export function generateHoleMill(ctx: StepContext): ToolpathSegment[] {
   const { step, tool, material } = ctx.input
   if (selectedLayers(ctx.input).length === 0) throw new ToolpathError('No parsed drill layer selected.')
   const p = step.params.holeMill
-  const { holes } = selectedDrills(ctx.input)
+  const picked = withoutSkippedHoles(selectedDrills(ctx.input).holes, activeSkips(step))
+  const holes = picked.holes
+  if (picked.skipped) ctx.warnings.push(skippedHolesNote(picked.skipped, 'milled'))
   const toolD = effectiveCutWidth(tool, step.cutDepth)
   const inRange = holes.filter(
     (h) => h.diameter >= p.minDiameter - DIAM_EPS && h.diameter <= p.maxDiameter + DIAM_EPS

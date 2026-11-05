@@ -12,7 +12,7 @@
  * BEFORE the direction is chosen, so bottom-side mirroring cannot flip climb into conventional.
  */
 import type { BBox, Path, ToolpathSegment, Vec2 } from '../model/types'
-import { applyAffine, offset, rings } from '../geometry'
+import { applyAffine, clipLinesOutside, offset, pointInPolygonSet, polygonSetBBox, rings } from '../geometry'
 import { effectiveCutWidth } from '../tools/geometry'
 import { fmt, selectedGeometry, selectedLayers, toWork, ToolpathError, type StepContext } from './context'
 import { stockRectInWork } from './frame'
@@ -20,6 +20,7 @@ import { findNarrowGaps, problemId } from './gaps'
 import { closedLoopSegment, depthLevels, openPathSegment } from './moves'
 import { orderPaths } from './order'
 import { bboxInside, bboxOfPath, clipPolylineToRect, simplifyPath } from './pathUtils'
+import { activeSkips, skippedIslands } from './skip'
 
 export interface LoopItem {
   path: Path
@@ -93,6 +94,28 @@ export function emitLoops(
   return { segments, end: ordered.end }
 }
 
+/** Removes the parts of the loops that lie inside `region` (closed loops become open pieces). */
+export function withoutRegion(items: LoopItem[], region: ReturnType<typeof offset>): LoopItem[] {
+  if (!region.length) return items
+  const rb = polygonSetBBox(region)
+  const out: LoopItem[] = []
+  for (const it of items) {
+    const b = bboxOfPath(it.path)
+    if (b.maxX < rb.minX || b.minX > rb.maxX || b.maxY < rb.minY || b.minY > rb.maxY) {
+      out.push(it)
+      continue
+    }
+    const line = it.closed ? it.path.concat([it.path[0]]) : it.path
+    const pieces = clipLinesOutside([line], region).filter((p) => p.length >= 2)
+    if (pieces.length === 1 && it.closed && pieces[0].length >= line.length) {
+      out.push(it)
+      continue
+    }
+    for (const p of pieces) out.push({ path: p, closed: false })
+  }
+  return out
+}
+
 export function generateIsolation(ctx: StepContext): ToolpathSegment[] {
   const { step, tool, material, boardBBox } = ctx.input
   if (selectedLayers(ctx.input).length === 0) throw new ToolpathError('No parsed source layer selected.')
@@ -107,6 +130,19 @@ export function generateIsolation(ctx: StepContext): ToolpathSegment[] {
   const extra = Math.max(0, p.extraClearance)
   const offsets = isolationOffsets(w, p.passes, p.overlap, extra)
 
+  // Advanced "skip parts": copper areas the user chose not to isolate
+  const skip = skippedIslands(copperBoard, activeSkips(step))
+  const skipBand = skip.islands.length ? offset(skip.islands, offsets[offsets.length - 1] + w) : []
+  if (skip.islands.length)
+    ctx.warnings.push(
+      `${skip.islands.length} copper area${skip.islands.length === 1 ? ' is' : 's are'} skipped as you chose: ` +
+        `${skip.islands.length === 1 ? 'it is' : 'they are'} not isolated and stay connected to the copper around ${skip.islands.length === 1 ? 'it' : 'them'}.`
+    )
+  if (skip.missed)
+    ctx.warnings.push(
+      `${skip.missed} skipped part${skip.missed === 1 ? ' is' : 's are'} no longer on the copper of this step (the board changed?).`
+    )
+
   const gaps = findNarrowGaps(copperBoard, w / 2 + extra)
   const ignoreBelow = Math.max(0, p.ignoreGapsBelow ?? 0)
   const ignored = new Set(step.ignoredProblems ?? [])
@@ -114,6 +150,7 @@ export function generateIsolation(ctx: StepContext): ToolpathSegment[] {
     const gap = gaps.widths[i]
     const id = problemId('gap', loc)
     if (ignored.has(id) || (ignoreBelow > 0 && gap < ignoreBelow)) return
+    if (skipBand.length && pointInPolygonSet(loc, skipBand)) return
     ctx.problems.push({ id, kind: 'narrow-gap', x: loc.x, y: loc.y, gap, needed: w + 2 * extra })
   })
   const shown = ctx.problems.length
@@ -145,12 +182,15 @@ export function generateIsolation(ctx: StepContext): ToolpathSegment[] {
   let pos: Vec2 = { x: 0, y: 0 }
   const segments: ToolpathSegment[] = []
   let clipped = 0
+  const skipWork = skip.islands.length ? toWork(ctx, skip.islands) : []
   for (const d of offsets) {
     const ringsW = rings(offset(copper, d)).map((r) => {
       const s = simplifyPath(r, undefined, true)
       return climb ? s.reverse() : s
     })
-    const items = clipRings(ringsW, clip)
+    let items = clipRings(ringsW, clip)
+    // the parts of this pass that run around a skipped copper area are left out
+    if (skipWork.length) items = withoutRegion(items, offset(skipWork, d + 0.02))
     clipped += items.filter((i) => !i.closed).length
     const res = emitLoops(items, depths, ctx, pos)
     segments.push(...res.segments)
