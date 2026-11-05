@@ -269,18 +269,148 @@ function recommendation(kind: StepKind, tool: Tool): { recommended: boolean; rea
   }
 }
 
-/** Tools usable for this step (allowed types only), recommended first, then by diameter. */
-export function toolsForStep(
+/** What the step needs, so the recommendation can use the real numbers (all optional). */
+export interface ToolPickContext {
+  /** Hole diameters this step makes (drilling / hole milling), mm. */
+  holeDiameters?: number[]
+  /** Material thickness, mm (cutout and hole milling need a long enough cutting length). */
+  thickness?: number
+  /** Alignment pin diameter, mm. */
+  pinDiameter?: number
+}
+
+export interface ToolChoice {
+  tool: Tool
+  recommended: boolean
+  reason: string
+  /** The single best choice among the recommended ones (your own tools are preferred). */
+  best?: boolean
+}
+
+const mm = (v: number): string => `${Math.round(v * 100) / 100} mm`
+
+/** Refines the generic recommendation with the step's numbers; returns a score for "best" (higher = better). */
+function refine(
   kind: StepKind,
-  tools: Tool[]
-): { tool: Tool; recommended: boolean; reason: string }[] {
+  tool: Tool,
+  base: { recommended: boolean; reason: string },
+  ctx: ToolPickContext
+): { recommended: boolean; reason: string; score: number } {
+  const d = tool.geometry.diameter
+  const len = tool.geometry.fluteLength ?? 0
+  const sizes = (ctx.holeDiameters ?? []).filter((v) => v > 0)
+  switch (kind) {
+    case 'drill': {
+      if (!sizes.length || tool.type !== 'drill') return { ...base, score: 0 }
+      // the size most holes have
+      const counts = new Map<number, number>()
+      for (const v of sizes)
+        counts.set(Math.round(v * 100) / 100, (counts.get(Math.round(v * 100) / 100) ?? 0) + 1)
+      const target = [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0]
+      const diff = d - target
+      if (Math.abs(diff) <= 0.02)
+        return { recommended: true, reason: `Same size as the ${mm(target)} holes.`, score: 3 }
+      if (diff > 0 && diff <= 0.15)
+        return {
+          recommended: true,
+          reason: `${mm(diff)} larger than the ${mm(target)} holes: fine, leaves room for plating or a pin.`,
+          score: 2 - diff
+        }
+      return {
+        recommended: false,
+        reason:
+          diff > 0
+            ? `Makes ${mm(d)} holes; the holes are ${mm(target)} (too big).`
+            : `Makes ${mm(d)} holes; the holes are ${mm(target)} (too small).`,
+        score: -Math.abs(diff)
+      }
+    }
+    case 'holeMill': {
+      if (!sizes.length) return { ...base, score: 0 }
+      const smallest = Math.min(...sizes)
+      if (d >= smallest - 0.1)
+        return {
+          recommended: false,
+          reason: `Too wide for the smallest ${mm(smallest)} hole of this step.`,
+          score: -1
+        }
+      if (ctx.thickness && len && len < ctx.thickness)
+        return {
+          recommended: false,
+          reason: `Cutting length ${mm(len)} is shorter than the ${mm(ctx.thickness)} board.`,
+          score: -0.5
+        }
+      if (d < Math.max(0.8, smallest * 0.35))
+        return {
+          recommended: false,
+          reason: `Much smaller than the ${mm(smallest)} holes: works, but slow and breaks more easily.`,
+          score: 0
+        }
+      return {
+        recommended: true,
+        reason: `Fits the smallest ${mm(smallest)} hole with room to move around.`,
+        score: d
+      }
+    }
+    case 'cutout': {
+      if (ctx.thickness && len && len < ctx.thickness)
+        return {
+          recommended: false,
+          reason: `Cutting length ${mm(len)} is shorter than the ${mm(ctx.thickness)} board: it cannot cut through.`,
+          score: -1
+        }
+      // a 1.5-2 mm corn bit is the sturdy classic
+      return { ...base, score: base.recommended ? 2 - Math.abs(d - 1.8) : 0 }
+    }
+    case 'alignment': {
+      if (!ctx.pinDiameter) return { ...base, score: 0 }
+      const pin = ctx.pinDiameter
+      if (tool.type === 'drill') {
+        const diff = d - pin
+        if (Math.abs(diff) <= 0.05)
+          return { recommended: true, reason: `Same size as the ${mm(pin)} pins: snug fit.`, score: 3 }
+        return {
+          recommended: false,
+          reason:
+            diff > 0
+              ? `Larger than the ${mm(pin)} pins: the board would wobble.`
+              : `Smaller than the ${mm(pin)} pins: they would not fit.`,
+          score: -Math.abs(diff)
+        }
+      }
+      return d < pin - 0.2
+        ? { recommended: base.recommended, reason: `Mills the ${mm(pin)} pin hole in a circle.`, score: 1 }
+        : { recommended: false, reason: `Not smaller than the ${mm(pin)} pins.`, score: -1 }
+    }
+    case 'clear':
+      // wider = faster, but a very wide bit leaves copper between close traces
+      return { ...base, score: base.recommended ? -Math.abs(d - 1) : 0 }
+    default:
+      return { ...base, score: 0 }
+  }
+}
+
+/**
+ * Tools usable for this step (allowed types only), recommended first, then by diameter. With a
+ * context the recommendation uses the step's real numbers and one tool is marked `best`
+ * (your own tools before the starter kit).
+ */
+export function toolsForStep(kind: StepKind, tools: Tool[], ctx: ToolPickContext = {}): ToolChoice[] {
   const allowed = STEP_KIND_INFO[kind].allowedToolTypes
-  return tools
+  const rated = tools
     .filter((t) => allowed.includes(t.type))
-    .map((tool) => ({ tool, ...recommendation(kind, tool) }))
+    .map((tool) => ({ tool, ...refine(kind, tool, recommendation(kind, tool), ctx) }))
+  const rec = rated.filter((r) => r.recommended)
+  const own = rec.filter((r) => !r.tool.builtIn)
+  const pool = own.length ? own : rec
+  const best = pool.reduce<(typeof rated)[number] | null>((b, r) => (!b || r.score > b.score ? r : b), null)
+  return rated
+    .map(({ score: _score, ...r }): ToolChoice => (r.tool === best?.tool ? { ...r, best: true } : r))
     .sort(
       (a, b) =>
-        Number(b.recommended) - Number(a.recommended) || a.tool.geometry.diameter - b.tool.geometry.diameter
+        Number(!!b.best) - Number(!!a.best) ||
+        Number(b.recommended) - Number(a.recommended) ||
+        a.tool.geometry.diameter - b.tool.geometry.diameter
     )
 }
 
