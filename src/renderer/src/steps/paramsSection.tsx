@@ -18,6 +18,14 @@ import {
 } from './illustrations'
 import { help } from './stepUtils'
 import {
+  ClearMarginFigure,
+  CutSideFigure,
+  ExtraClearanceFigure,
+  IslandFigure,
+  OverlapFigure,
+  TabsFigure
+} from './paramFigures'
+import {
   EngraveAnimation,
   HelixFigure,
   HoleMillAnimation,
@@ -312,7 +320,10 @@ export function ParamsSection({
             value={Math.round(ip.overlap * 100)}
             onChange={(v) => setParam(update, 'isolation', { overlap: v / 100 })}
             description="How much each pass covers the previous one; about 40% avoids thin copper slivers."
-            {...fig(`${help('isolation.overlap')} ${help('concept.overlap')}`, isoFig)}
+            {...fig(
+              `${help('isolation.overlap')} ${help('concept.overlap')}`,
+              <OverlapFigure overlap={ip.overlap} />
+            )}
             error={err(/overlap/i)}
           />
           <NumberField
@@ -323,7 +334,7 @@ export function ParamsSection({
             value={ip.extraClearance}
             onChange={(v) => setParam(update, 'isolation', { extraClearance: v })}
             description="Moves the first pass further away from the copper, leaving a wider gap."
-            {...fig(help('isolation.extraClearance'), isoFig)}
+            {...fig(help('isolation.extraClearance'), <ExtraClearanceFigure extra={ip.extraClearance} />)}
             error={err(/clearance/i)}
           />
           <DirectionField
@@ -336,11 +347,6 @@ export function ParamsSection({
     }
     case 'clear': {
       const cp = p.clear
-      const clearFig = (
-        <Figure caption="Side by side passes remove the copper between traces.">
-          <ClearDiagram overlap={cp.overlap} clearMargin={cp.clearMargin} minIslandArea={cp.minIslandArea} />
-        </Figure>
-      )
       return (
         <Grid
           how={
@@ -362,7 +368,10 @@ export function ParamsSection({
             value={Math.round(cp.overlap * 100)}
             onChange={(v) => setParam(update, 'clear', { overlap: v / 100 })}
             description="How much each pass covers the previous one, so no thin strips are left behind."
-            {...fig(`${help('clear.overlap')} ${help('concept.overlap')}`, clearFig)}
+            {...fig(
+              `${help('clear.overlap')} ${help('concept.overlap')}`,
+              <OverlapFigure overlap={cp.overlap} passes={4} />
+            )}
             error={err(/overlap/i)}
           />
           <NumberField
@@ -373,7 +382,7 @@ export function ParamsSection({
             value={cp.minIslandArea}
             onChange={(v) => setParam(update, 'clear', { minIslandArea: v })}
             description="Tiny bits of copper the bit cannot reach well are skipped instead of reported as a problem."
-            {...fig(help('clear.minIslandArea'), clearFig)}
+            {...fig(help('clear.minIslandArea'), <IslandFigure minArea={cp.minIslandArea} />)}
             error={err(/island/i)}
           />
           <NumberField
@@ -384,7 +393,7 @@ export function ParamsSection({
             value={cp.clearMargin}
             onChange={(v) => setParam(update, 'clear', { clearMargin: v })}
             description="0 clears all copper. A value clears only a band of this width along the traces (much faster)."
-            {...fig(help('clear.clearMargin'), clearFig)}
+            {...fig(help('clear.clearMargin'), <ClearMarginFigure margin={cp.clearMargin} />)}
             error={err(/margin/i)}
           />
           <DirectionField
@@ -397,16 +406,6 @@ export function ParamsSection({
     }
     case 'cutout': {
       const c = p.cutout
-      const cutFig = (
-        <Figure caption="The bit follows the dashed line; the yellow tabs stay uncut.">
-          <CutoutDiagram
-            tabs={c.tabs}
-            tabWidth={c.tabWidth}
-            outside={c.outside}
-            toolDiameter={tool?.geometry.diameter ?? 1.5}
-          />
-        </Figure>
-      )
       return (
         <Grid
           how={
@@ -423,7 +422,7 @@ export function ParamsSection({
           <FieldShell
             label="Cut on which side of the outline"
             description="Outside keeps the board at its exact designed size; inside makes it slightly smaller."
-            {...fig(help('cutout.outside'), cutFig)}
+            {...fig(help('cutout.outside'), <CutSideFigure outside={c.outside} />)}
           >
             <div>
               <Segmented
@@ -444,7 +443,7 @@ export function ParamsSection({
             value={c.tabs}
             onChange={(v) => setParam(update, 'cutout', { tabs: Math.round(v) })}
             description="Small uncut bridges that hold the board in the sheet. 2–4 is typical."
-            {...fig(`${help('cutout.tabs')} ${help('concept.tabs')}`, cutFig)}
+            {...fig(`${help('cutout.tabs')} ${help('concept.tabs')}`, <TabsFigure tabs={c.tabs} />)}
             error={err(/number of tabs/i)}
             warning={warn(/without tabs/i)}
           />
@@ -458,7 +457,15 @@ export function ParamsSection({
                 value={c.tabWidth}
                 onChange={(v) => setParam(update, 'cutout', { tabWidth: v })}
                 description="Length of each bridge along the outline."
-                {...fig(help('cutout.tabWidth'), cutFig)}
+                {...fig(
+                  help('cutout.tabWidth'),
+                  <TabHeightFigure
+                    measure="width"
+                    tabWidth={c.tabWidth}
+                    tabHeight={c.tabHeight}
+                    thickness={material?.thickness ?? 1.6}
+                  />
+                )}
                 error={err(/tab width/i)}
                 warning={warn(/narrower/i)}
               />

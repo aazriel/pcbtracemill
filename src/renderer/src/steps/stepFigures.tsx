@@ -7,26 +7,41 @@ import { Bit, BoardSide, Label, Scene, W } from '@renderer/components/illustrati
 
 const r2 = (v: number): string => String(Math.round(v * 100) / 100)
 
-/** Side view of a cut-out groove with one tab left standing; the bit lifts over the tab. */
+/**
+ * Side view along the cut-out groove with one tab left standing; the bit lifts over the tab.
+ * `measure` picks which size of the tab is marked: its height, or its width along the cut.
+ */
 export function TabHeightFigure({
   tabHeight,
-  thickness
+  tabWidth = 3,
+  thickness,
+  measure = 'height'
 }: {
   tabHeight: number
+  tabWidth?: number
   thickness: number
+  measure?: 'height' | 'width'
 }): ReactNode {
   const th = Math.max(0.2, thickness)
-  const frac = Math.max(0, Math.min(1, tabHeight / th))
-  const top = 70
+  const frac = Math.max(measure === 'width' ? 0.25 : 0, Math.min(1, tabHeight / th))
+  const top = 60
   const H = 50
   const tabTop = top + H * (1 - frac)
-  const tabX = 140
-  const tabW = 50
+  const tabW = measure === 'width' ? Math.max(16, Math.min(130, tabWidth * 14)) : 50
+  const tabX = 165 - tabW / 2
+  const byWidth = measure === 'width'
   return (
     <Scene
-      caption={`The tab keeps ${r2(tabHeight)} mm of the ${r2(th)} mm board standing, so the board stays in the sheet until you snap it out.`}
+      caption={
+        byWidth
+          ? `Each tab is ${r2(tabWidth)} mm long along the cut. Longer tabs hold the board better but are harder to break off.`
+          : `The tab keeps ${r2(tabHeight)} mm of the ${r2(th)} mm board standing, so the board stays in the sheet until you snap it out.`
+      }
     >
       <rect x={20} y={top} width={280} height={H} fill="#1e293b" />
+      <Label x={24} y={16} color="#94a3b8" size={10}>
+        the groove, seen from the side
+      </Label>
       <rect x={tabX} y={tabTop} width={tabW} height={top + H - tabTop} fill="#3f5a2a" stroke="#facc15" />
       <rect x={20} y={top + H} width={280} height={14} fill="#6b4f35" />
       <Label x={24} y={top + H + 11} color="#d6c4a8" size={9}>
@@ -42,12 +57,30 @@ export function TabHeightFigure({
         />
         <Bit r={7} len={30} />
       </g>
-      <g stroke="#facc15" fill="#facc15">
-        <line x1={tabX + tabW + 30} x2={tabX + tabW + 30} y1={tabTop} y2={top + H} />
-        <Label x={tabX + tabW + 36} y={(tabTop + top + H) / 2 + 4} color="#fde047" size={11}>
-          {r2(tabHeight)} mm
-        </Label>
-      </g>
+      {byWidth ? (
+        <g stroke="#facc15" fill="#facc15">
+          <line x1={tabX} x2={tabX} y1={tabTop} y2={top + H + 30} strokeDasharray="3 2" strokeWidth={0.8} />
+          <line
+            x1={tabX + tabW}
+            x2={tabX + tabW}
+            y1={tabTop}
+            y2={top + H + 30}
+            strokeDasharray="3 2"
+            strokeWidth={0.8}
+          />
+          <line x1={tabX} x2={tabX + tabW} y1={top + H + 26} y2={top + H + 26} strokeWidth={3} />
+          <Label x={tabX + tabW + 6} y={top + H + 30} color="#fde047" size={11}>
+            {r2(tabWidth)} mm
+          </Label>
+        </g>
+      ) : (
+        <g stroke="#facc15" fill="#facc15">
+          <line x1={tabX + tabW + 30} x2={tabX + tabW + 30} y1={tabTop} y2={top + H} />
+          <Label x={tabX + tabW + 36} y={(tabTop + top + H) / 2 + 4} color="#fde047" size={11}>
+            {r2(tabHeight)} mm
+          </Label>
+        </g>
+      )}
     </Scene>
   )
 }
@@ -212,26 +245,50 @@ export function HelixFigure({ helical }: { helical: boolean }): ReactNode {
 /** Top view of a hole being milled: the cutter circles inside it. */
 export function HoleMillAnimation(): ReactNode {
   const cx = W / 2
-  const cy = 75
-  const R = 46
-  const r = 14
-  const path = `M ${cx + R - r} ${cy} A ${R - r} ${R - r} 0 1 1 ${cx + R - r - 0.01} ${cy}`
+  const cy = 74
+  const R = 50
+  const r = 13
+  const rr = R - r
+  // Two half circles about the hole centre (one near-full arc would be centred off the hole).
+  const path = `M ${cx + rr} ${cy} A ${rr} ${rr} 0 1 0 ${cx - rr} ${cy} A ${rr} ${rr} 0 1 0 ${cx + rr} ${cy}`
   return (
-    <Scene caption="Seen from above: a hole bigger than any drill is milled by moving a smaller cutter around inside it.">
+    <Scene caption="Seen from above: a smaller cutter goes round inside the hole, cutting along its wall. When the ring is done the loose centre drops out, leaving a hole bigger than any drill.">
       <rect x={0} y={0} width={W} height={150} fill="#c47a3a" />
+      <path d={path} fill="none" stroke="#0b1220" strokeWidth={r * 2} pathLength={1} strokeDasharray="1 1">
+        <animate
+          attributeName="stroke-dashoffset"
+          values="1;0;0"
+          keyTimes="0;0.75;1"
+          dur="5s"
+          repeatCount="indefinite"
+        />
+      </path>
       <circle cx={cx} cy={cy} r={R} fill="#0b1220" opacity={0}>
         <animate
           attributeName="opacity"
-          values="0;1;1"
-          keyTimes="0;0.9;1"
-          dur="4s"
+          values="0;0;1;1"
+          keyTimes="0;0.8;0.88;1"
+          dur="5s"
           repeatCount="indefinite"
         />
       </circle>
-      <circle cx={cx} cy={cy} r={R} fill="none" stroke="#94a3b8" strokeDasharray="4 3" />
-      <circle r={r} fill="rgba(226,232,240,0.6)" stroke="#e2e8f0">
-        <animateMotion dur="4s" repeatCount="indefinite" path={path} />
+      <circle cx={cx} cy={cy} r={R} fill="none" stroke="#fde68a" strokeDasharray="4 3" />
+      <circle r={r} fill="rgba(226,232,240,0.7)" stroke="#f8fafc">
+        <animateMotion
+          dur="5s"
+          keyPoints="0;1;1"
+          keyTimes="0;0.75;1"
+          calcMode="linear"
+          repeatCount="indefinite"
+          path={path}
+        />
       </circle>
+      <Label x={cx + R + 8} y={cy - R + 12} color="#fde68a" size={10}>
+        hole
+      </Label>
+      <Label x={10} y={16} color="#1e293b" size={10}>
+        the cutter goes round inside ↺
+      </Label>
     </Scene>
   )
 }
