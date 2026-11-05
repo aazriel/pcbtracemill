@@ -143,8 +143,9 @@ float hfield(vec2 w) {
   return htex(w);
 }
 
-// Cubic B-spline over a virtual grid twice as coarse as the cells: every node is one bilinear
-// fetch between 2×2 cells. It removes the staircase of the cell grid; the sharp surface below
+// Cubic B-spline with one node per cell. It removes the staircase of the cell grid while keeping
+// features of about two cells (e.g. a 0.25 mm trace between isolation grooves on a large board,
+// where a cell is ~0.085 mm): a coarser grid smeared them into the grooves. The sharp surface below
 // then puts the crisp edges back where the material really changes.
 void bsWeights(float f, out vec4 w) {
   float f2 = f * f, f3 = f2 * f;
@@ -152,7 +153,7 @@ void bsWeights(float f, out vec4 w) {
 }
 
 float hspline(vec2 w) {
-  float g = uRes * 2.0;
+  float g = uRes;
   vec2 p = w / g - 0.5;
   vec2 i = floor(p);
   vec4 wx, wy;
@@ -169,7 +170,7 @@ float hspline(vec2 w) {
 
 // Material masks (r = copper, g = through), same reconstruction.
 vec2 matspline(vec2 w) {
-  float g = uRes * 2.0;
+  float g = uRes;
   vec2 p = w / g - 0.5;
   vec2 i = floor(p);
   vec4 wx, wy;
@@ -191,10 +192,11 @@ float hsharp(vec2 w) {
   if (edgeDist(w) < 0.0) return -uThick;
   vec2 m = matspline(w);
   if (m.g > 0.5) return -uThick;
+  // The copper mask decides what is copper: it is exact per cell and unbiased. Deciding by the
+  // smoothed heights instead let a deep groove next to a trace pull the trace's edge cells below the
+  // copper layer, so thin traces (two or three cells) were drawn much thinner than they are.
+  if (m.r > 0.5) return 0.0;
   float h = hspline(w);
-  // next to holes and cut-outs the copper mask decides, elsewhere the (sub-cell exact) heights
-  bool copper = m.g > 0.04 ? m.r > 0.5 : h > -0.5 * uCopper;
-  if (copper) return 0.0;
   return min(h, -uCopper - 0.002);
 }
 
