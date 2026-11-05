@@ -6,7 +6,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { ChevronDown, Library, Loader2, Ruler, Sparkles, Wrench } from 'lucide-react'
 import type { StepKind, Tool } from '@core/model/types'
-import { STEP_KIND_INFO, toolsForStep } from '@core/cam'
+import { STEP_KIND_INFO, toolsForStep, type ToolPickContext } from '@core/cam'
 import { useProject } from '@renderer/store/project'
 import { Dialog } from '@renderer/components/ui/dialog'
 import { Button } from '@renderer/components/ui/button'
@@ -100,7 +100,9 @@ export function ToolPickerDialog({
   selectedToolId,
   onSelect,
   onOpenLibrary,
-  fit
+  fit,
+  context,
+  contextNote
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -110,6 +112,10 @@ export function ToolPickerDialog({
   onOpenLibrary: () => void
   /** Isolation only: recommend by the narrowest gap between copper on these layers. */
   fit?: ToolFit
+  /** Other steps: the numbers the recommendation uses (hole sizes, board thickness, pin size). */
+  context?: ToolPickContext
+  /** One line telling what the recommendation is based on. */
+  contextNote?: string
 }): React.JSX.Element {
   const tools = useProject((s) => s.tools)
   const [gap, setGap] = useState<number | null | undefined>(undefined)
@@ -133,10 +139,22 @@ export function ToolPickerDialog({
   }, [open, layerKey, ignoreBelow])
   const cutDepth = fit?.cutDepth
   const entries: Entry[] = useMemo(() => {
-    const base = toolsForStep(stepKind, tools)
-    if (cutDepth !== undefined && typeof gap === 'number') return fitEntries(base, gap, cutDepth)
-    return [...base].sort((a, b) => Number(b.recommended) - Number(a.recommended) || ownFirst(a, b))
-  }, [stepKind, tools, cutDepth, gap])
+    const base: Entry[] = toolsForStep(stepKind, tools, context)
+    if (cutDepth !== undefined && typeof gap === 'number')
+      return fitEntries(
+        base.map((e) => ({ ...e, best: false })),
+        gap,
+        cutDepth
+      )
+    return base
+      .map((e) => (e.best ? { ...e, reason: `Best choice. ${e.reason}` } : e))
+      .sort(
+        (a, b) =>
+          Number(!!b.best) - Number(!!a.best) ||
+          Number(b.recommended) - Number(a.recommended) ||
+          ownFirst(a, b)
+      )
+  }, [stepKind, tools, cutDepth, gap, context])
   const info = STEP_KIND_INFO[stepKind]
   const recommended = entries.filter((e) => e.recommended)
   const others = entries.filter((e) => !e.recommended)
@@ -203,6 +221,18 @@ export function ToolPickerDialog({
                 ringed one is the best fit.
               </span>
             )}
+          </div>
+        )}
+        {!fit && contextNote && (
+          <div
+            className="flex items-center gap-2 rounded-lg bg-slate-950/60 px-3 py-2 text-xs text-slate-300"
+            data-testid="tool-picker-context"
+          >
+            <Ruler className="size-4 shrink-0 text-sky-300" />
+            <span>
+              {contextNote} The green tools suit it; the ringed one is the best choice
+              {tools.some((t) => !t.builtIn) ? ' (your own tools first)' : ''}.
+            </span>
           </div>
         )}
         {recommended.length > 0 && (

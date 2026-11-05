@@ -1,5 +1,5 @@
 /** Layer, Tool, General and Results sections of the Step editor dialog. */
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   ArrowLeft,
   Clock,
@@ -11,7 +11,13 @@ import {
   Wrench
 } from 'lucide-react'
 import type { CamStep, ImportedLayer, Toolpath, ValidationIssue } from '@core/model/types'
-import { STEP_KIND_INFO, defaultCutDepth, isToolAllowed, layersForStep } from '@core/cam'
+import {
+  STEP_KIND_INFO,
+  defaultCutDepth,
+  isToolAllowed,
+  layersForStep,
+  type ToolPickContext
+} from '@core/cam'
 import { effectiveCutWidth } from '@core/tools'
 import { useProject } from '@renderer/store/project'
 import { useUi } from '@renderer/store/ui'
@@ -139,6 +145,44 @@ export function LayerSection({ draft, update }: SectionProps): React.JSX.Element
 
 // ───────────────────────────────────────── Tool
 
+/** The numbers the tool picker recommends from: hole sizes of the step, board thickness, pin size. */
+function usePickContext(draft: CamStep): { context: ToolPickContext; note?: string } {
+  const layers = useLayersWithParsed()
+  const material = useProject((s) => s.material)
+  return useMemo(() => {
+    const thickness = material?.thickness
+    if (draft.kind === 'drill' || draft.kind === 'holeMill') {
+      const r = draft.kind === 'drill' ? draft.params.drill : draft.params.holeMill
+      const sizes = layers
+        .filter((l) => draft.layerIds.includes(l.id))
+        .flatMap((l) => l.parsed?.drills?.holes ?? [])
+        .map((h) => h.diameter)
+        .filter((d) => d >= r.minDiameter - 1e-3 && d <= r.maxDiameter + 1e-3)
+      const uniq = [...new Set(sizes.map((d) => Math.round(d * 100) / 100))].sort((a, b) => a - b)
+      const list = uniq.length > 3 ? `${uniq[0]}–${uniq[uniq.length - 1]}` : uniq.join(', ')
+      return {
+        context: { holeDiameters: sizes, thickness },
+        note: sizes.length
+          ? `This step ${draft.kind === 'drill' ? 'drills' : 'mills'} ${sizes.length} hole${sizes.length === 1 ? '' : 's'} of ${list} mm.`
+          : undefined
+      }
+    }
+    if (draft.kind === 'cutout')
+      return {
+        context: { thickness },
+        note: thickness
+          ? `The board is ${thickness} mm thick: the bit must cut at least that deep.`
+          : undefined
+      }
+    if (draft.kind === 'alignment' && material)
+      return {
+        context: { pinDiameter: material.alignment.pinDiameter, thickness },
+        note: `Your alignment pins are ${material.alignment.pinDiameter} mm.`
+      }
+    return { context: { thickness } }
+  }, [draft.kind, draft.layerIds, draft.params, layers, material])
+}
+
 export function ToolSection({ draft, update }: SectionProps): React.JSX.Element {
   const tools = useProject((s) => s.tools)
   const machine = useProject((s) => s.machine)
@@ -156,6 +200,7 @@ export function ToolSection({ draft, update }: SectionProps): React.JSX.Element 
     update((d) => ({ ...d, toolId: id }))
   }
   const fit = tool ? isToolAllowed(draft.kind, tool) : null
+  const pick = usePickContext(draft)
   return (
     <div className="flex flex-col gap-1.5" data-testid="tool-section">
       <div className="flex items-stretch gap-2">
@@ -213,6 +258,8 @@ export function ToolSection({ draft, update }: SectionProps): React.JSX.Element 
               }
             : undefined
         }
+        context={pick.context}
+        contextNote={pick.note}
       />
       <ToolLibraryDialog
         open={libOpen}
