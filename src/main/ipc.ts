@@ -1,10 +1,10 @@
 import { app, dialog, ipcMain, BrowserWindow } from 'electron'
-import { promises as fs } from 'node:fs'
+import { promises as fs, writeFileSync, rmSync, readFileSync } from 'node:fs'
 import { basename, join, extname, dirname, parse as parsePath } from 'node:path'
 import Store from 'electron-store'
 import type { FolderListing, FolderPlace, OpenedFile, SaveFileRequest } from '../shared/ipc-types'
 
-const store = new Store({ name: 'tracemill-settings' })
+let store!: Store
 const BINARY_EXT = new Set(['.zip'])
 const MAX_FILE_BYTES = 50 * 1024 * 1024
 
@@ -75,6 +75,8 @@ async function folderPlaces(): Promise<FolderPlace[]> {
 }
 
 export function registerIpc(): void {
+  // created here (not at import) so a test profile set with TRACEMILL_USER_DATA is used
+  store = new Store({ name: 'tracemill-settings' })
   ipcMain.handle('folder:list', async (_e, path: string | null) => {
     const start = path || (store.get('lastImportFolder', '') as string) || app.getPath('documents')
     try {
@@ -84,6 +86,23 @@ export function registerIpc(): void {
     }
   })
   ipcMain.handle('folder:places', () => folderPlaces())
+  // Last session: written (synchronously, so it survives the window closing) on every change
+  const sessionFile = (): string => join(app.getPath('userData'), 'last-session.json')
+  ipcMain.on('session:save', (_e, text: string | null) => {
+    try {
+      if (text) writeFileSync(sessionFile(), text, 'utf8')
+      else rmSync(sessionFile(), { force: true })
+    } catch {
+      /* best effort */
+    }
+  })
+  ipcMain.handle('session:load', () => {
+    try {
+      return readFileSync(sessionFile(), 'utf8')
+    } catch {
+      return null
+    }
+  })
   ipcMain.handle('folder:read', async (_e, path: string, extensions?: string[]) => {
     store.set('lastImportFolder', path)
     return readOne(path, extensions?.length ? new Set(extensions) : undefined)

@@ -391,7 +391,9 @@ describe('alignment', () => {
       step: step('alignment', [], { cutDepth: 2.0 }),
       tool: tool('drill', 3)
     })
-    const expected = alignmentPinPositions(mat, bb).map((p) => applyAffine(stockSideToWork(mat, 'top', bb), p))
+    const expected = alignmentPinPositions(mat, bb).map((p) =>
+      applyAffine(stockSideToWork(mat, 'top', bb), p)
+    )
     const got = drilled.segments.map((s) => ({ x: s.drill!.x, y: s.drill!.y }))
     expect(got).toHaveLength(2)
     for (const e of expected) expect(got.some((g) => Math.hypot(g.x - e.x, g.y - e.y) < 1e-9)).toBe(true)

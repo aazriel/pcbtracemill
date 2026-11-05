@@ -9,6 +9,9 @@ import { Stepper } from '@renderer/layout/Stepper'
 import { EdaDialog } from '@renderer/layers/EdaDialog'
 import { DuplicateDialog } from '@renderer/layers/DuplicateDialog'
 import { FolderBrowserDialog } from '@renderer/layers/FolderBrowserDialog'
+import { RestoreDialog } from '@renderer/layers/RestoreDialog'
+import { checkLastSession } from '@renderer/store/session'
+import { Tour, maybeShowTour, openTour } from '@renderer/components/Tour'
 import { HelpDialog } from '@renderer/components/HelpDialog'
 import { useProject, useTemporal } from '@renderer/store/project'
 import { useUi } from '@renderer/store/ui'
@@ -58,6 +61,9 @@ export function App(): React.JSX.Element {
 
   useEffect(() => {
     ensureDefaults()
+    // first start: the tour (there is no last session yet); afterwards: offer the last session
+    void maybeShowTour()
+    void checkLastSession()
     const off = window.tracemill?.onMenu((cmd) => {
       if (cmd === 'new-project') newProject()
       else if (cmd === 'open-project') void openProject()
@@ -67,6 +73,7 @@ export function App(): React.JSX.Element {
       else if (cmd === 'import-folder') void browseAndImport(true)
       else if (cmd === 'undo') undo()
       else if (cmd === 'redo') redo()
+      else if (cmd === 'tour') openTour()
       else if (cmd === 'help') useUi.getState().set({ helpOpen: true, helpTopic: 'start' })
       else if (cmd === 'shortcuts') useUi.getState().set({ helpOpen: true, helpTopic: 'shortcuts' })
       else if (cmd === 'about') useUi.getState().set({ helpOpen: true, helpTopic: 'about' })
@@ -222,6 +229,8 @@ export function App(): React.JSX.Element {
         />
         <DuplicateDialog pending={duplicates} onResolve={resolveDuplicates} />
         <FolderBrowserDialog />
+        <RestoreDialog />
+        <Tour />
         <HelpDialog
           open={helpOpen}
           topic={helpTopic}

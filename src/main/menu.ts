@@ -95,6 +95,7 @@ export function buildMenu(): void {
       role: 'help',
       submenu: [
         { label: 'TraceMill Help', accelerator: 'F1', click: () => send('help') },
+        { label: 'Take the Tour', click: () => send('tour') },
         { label: 'Keyboard & Mouse Shortcuts', click: () => send('shortcuts') },
         { type: 'separator' },
         { label: `About TraceMill ${app.getVersion()}`, click: () => send('about') }

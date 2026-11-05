@@ -41,6 +41,12 @@ export interface TraceMillApi {
   folderPlaces(): Promise<FolderPlace[]>
   /** Reads a folder recursively, only files with these extensions; remembers it for next time. */
   readFolder(path: string, extensions?: string[]): Promise<OpenedFile[]>
+  /** Stores the current work for "restore last session" (null clears it). */
+  sessionSave(text: string | null): void
+  /** The stored last session, or null. */
+  sessionLoad(): Promise<string | null>
+  /** True when started for automated tests: no restore question, no first-run tour. */
+  noStartupPrompts: boolean
   saveFile(req: SaveFileRequest): Promise<string | null>
   /** Save several files into a user-chosen directory. Returns directory or null. */
   saveFilesToDir(files: { name: string; content: string }[]): Promise<string | null>
@@ -65,6 +71,7 @@ export type MenuCommand =
   | 'set-units:mm'
   | 'set-units:inch'
   | 'help'
+  | 'tour'
   | 'shortcuts'
   | 'about'
   | 'new-project'

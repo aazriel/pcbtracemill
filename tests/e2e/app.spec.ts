@@ -38,7 +38,10 @@ let page: Page
 test.beforeAll(async () => {
   const args = [join(root, 'out/main/index.js')]
   if (process.getuid?.() === 0) args.unshift('--no-sandbox')
-  app = await electron.launch({ args, env: { ...process.env, NODE_ENV: 'production' } })
+  app = await electron.launch({
+    args,
+    env: { ...process.env, NODE_ENV: 'production', TRACEMILL_NO_STARTUP_PROMPTS: '1' }
+  })
   page = await app.firstWindow()
   await page.waitForFunction(() => !!window.__tm)
 })
