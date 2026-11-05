@@ -64,12 +64,15 @@ export interface MenuState {
   eda: string | null
   /** Display units of the project. */
   units: 'mm' | 'inch'
+  /** Settings -> Advanced: allow skipping parts of a step. */
+  advancedSkip: boolean
 }
 
 export type MenuCommand =
   | `set-eda:${string}`
   | 'set-units:mm'
   | 'set-units:inch'
+  | 'toggle-advanced-skip'
   | 'help'
   | 'tour'
   | 'shortcuts'

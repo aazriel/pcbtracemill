@@ -14,7 +14,7 @@ const EDA_MENU: { id: string; label: string }[] = [
   { id: 'other', label: 'Other / not sure' }
 ]
 
-let state: MenuState = { eda: null, units: 'mm' }
+let state: MenuState = { eda: null, units: 'mm', advancedSkip: false }
 
 export function buildMenu(): void {
   const isMac = process.platform === 'darwin'
@@ -87,6 +87,14 @@ export function buildMenu(): void {
           type: 'radio',
           checked: state.units === 'inch',
           click: () => send('set-units:inch')
+        },
+        { type: 'separator' },
+        { label: 'Advanced', enabled: false },
+        {
+          label: 'Allow skipping traces and holes in a step',
+          type: 'checkbox',
+          checked: state.advancedSkip,
+          click: () => send('toggle-advanced-skip')
         }
       ]
     },
@@ -108,6 +116,10 @@ export function buildMenu(): void {
 /** The renderer reports what the menu should show; the menu is rebuilt when it changes. */
 ipcMain.on('menu:state', (_e, next: MenuState) => {
   if (next?.eda === state.eda && next?.units === state.units) return
-  state = { eda: next?.eda ?? null, units: next?.units === 'inch' ? 'inch' : 'mm' }
+  state = {
+    eda: next?.eda ?? null,
+    units: next?.units === 'inch' ? 'inch' : 'mm',
+    advancedSkip: !!next?.advancedSkip
+  }
   buildMenu()
 })

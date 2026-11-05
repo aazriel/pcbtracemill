@@ -11,6 +11,7 @@ import { DuplicateDialog } from '@renderer/layers/DuplicateDialog'
 import { FolderBrowserDialog } from '@renderer/layers/FolderBrowserDialog'
 import { RestoreDialog } from '@renderer/layers/RestoreDialog'
 import { checkLastSession } from '@renderer/store/session'
+import { setAdvancedSkip } from '@renderer/steps/SkipSection'
 import { Tour, maybeShowTour, openTour } from '@renderer/components/Tour'
 import { HelpDialog } from '@renderer/components/HelpDialog'
 import { useProject, useTemporal } from '@renderer/store/project'
@@ -49,6 +50,7 @@ export function App(): React.JSX.Element {
   const setSettings = useProject((s) => s.setSettings)
   const boardHint = useBoardHint()
   const generating = useUi((s) => s.generating)
+  const advancedSkip = useUi((s) => s.advancedSkip)
   const name = useProject((s) => s.name)
   const dirty = useProject((s) => s.dirty)
   const setName = useProject((s) => s.setName)
@@ -64,6 +66,9 @@ export function App(): React.JSX.Element {
     // first start: the tour (there is no last session yet); afterwards: offer the last session
     void maybeShowTour()
     void checkLastSession()
+    void window.tracemill
+      ?.settingsGet<boolean>('advancedSkip', false)
+      .then((v) => useUi.getState().set({ advancedSkip: !!v }))
     const off = window.tracemill?.onMenu((cmd) => {
       if (cmd === 'new-project') newProject()
       else if (cmd === 'open-project') void openProject()
@@ -74,6 +79,7 @@ export function App(): React.JSX.Element {
       else if (cmd === 'undo') undo()
       else if (cmd === 'redo') redo()
       else if (cmd === 'tour') openTour()
+      else if (cmd === 'toggle-advanced-skip') setAdvancedSkip(!useUi.getState().advancedSkip)
       else if (cmd === 'help') useUi.getState().set({ helpOpen: true, helpTopic: 'start' })
       else if (cmd === 'shortcuts') useUi.getState().set({ helpOpen: true, helpTopic: 'shortcuts' })
       else if (cmd === 'about') useUi.getState().set({ helpOpen: true, helpTopic: 'about' })
@@ -112,8 +118,8 @@ export function App(): React.JSX.Element {
 
   // Keep the Settings menu showing the current design program.
   useEffect(() => {
-    window.tracemill?.setMenuState({ eda, units })
-  }, [eda, units])
+    window.tracemill?.setMenuState({ eda, units, advancedSkip })
+  }, [eda, units, advancedSkip])
 
   return (
     <TooltipProvider>

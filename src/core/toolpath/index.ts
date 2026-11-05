@@ -13,6 +13,7 @@ import { computeStats } from './moves'
 
 export type { ToolpathInput } from './context'
 export { ToolpathError } from './context'
+export { activeSkips, holeMatches, skippedIslands } from './skip'
 export {
   alignmentPinPositions,
   boardToStockTransform,

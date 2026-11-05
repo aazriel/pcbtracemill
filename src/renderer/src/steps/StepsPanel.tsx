@@ -5,6 +5,7 @@
 import { useState } from 'react'
 import {
   ArrowDown,
+  Ban,
   ArrowUp,
   Copy,
   GripVertical,
@@ -312,6 +313,19 @@ function StepCard({
             >
               {step.side === 'top' ? 'TOP' : 'BOTTOM'}
             </span>
+            {step.skip?.enabled && step.skip.items.length > 0 && (
+              <Tooltip
+                content={`You chose to skip ${step.skip.items.length} part${step.skip.items.length === 1 ? '' : 's'} of the board in this step (Edit → Skip parts).`}
+              >
+                <span
+                  className="flex shrink-0 items-center gap-0.5 rounded bg-rose-500/15 px-1 py-px text-[10px] font-semibold text-rose-200"
+                  data-testid="step-skipped"
+                >
+                  <Ban className="size-3" />
+                  {step.skip.items.length}
+                </span>
+              </Tooltip>
+            )}
             {step.enabled && problems > 0 && (
               <Tooltip content="Places this step cannot machine as designed — click to see them on the board">
                 <button

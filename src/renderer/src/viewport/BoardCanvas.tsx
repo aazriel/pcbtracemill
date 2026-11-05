@@ -41,6 +41,8 @@ export interface BoardCanvasProps {
   className?: string
   /** Changing this value forces a redraw (e.g. when overlay data changes). */
   redrawKey?: unknown
+  /** Click (without dragging) on the board: board coordinates and the current zoom (px per mm). */
+  onPick?: (x: number, y: number, pxPerMm: number) => void
 }
 
 interface Hit {
@@ -60,7 +62,8 @@ export function BoardCanvas(props: BoardCanvasProps): React.JSX.Element {
     overlay,
     toolbar,
     className,
-    redrawKey
+    redrawKey,
+    onPick
   } = props
   const wrapRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -301,6 +304,10 @@ export function BoardCanvas(props: BoardCanvasProps): React.JSX.Element {
       else setMeasure({ ...measure, b: w })
       return
     }
+    if (onPick) {
+      onPick(w[0], w[1], view.zoom)
+      return
+    }
     if (!highlight) return
     // click toggles a frozen highlight
     if (hover && (!frozen || frozen.obj !== hover.obj)) setFrozen(hover)
@@ -320,7 +327,7 @@ export function BoardCanvas(props: BoardCanvasProps): React.JSX.Element {
         style={{
           width: size.w,
           height: size.h,
-          cursor: measuring ? 'crosshair' : dragRef.current ? 'grabbing' : 'grab'
+          cursor: measuring || onPick ? 'crosshair' : dragRef.current ? 'grabbing' : 'grab'
         }}
         onWheel={onWheel}
         onMouseDown={onMouseDown}
