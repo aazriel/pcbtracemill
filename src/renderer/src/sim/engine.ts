@@ -69,6 +69,8 @@ export interface SimState {
   /** A long seek (e.g. "jump to end") is being computed. */
   busy: boolean
   side: SimFace
+  /** Shown big over the view when the job turns the board over (cleared by the overlay). */
+  flipNotice: { toSide: SimFace; key: number } | null
   follow: boolean
   showTool: boolean
   showTrail: boolean
@@ -93,6 +95,7 @@ export const useSim = create<SimState>()((set) => ({
   speed: 10,
   busy: false,
   side: 'top',
+  flipNotice: null,
   follow: false,
   showTool: true,
   showTrail: true,
@@ -162,8 +165,15 @@ export function toolStateAt(d: SimData, time: number): ToolState | null {
     stepId,
     toolId: m.tool[i] >= 0 ? m.toolIds[m.tool[i]] : null,
     line: m.line[i],
-    side: (stepId && d.stepById.get(stepId)?.side) || 'top'
+    side: (stepId && d.stepById.get(stepId)?.side) || sideAround(d, time)
   }
+}
+
+/** Between steps (program start / end, tool changes): the side of the last step that started, else the first. */
+function sideAround(d: SimData, time: number): SimFace {
+  let side: SimFace = d.steps[0]?.side ?? 'top'
+  for (const st of d.steps) if (st.t0 <= time) side = st.side
+  return side
 }
 
 export function lineAt(d: SimData, time: number): number {
@@ -265,6 +275,8 @@ class SimEngine {
   private raf = 0
   private lastWall = 0
   private busyTimer: ReturnType<typeof setTimeout> | null = null
+  /** Face the tool worked on at the last displayed time: a change means the board was flipped. */
+  private lastToolSide: SimFace | null = null
   /** Set whenever the GL textures changed; the viewport clears it after drawing. */
   glDirty = true
 
@@ -274,7 +286,16 @@ class SimEngine {
     // Any seek still running belongs to the previous program; its result is discarded.
     this.inflight = false
     this.pending = null
-    useSim.getState().set({ status: 'loading', error: null, version, data: null, time: 0, target: 0 })
+    this.lastToolSide = null
+    useSim.getState().set({
+      status: 'loading',
+      error: null,
+      version,
+      data: null,
+      time: 0,
+      target: 0,
+      flipNotice: null
+    })
     this.gl?.clearFaces()
     try {
       const init = await simWorkerApi().init(input.request)
@@ -351,12 +372,19 @@ class SimEngine {
         if (frame.regions.length) this.glDirty = true
         const st = useSim.getState()
         const patch: Partial<SimState> = { time: t }
-        if (st.follow && st.data) {
+        if (st.data) {
           const ts = toolStateAt(st.data, t)
-          if (ts && ts.side !== st.side && st.data.faces.includes(ts.side)) {
+          // The board is turned over (playing or scrubbing across a flip): show the other face, like
+          // the operator would see it, and say so in big. Otherwise the side the user chose stays.
+          if (ts && this.lastToolSide && ts.side !== this.lastToolSide && st.data.faces.includes(ts.side)) {
+            patch.side = ts.side
+            patch.flipNotice = { toSide: ts.side, key: Date.now() }
+            this.glDirty = true
+          } else if (ts && st.follow && ts.side !== st.side && st.data.faces.includes(ts.side)) {
             patch.side = ts.side
             this.glDirty = true
           }
+          if (ts) this.lastToolSide = ts.side
         }
         st.set(patch)
       }

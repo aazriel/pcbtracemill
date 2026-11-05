@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, type ReactNode } from 'react'
+import { FlipOverlay } from '@renderer/sim/FlipOverlay'
 import { useShallow } from 'zustand/react/shallow'
 import {
   ArrowLeft,
@@ -137,6 +138,7 @@ export function SimulationStage(): React.JSX.Element {
         <section className="relative min-w-0 flex-1">
           <SimViewport />
           <SideBanner />
+          <FlipOverlay />
           {status === 'loading' && (
             <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-slate-950/80 text-sm text-slate-300">
               <Loader2 className="size-7 animate-spin text-sky-400" />
@@ -448,7 +450,7 @@ function SimPanel({ text }: { text: string }): React.JSX.Element {
             onChange={(v) => set({ follow: v })}
             icon={<Crosshair />}
             label="Follow"
-            help="Follow the tool: automatically show the side it is working on (the view flips with the board), and when zoomed in keep the tool on screen while playing."
+            help="Follow the tool: always show the side it is working on, and when zoomed in keep the tool on screen while playing. (The view switches sides by itself whenever the job flips the board.)"
             testId="sim-toggle-follow"
           />
         </div>

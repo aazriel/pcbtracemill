@@ -50,7 +50,8 @@ Steps are the milling operations, run top to bottom:
 - **Recipe** creates a complete, sensible plan from your layers.
 - **Add step** lets you build your own. The step editor has sections — **Layer**, **Tool**, **General**, the step's **parameters**, and **Results** (estimated time and cut length). Each section shows ✓ / ! / ✕; a step is *Ready* only when all are ✓.
 - Edit, duplicate, disable (skipped in G-code) or delete a step; drag to reorder.
-- **↻ Flip the board here** markers appear where the job changes side.
+- Steps are grouped by board side (**Top side**, **Bottom side**) with a thin **↻ Flip the board** divider between them. Steps of the same kind that follow each other (e.g. one drill step per drill size) fold into one row — click it to open the group, or use its checkbox to switch them all on/off. Click a step to see its layers, bit and actions.
+- In the Simulation the view turns over by itself where the job flips the board, with a large notice.
 - G-code is regenerated automatically after each change; switch **Auto-regenerate** off while making many edits and press **Generate** when done.
 - **Skip parts (advanced).** Turn on *Settings → Allow skipping traces and holes in a step*. Isolation, drilling and hole-milling steps then get a **Skip parts** section: click a trace/pad or a hole on the board to leave it out of that step (red), click again to bring it back. Skipped parts are drawn in red in the Manufacture view, the step card shows ⊘ and a warning, so it is always visible that something is left alone. A skipped copper area gets no isolation groove and stays connected to the copper around it.
 

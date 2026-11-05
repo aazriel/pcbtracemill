@@ -1,12 +1,16 @@
 /**
- * STEPS panel of the Manufacture stage: the ordered job list with status circles, flip markers,
- * drag-and-drop reordering and per-step actions; "Recipe" and "Add step" sit below the list.
+ * STEPS panel of the Manufacture stage. The job reads top to bottom as an outline:
+ *  - one collapsible group per board side (Top side / Bottom side), with a thin "flip" spacer between;
+ *  - runs of the same kind of step (e.g. six drill sizes) fold into one row that opens on click;
+ *  - every step is a compact two-line row; clicking it selects it and shows its details and actions.
+ * Drag rows to reorder; "Recipe" and "Add step" sit below the list.
  */
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   ArrowDown,
-  Ban,
   ArrowUp,
+  Ban,
+  ChevronRight,
   Copy,
   GripVertical,
   Loader2,
@@ -17,33 +21,132 @@ import {
   Trash2,
   Wand2
 } from 'lucide-react'
-import type { CamStep } from '@core/model/types'
-import { STEP_KIND_INFO } from '@core/cam'
+import type { CamStep, StepKind } from '@core/model/types'
+import { STEP_KIND_INFO, type StepValidationContext } from '@core/cam'
 import { useProject } from '@renderer/store/project'
 import { useUi } from '@renderer/store/ui'
 import { applyRecipe, showProblems } from '@renderer/store/controller'
 import { PanelSection } from '@renderer/components/ui/section'
 import { Button } from '@renderer/components/ui/button'
 import { Dialog } from '@renderer/components/ui/dialog'
-import { StatusCircle } from '@renderer/components/ui/status'
+import { StatusCircle, type StatusLevel } from '@renderer/components/ui/status'
 import { HelpTip } from '@renderer/components/ui/help'
 import { Tooltip } from '@renderer/components/ui/tooltip'
-import { cn, uid } from '@renderer/lib/utils'
+import { cn, formatDuration, uid } from '@renderer/lib/utils'
 import { fmtLength, useUnits } from '@renderer/lib/units'
 import { useStepEditor } from './editorStore'
 import { IssueList } from './IssueList'
-import { help, layerLabel, stepColor, stepIcon, useStepStatus, useValidationCtx } from './stepUtils'
-import type { StepValidationContext } from '@core/cam'
+import {
+  help,
+  layerLabel,
+  stepColor,
+  stepIcon,
+  stepStatus,
+  useValidationCtx,
+  type StepStatus
+} from './stepUtils'
+
+// ───────────────────────────────────────── outline model
+
+interface Row {
+  step: CamStep
+  index: number
+}
+interface KindGroup {
+  type: 'group'
+  key: string
+  kind: StepKind
+  rows: Row[]
+}
+type Item = { type: 'step'; row: Row } | KindGroup
+interface Phase {
+  key: string
+  side: 'top' | 'bottom'
+  items: Item[]
+  rows: Row[]
+}
+
+/** Splits the steps into side phases, and folds consecutive steps of the same kind into groups. */
+function buildOutline(steps: CamStep[]): Phase[] {
+  const phases: Phase[] = []
+  steps.forEach((step, index) => {
+    let ph = phases[phases.length - 1]
+    if (!ph || ph.side !== step.side) {
+      ph = { key: `phase-${phases.length}-${step.side}`, side: step.side, items: [], rows: [] }
+      phases.push(ph)
+    }
+    const row = { step, index }
+    ph.rows.push(row)
+    const last = ph.items[ph.items.length - 1]
+    const prevStep = last?.type === 'step' ? last.row.step : last?.type === 'group' ? last.rows[0].step : null
+    if (last && prevStep && prevStep.kind === step.kind) {
+      if (last.type === 'group') last.rows.push(row)
+      else
+        ph.items[ph.items.length - 1] = {
+          type: 'group',
+          key: `group-${last.row.step.id}`,
+          kind: step.kind,
+          rows: [last.row, row]
+        }
+    } else ph.items.push({ type: 'step', row })
+  })
+  return phases
+}
+
+const RANK: Record<StatusLevel, number> = { pending: 0, ok: 1, warning: 2, error: 3 }
+function worst(levels: StatusLevel[]): StatusLevel {
+  return levels.reduce<StatusLevel>((w, l) => (RANK[l] > RANK[w] ? l : w), levels.length ? 'ok' : 'pending')
+}
+
+/** Status of every step (live validation + results of the last run). */
+function useStatuses(steps: CamStep[], ctx: StepValidationContext | null): Map<string, StepStatus> {
+  const cam = useUi((s) => s.cam)
+  return useMemo(() => {
+    const m = new Map<string, StepStatus>()
+    for (const s of steps)
+      m.set(
+        s.id,
+        stepStatus(
+          s,
+          ctx,
+          cam?.validations.find((v) => v.stepId === s.id)
+        )
+      )
+    return m
+  }, [steps, ctx, cam])
+}
+
+const SIDE_LABEL = { top: 'Top side', bottom: 'Bottom side' }
+
+// ───────────────────────────────────────── panel
 
 export function StepsPanel(): React.JSX.Element {
   const steps = useProject((s) => s.steps)
   const setSteps = useProject((s) => s.setSteps)
   const moveStep = useProject((s) => s.moveStep)
+  const upsertStep = useProject((s) => s.upsertStep)
   const material = useProject((s) => s.material)
+  const cam = useUi((s) => s.cam)
+  const selectedId = useUi((s) => s.selectedStepId)
   const ctx = useValidationCtx()
   const openPicker = useStepEditor((s) => s.openPicker)
   const [confirmRecipe, setConfirmRecipe] = useState(false)
   const [drag, setDrag] = useState<{ id: string; over: number | null } | null>(null)
+  /** Open/closed state per phase / group key (groups start closed, phases open). */
+  const [open, setOpen] = useState<Record<string, boolean>>({})
+  const outline = useMemo(() => buildOutline(steps), [steps])
+  const statuses = useStatuses(steps, ctx)
+  const levelOf = (s: CamStep): StatusLevel =>
+    s.enabled ? (statuses.get(s.id)?.level ?? 'pending') : 'pending'
+  const seconds = (rows: Row[]): number =>
+    rows.reduce(
+      (t, r) =>
+        t +
+        (r.step.enabled
+          ? (cam?.toolpaths.find((p) => p.stepId === r.step.id)?.stats.estimatedSeconds ?? 0)
+          : 0),
+      0
+    )
 
   const runRecipe = (): void => {
     if (steps.length) setConfirmRecipe(true)
@@ -69,14 +172,36 @@ export function StepsPanel(): React.JSX.Element {
     setDrag(null)
   }
 
-  // Flip markers: between consecutive ENABLED steps whose side differs.
-  let lastSide: 'top' | 'bottom' | null = null
-  const flipBefore = new Set<string>()
-  for (const s of steps) {
-    if (!s.enabled) continue
-    if (lastSide && s.side !== lastSide) flipBefore.add(s.id)
-    lastSide = s.side
-  }
+  const isOpen = (key: string, def: boolean): boolean => open[key] ?? def
+  const toggle = (key: string, def: boolean): void => setOpen((o) => ({ ...o, [key]: !(o[key] ?? def) }))
+
+  const renderRow = (r: Row, nested: boolean): React.JSX.Element => (
+    <div
+      key={r.step.id}
+      onDragOver={(e) => {
+        if (!drag) return
+        e.preventDefault()
+        const rect = e.currentTarget.getBoundingClientRect()
+        const over = e.clientY < rect.top + rect.height / 2 ? r.index : r.index + 1
+        if (over !== drag.over) setDrag({ ...drag, over })
+      }}
+    >
+      {drag && drag.over === r.index && <DropLine />}
+      <StepRow
+        step={r.step}
+        index={r.index}
+        count={steps.length}
+        status={statuses.get(r.step.id)!}
+        nested={nested}
+        dragging={drag?.id === r.step.id}
+        onDragStart={() => setDrag({ id: r.step.id, over: null })}
+        onDragEnd={() => setDrag(null)}
+        onMove={(to) => moveStep(r.step.id, to)}
+        onDuplicate={() => duplicate(r.step)}
+      />
+      {drag && drag.over === r.index + 1 && r.index === steps.length - 1 && <DropLine />}
+    </div>
+  )
 
   return (
     <PanelSection title="Steps">
@@ -91,51 +216,86 @@ export function StepsPanel(): React.JSX.Element {
       {steps.length > 0 && (
         <div
           className="flex flex-col"
+          data-testid="steps-outline"
           onDragOver={(e) => drag && e.preventDefault()}
           onDrop={(e) => {
             e.preventDefault()
             onDrop(drag?.over ?? steps.length)
           }}
         >
-          {steps.map((step, i) => (
-            <div key={step.id}>
-              {flipBefore.has(step.id) && (
-                <FlipMarker axis={material?.alignment.axis ?? 'x'} toSide={step.side} />
-              )}
-              <div
-                onDragOver={(e) => {
-                  if (!drag) return
-                  e.preventDefault()
-                  const r = e.currentTarget.getBoundingClientRect()
-                  const over = e.clientY < r.top + r.height / 2 ? i : i + 1
-                  if (over !== drag.over) setDrag({ ...drag, over })
-                }}
-              >
-                {drag && drag.over === i && <DropLine />}
-                <StepCard
-                  step={step}
-                  index={i}
-                  count={steps.length}
-                  ctx={ctx}
-                  dragging={drag?.id === step.id}
-                  onDragStart={() => setDrag({ id: step.id, over: null })}
-                  onDragEnd={() => setDrag(null)}
-                  onMove={(to) => moveStep(step.id, to)}
-                  onDuplicate={() => duplicate(step)}
-                />
-                {drag && drag.over === i + 1 && i === steps.length - 1 && <DropLine />}
+          {outline.map((ph, pi) => {
+            const phOpen = isOpen(ph.key, true)
+            const phLevel = worst(ph.rows.map((r) => levelOf(r.step)))
+            const t = seconds(ph.rows)
+            return (
+              <div key={ph.key}>
+                {pi > 0 && <FlipSpacer axis={material?.alignment.axis ?? 'x'} toSide={ph.side} />}
+                <button
+                  type="button"
+                  onClick={() => toggle(ph.key, true)}
+                  className="mb-1 flex w-full items-center gap-1.5 rounded-md px-1 py-1 text-left hover:bg-slate-800/50"
+                  data-testid="steps-phase"
+                  aria-expanded={phOpen}
+                >
+                  <ChevronRight
+                    className={cn(
+                      'size-3.5 shrink-0 text-slate-500 transition-transform',
+                      phOpen && 'rotate-90'
+                    )}
+                  />
+                  <span
+                    className={cn(
+                      'rounded px-1.5 py-px text-[9.5px] font-bold uppercase tracking-wide',
+                      ph.side === 'top' ? 'bg-sky-500/15 text-sky-300' : 'bg-violet-500/20 text-violet-200'
+                    )}
+                  >
+                    {SIDE_LABEL[ph.side]}
+                  </span>
+                  <span className="text-[11px] text-slate-500">
+                    {ph.rows.length} step{ph.rows.length === 1 ? '' : 's'}
+                    {t > 0 && ` · ${formatDuration(t)}`}
+                  </span>
+                  <span className="flex-1" />
+                  <StatusCircle level={phLevel} size={14} />
+                </button>
+                {phOpen && (
+                  <div className="flex flex-col gap-1 pb-1">
+                    {ph.items.map((it) => {
+                      if (it.type === 'step') return renderRow(it.row, false)
+                      const hasSel = it.rows.some((r) => r.step.id === selectedId)
+                      const gOpen = isOpen(it.key, hasSel)
+                      return (
+                        <div key={it.key} className="flex flex-col gap-1">
+                          <GroupRow
+                            group={it}
+                            open={gOpen}
+                            level={worst(it.rows.map((r) => levelOf(r.step)))}
+                            seconds={seconds(it.rows)}
+                            onToggle={() => toggle(it.key, hasSel)}
+                            onEnable={(on) => it.rows.forEach((r) => upsertStep({ ...r.step, enabled: on }))}
+                          />
+                          {gOpen && (
+                            <div className="ml-2.5 flex flex-col gap-1 border-l border-slate-700/80 pl-1.5">
+                              {it.rows.map((r) => renderRow(r, true))}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
-      <div className="mt-1 grid grid-cols-2 gap-2">
+      <div className="mt-2 grid grid-cols-2 gap-2">
         <Tooltip content="Let TraceMill plan the whole job for you: it picks the steps, their order and the tools from your layers.">
-          <Button variant="secondary" className="h-10 text-sm" onClick={runRecipe} data-testid="recipe">
+          <Button variant="secondary" className="h-9 text-sm" onClick={runRecipe} data-testid="recipe">
             <Wand2 /> Recipe
           </Button>
         </Tooltip>
-        <Button className="h-10 text-sm" onClick={openPicker} data-testid="add-step">
+        <Button className="h-9 text-sm" onClick={openPicker} data-testid="add-step">
           <Plus /> Add step
         </Button>
       </div>
@@ -175,29 +335,114 @@ function DropLine(): React.JSX.Element {
   return <div className="my-0.5 h-0.5 rounded bg-sky-400" />
 }
 
-function FlipMarker({ axis, toSide }: { axis: 'x' | 'y'; toSide: 'top' | 'bottom' }): React.JSX.Element {
+/** Thin divider where the board is turned over; the details are in its (?). */
+function FlipSpacer({ axis, toSide }: { axis: 'x' | 'y'; toSide: 'top' | 'bottom' }): React.JSX.Element {
   return (
     <div
-      className="my-1.5 flex items-start gap-2 rounded-lg border border-violet-500/50 bg-violet-500/10 px-2.5 py-2 text-[11px] text-violet-100"
+      className="my-1.5 flex items-center gap-2 text-[10.5px] font-medium text-violet-300"
       data-testid="flip-marker"
     >
-      <RefreshCcw className="mt-0.5 size-4 shrink-0 text-violet-300" />
-      <div className="min-w-0 flex-1 leading-snug">
-        <div className="font-semibold text-violet-200">Flip the board here ({toSide} side up)</div>
+      <span className="h-px flex-1 bg-violet-500/40" />
+      <RefreshCcw className="size-3.5" />
+      Flip the board · {toSide} side up
+      <HelpTip title="Flipping the board">
         Turn the board over around the line through the two pins (
         {axis === 'x' ? 'front edge goes to the back' : 'left edge goes to the right'}), push it back onto the
-        alignment pins and re-check Z zero.
-      </div>
-      <HelpTip title="Flipping the board">{help('concept.flip')}</HelpTip>
+        alignment pins and re-check Z zero. {help('concept.flip')}
+      </HelpTip>
+      <span className="h-px flex-1 bg-violet-500/40" />
     </div>
   )
 }
 
-function StepCard({
+/** Folded run of steps of one kind (e.g. "Drill holes · 6 steps · 0.4–1.4 mm"). */
+function GroupRow({
+  group,
+  open,
+  level,
+  seconds,
+  onToggle,
+  onEnable
+}: {
+  group: KindGroup
+  open: boolean
+  level: StatusLevel
+  seconds: number
+  onToggle: () => void
+  onEnable: (on: boolean) => void
+}): React.JSX.Element {
+  const Icon = stepIcon(group.kind)
+  const steps = group.rows.map((r) => r.step)
+  const on = steps.filter((s) => s.enabled).length
+  const first = group.rows[0].index
+  const last = group.rows[group.rows.length - 1].index
+  let detail = ''
+  if (group.kind === 'drill' || group.kind === 'holeMill') {
+    const ps = steps.map((s) => (s.kind === 'drill' ? s.params.drill : s.params.holeMill))
+    const r = (v: number): number => Math.round(v * 100) / 100
+    const lo = r(Math.min(...ps.map((p) => p.minDiameter)))
+    const hi = r(Math.max(...ps.map((p) => Math.min(p.maxDiameter, 50))))
+    detail = lo === hi ? `${lo} mm` : `${lo}–${hi} mm`
+  }
+  return (
+    <div
+      className={cn(
+        'flex cursor-pointer items-center gap-1.5 rounded-lg border bg-slate-900 px-2 py-1.5 transition-colors hover:border-slate-500',
+        level === 'error'
+          ? 'border-rose-500/60'
+          : level === 'warning'
+            ? 'border-amber-500/50'
+            : 'border-slate-700'
+      )}
+      onClick={onToggle}
+      data-testid="step-group"
+      aria-expanded={open}
+    >
+      <ChevronRight
+        className={cn('size-3.5 shrink-0 text-slate-400 transition-transform', open && 'rotate-90')}
+      />
+      <Tooltip
+        content={
+          on === steps.length ? 'Untick to skip all of these steps' : 'Tick to include all of these steps'
+        }
+      >
+        <input
+          type="checkbox"
+          checked={on === steps.length}
+          ref={(el) => {
+            if (el) el.indeterminate = on > 0 && on < steps.length
+          }}
+          onChange={(e) => onEnable(e.target.checked)}
+          onClick={(e) => e.stopPropagation()}
+          className="size-3.5 cursor-pointer accent-sky-500"
+          aria-label="Include these steps in the G-code"
+        />
+      </Tooltip>
+      <span className="flex h-5 shrink-0 items-center rounded-full bg-slate-800 px-1.5 text-[10px] font-bold text-slate-300">
+        {first + 1}–{last + 1}
+      </span>
+      <Icon className="size-4 shrink-0" style={{ color: stepColor(first) }} />
+      <div className="min-w-0 flex-1 leading-tight">
+        <div className="truncate text-xs font-semibold text-slate-100">
+          {STEP_KIND_INFO[group.kind].label} · {steps.length} steps
+        </div>
+        <div className="truncate text-[10.5px] text-slate-500">
+          {detail && `${detail} · `}
+          {seconds > 0 ? formatDuration(seconds) : `${on} of ${steps.length} included`}
+        </div>
+      </div>
+      <StatusCircle level={level} size={16} />
+    </div>
+  )
+}
+
+/** One step: a compact two-line row; selected, it shows its details and actions. */
+function StepRow({
   step,
   index,
   count,
-  ctx,
+  status,
+  nested,
   dragging,
   onDragStart,
   onDragEnd,
@@ -207,7 +452,8 @@ function StepCard({
   step: CamStep
   index: number
   count: number
-  ctx: StepValidationContext | null
+  status: StepStatus
+  nested: boolean
   dragging: boolean
   onDragStart: () => void
   onDragEnd: () => void
@@ -222,15 +468,26 @@ function StepCard({
   const working = useUi((s) => s.generating && s.generatingStepId === step.id)
   const problems = useUi((s) => s.cam?.toolpaths.find((t) => t.stepId === step.id)?.problems?.length ?? 0)
   const openEdit = useStepEditor((s) => s.openEdit)
-  const status = useStepStatus(step, ctx)
   const [confirmDel, setConfirmDel] = useState(false)
   const Icon = stepIcon(step.kind)
   const tool = tools.find((t) => t.id === step.toolId)
   const stepLayers = layers.filter((l) => step.layerIds.includes(l.id))
   const needsLayer = STEP_KIND_INFO[step.kind].allowedLayerTypes.length > 0
-  const level = step.enabled ? status.level : 'pending'
+  const level: StatusLevel = step.enabled ? status.level : 'pending'
   const color = stepColor(index)
   const units = useUnits()
+  const skipped = step.skip?.enabled ? step.skip.items.length : 0
+
+  const summary = [
+    tool ? `T${tool.number} ${tool.name}` : 'no bit chosen',
+    needsLayer
+      ? stepLayers.length
+        ? stepLayers.map((l) => layerLabel(l.fileName)).join(', ')
+        : 'no layer'
+      : null
+  ]
+    .filter(Boolean)
+    .join(' · ')
 
   return (
     <div
@@ -247,7 +504,7 @@ function StepCard({
       onClick={() => useUi.getState().set({ selectedStepId: selected ? null : step.id })}
       onDoubleClick={() => openEdit(step)}
       className={cn(
-        'group relative mb-1.5 cursor-pointer rounded-lg border bg-slate-900 px-2 pb-1.5 pl-2.5 pt-1.5 transition-colors',
+        'group relative cursor-pointer overflow-hidden rounded-lg border bg-slate-900 transition-colors',
         !step.enabled
           ? 'border-dashed border-slate-700 opacity-55'
           : level === 'error'
@@ -261,126 +518,137 @@ function StepCard({
       )}
     >
       <span
-        className="absolute inset-y-1 left-0 w-1 rounded-r"
+        className="absolute inset-y-0 left-0 w-1"
         style={{ background: step.enabled ? color : '#475569' }}
       />
-      <div className="flex gap-1.5">
-        <div className="flex w-4 shrink-0 flex-col items-center gap-1 pt-0.5">
-          <Tooltip content="Drag to move the step up or down">
-            <GripVertical className="size-4 cursor-grab text-slate-500" />
-          </Tooltip>
-          <Tooltip
-            content={
-              step.enabled
-                ? 'Included in the G-code. Untick to keep the step but skip it (no toolpath, no G-code).'
-                : 'Skipped: not in the G-code. Tick to include it again.'
-            }
+      <div className="flex items-center gap-1.5 py-1.5 pl-2 pr-1.5">
+        <Tooltip content="Drag to move the step up or down">
+          <GripVertical className="size-3.5 shrink-0 cursor-grab text-slate-600 group-hover:text-slate-400" />
+        </Tooltip>
+        <Tooltip
+          content={
+            step.enabled
+              ? 'Included in the G-code. Untick to keep the step but skip it (no toolpath, no G-code).'
+              : 'Skipped: not in the G-code. Tick to include it again.'
+          }
+        >
+          <input
+            type="checkbox"
+            checked={step.enabled}
+            onChange={(e) => upsertStep({ ...step, enabled: e.target.checked })}
+            onClick={(e) => e.stopPropagation()}
+            onDoubleClick={(e) => e.stopPropagation()}
+            className="size-3.5 shrink-0 cursor-pointer accent-sky-500"
+            aria-label="Include this step in the G-code"
+            data-testid="step-toggle"
+          />
+        </Tooltip>
+        <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-slate-800 text-[10px] font-bold text-slate-200">
+          {index + 1}
+        </span>
+        <Icon className="size-4 shrink-0" style={{ color: step.enabled ? color : undefined }} />
+        <div className="min-w-0 flex-1 leading-tight">
+          <div
+            className={cn(
+              'truncate text-xs font-semibold',
+              step.enabled ? 'text-slate-100' : 'text-slate-400 line-through'
+            )}
+            title={step.name}
           >
-            <input
-              type="checkbox"
-              checked={step.enabled}
-              onChange={(e) => upsertStep({ ...step, enabled: e.target.checked })}
-              onClick={(e) => e.stopPropagation()}
-              onDoubleClick={(e) => e.stopPropagation()}
-              className="size-3.5 cursor-pointer accent-sky-500"
-              aria-label="Include this step in the G-code"
-              data-testid="step-toggle"
-            />
-          </Tooltip>
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
-            <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-slate-800 text-[10px] font-bold text-slate-200">
-              {index + 1}
-            </span>
-            <Icon className="size-4 shrink-0" style={{ color: step.enabled ? color : undefined }} />
-            <span
-              className={cn(
-                'min-w-0 flex-1 truncate text-xs font-semibold',
-                step.enabled ? 'text-slate-100' : 'text-slate-400 line-through'
-              )}
-              title={step.name}
-            >
-              {step.name}
-            </span>
-            <span
-              className={cn(
-                'shrink-0 rounded px-1 py-px text-[9px] font-bold tracking-wide',
-                step.side === 'top' ? 'bg-sky-500/15 text-sky-300' : 'bg-violet-500/20 text-violet-200'
-              )}
-              title={`${step.side === 'top' ? 'Top' : 'Bottom'} side of the board faces up`}
-              data-testid="step-side-badge"
-            >
-              {step.side === 'top' ? 'TOP' : 'BOTTOM'}
-            </span>
-            {step.skip?.enabled && step.skip.items.length > 0 && (
-              <Tooltip
-                content={`You chose to skip ${step.skip.items.length} part${step.skip.items.length === 1 ? '' : 's'} of the board in this step (Edit → Skip parts).`}
-              >
-                <span
-                  className="flex shrink-0 items-center gap-0.5 rounded bg-rose-500/15 px-1 py-px text-[10px] font-semibold text-rose-200"
-                  data-testid="step-skipped"
-                >
-                  <Ban className="size-3" />
-                  {step.skip.items.length}
-                </span>
-              </Tooltip>
-            )}
-            {step.enabled && problems > 0 && (
-              <Tooltip content="Places this step cannot machine as designed — click to see them on the board">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    showProblems(step.id)
-                  }}
-                  className="flex shrink-0 items-center gap-0.5 rounded bg-amber-500/15 px-1 py-px text-[10px] font-semibold text-amber-200 hover:bg-amber-500/30"
-                  data-testid="step-problems"
-                >
-                  <MapPin className="size-3" />
-                  {problems}
-                </button>
-              </Tooltip>
-            )}
-            <Tooltip
-              content={
-                !step.enabled ? (
-                  'Disabled: skipped, no toolpath and no G-code.'
-                ) : status.issues.length ? (
-                  <IssueList issues={status.issues} />
-                ) : (
-                  'Ready: everything is OK for the generator.'
-                )
-              }
-            >
-              <span className="flex shrink-0 items-center gap-1" data-testid="step-status">
-                {step.enabled && status.errors > 0 && (
-                  <span className="text-[10px] font-bold text-rose-400">{status.errors}✕</span>
-                )}
-                {step.enabled && status.warnings > 0 && (
-                  <span className="text-[10px] font-bold text-amber-400">{status.warnings}!</span>
-                )}
-                {working ? (
-                  <span
-                    className="flex items-center gap-1 text-[10px] font-medium text-sky-300"
-                    data-testid="step-working"
-                  >
-                    <Loader2 className="size-4 animate-spin" />
-                    working…
-                  </span>
-                ) : (
-                  <StatusCircle level={level} size={18} />
-                )}
-              </span>
-            </Tooltip>
+            {nested ? step.name.replace(/^(Drill holes|Mill big holes) /, '') : step.name}
           </div>
-          <div className="mt-1 flex flex-col gap-0.5 rounded-md bg-slate-950/50 px-1.5 py-1 text-[10.5px]">
-            {!step.enabled && (
-              <span className="text-[10px] font-semibold text-slate-400">Skipped: not in the G-code</span>
+          <div className="truncate text-[10.5px] text-slate-500" title={summary}>
+            {summary}
+          </div>
+        </div>
+        {skipped > 0 && (
+          <Tooltip
+            content={`You chose to skip ${skipped} part${skipped === 1 ? '' : 's'} of the board in this step.`}
+          >
+            <span
+              className="flex shrink-0 items-center gap-0.5 rounded bg-rose-500/15 px-1 py-px text-[10px] font-semibold text-rose-200"
+              data-testid="step-skipped"
+            >
+              <Ban className="size-3" />
+              {skipped}
+            </span>
+          </Tooltip>
+        )}
+        {step.enabled && problems > 0 && (
+          <Tooltip content="Places this step cannot machine as designed — click to see them on the board">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                showProblems(step.id)
+              }}
+              className="flex shrink-0 items-center gap-0.5 rounded bg-amber-500/15 px-1 py-px text-[10px] font-semibold text-amber-200 hover:bg-amber-500/30"
+              data-testid="step-problems"
+            >
+              <MapPin className="size-3" />
+              {problems}
+            </button>
+          </Tooltip>
+        )}
+        <Tooltip content="Edit this step">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              openEdit(step)
+            }}
+            className="flex size-6 shrink-0 items-center justify-center rounded text-slate-500 hover:bg-slate-800 hover:text-slate-100"
+            aria-label="Edit"
+            data-testid="step-edit"
+          >
+            <Pencil className="size-3.5" />
+          </button>
+        </Tooltip>
+        <Tooltip
+          content={
+            !step.enabled ? (
+              'Disabled: skipped, no toolpath and no G-code.'
+            ) : status.issues.length ? (
+              <IssueList issues={status.issues} />
+            ) : (
+              'Ready: everything is OK for the generator.'
+            )
+          }
+        >
+          <span className="flex shrink-0 items-center gap-1" data-testid="step-status">
+            {step.enabled && status.errors > 0 && (
+              <span className="text-[10px] font-bold text-rose-400">{status.errors}✕</span>
             )}
-            <InfoRow label={stepLayers.length > 1 ? 'Layers' : 'Layer'}>
-              {needsLayer ? (
-                stepLayers.length ? (
+            {step.enabled && status.warnings > 0 && (
+              <span className="text-[10px] font-bold text-amber-400">{status.warnings}!</span>
+            )}
+            {working ? (
+              <span className="flex items-center text-sky-300" data-testid="step-working" title="Working…">
+                <Loader2 className="size-4 animate-spin" />
+              </span>
+            ) : (
+              <StatusCircle level={level} size={16} />
+            )}
+          </span>
+        </Tooltip>
+      </div>
+      {selected && (
+        <div onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
+          <div className="mx-2 mb-1.5 flex flex-col gap-1 rounded-md bg-slate-950/50 px-2 py-1.5 text-[10.5px]">
+            <InfoRow label="Side">
+              <span
+                className={cn(
+                  'rounded px-1.5 py-px text-[9.5px] font-bold tracking-wide',
+                  step.side === 'top' ? 'bg-sky-500/15 text-sky-300' : 'bg-violet-500/20 text-violet-200'
+                )}
+              >
+                {step.side === 'top' ? 'TOP' : 'BOTTOM'} side up
+              </span>
+              {!step.enabled && <span className="text-slate-400">· not in the G-code</span>}
+            </InfoRow>
+            {needsLayer && (
+              <InfoRow label={stepLayers.length > 1 ? 'Layers' : 'Layer'}>
+                {stepLayers.length ? (
                   stepLayers.map((l) => (
                     <span
                       key={l.id}
@@ -396,11 +664,9 @@ function StepCard({
                   ))
                 ) : (
                   <span className="text-rose-400">no layer chosen</span>
-                )
-              ) : (
-                <span className="text-slate-400">alignment pins of the material</span>
-              )}
-            </InfoRow>
+                )}
+              </InfoRow>
+            )}
             <InfoRow label="Bit">
               {tool ? (
                 <span className="flex min-w-0 items-center gap-1 rounded border border-slate-700/80 bg-slate-800/60 px-1.5 py-px text-slate-300">
@@ -417,48 +683,43 @@ function StepCard({
               )}
             </InfoRow>
           </div>
-        </div>
-      </div>
-      <div
-        className="-mx-2 -mb-1.5 mt-1.5 flex items-center gap-0.5 rounded-b-lg border-t border-slate-800 bg-slate-950/40 px-1.5"
-        data-testid="step-actions"
-        onClick={(e) => e.stopPropagation()}
-        onDoubleClick={(e) => e.stopPropagation()}
-      >
-        <IconBtn label="Move up (runs earlier)" disabled={index === 0} onClick={() => onMove(index - 1)}>
-          <ArrowUp />
-        </IconBtn>
-        <IconBtn
-          label="Move down (runs later)"
-          disabled={index === count - 1}
-          onClick={() => onMove(index + 1)}
-        >
-          <ArrowDown />
-        </IconBtn>
-        <span className="flex-1" />
-        <ActionBtn label="Edit" onClick={() => openEdit(step)} testId="step-edit">
-          <Pencil />
-        </ActionBtn>
-        <ActionBtn label="Duplicate" onClick={onDuplicate} testId="step-duplicate">
-          <Copy />
-        </ActionBtn>
-        {confirmDel ? (
-          <Button
-            size="sm"
-            variant="danger"
-            className="h-6 px-2 text-[10.5px]"
-            onClick={() => removeStep(step.id)}
-            onMouseLeave={() => setConfirmDel(false)}
-            data-testid="step-delete-confirm"
+          <div
+            className="flex items-center gap-0.5 border-t border-slate-800 bg-slate-950/40 px-1.5"
+            data-testid="step-actions"
           >
-            Delete?
-          </Button>
-        ) : (
-          <ActionBtn label="Delete" onClick={() => setConfirmDel(true)} testId="step-delete" danger>
-            <Trash2 />
-          </ActionBtn>
-        )}
-      </div>
+            <IconBtn label="Move up (runs earlier)" disabled={index === 0} onClick={() => onMove(index - 1)}>
+              <ArrowUp />
+            </IconBtn>
+            <IconBtn
+              label="Move down (runs later)"
+              disabled={index === count - 1}
+              onClick={() => onMove(index + 1)}
+            >
+              <ArrowDown />
+            </IconBtn>
+            <span className="flex-1" />
+            <ActionBtn label="Duplicate" onClick={onDuplicate} testId="step-duplicate">
+              <Copy />
+            </ActionBtn>
+            {confirmDel ? (
+              <Button
+                size="sm"
+                variant="danger"
+                className="h-6 px-2 text-[10.5px]"
+                onClick={() => removeStep(step.id)}
+                onMouseLeave={() => setConfirmDel(false)}
+                data-testid="step-delete-confirm"
+              >
+                Delete?
+              </Button>
+            ) : (
+              <ActionBtn label="Delete" onClick={() => setConfirmDel(true)} testId="step-delete" danger>
+                <Trash2 />
+              </ActionBtn>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -514,28 +775,16 @@ function IconBtn({
   label,
   onClick,
   disabled,
-  testId,
-  danger,
   children
 }: {
   label: string
   onClick: () => void
   disabled?: boolean
-  testId?: string
-  danger?: boolean
   children: React.ReactNode
 }): React.JSX.Element {
   return (
     <Tooltip content={label}>
-      <Button
-        size="iconSm"
-        variant="ghost"
-        aria-label={label}
-        disabled={disabled}
-        onClick={onClick}
-        data-testid={testId}
-        className={danger ? 'hover:bg-rose-500/20 hover:text-rose-300' : undefined}
-      >
+      <Button size="iconSm" variant="ghost" aria-label={label} disabled={disabled} onClick={onClick}>
         {children}
       </Button>
     </Tooltip>

@@ -93,6 +93,27 @@ export function runCam(req: CamRequest, onStep?: (stepId: string | null) => void
     }
   }
   if (uncovered > 0) notes.push(`${uncovered} hole(s) are not drilled or milled by any step.`)
+  // Slots (oval holes): made by drill steps with "Also drill slots" whose size range includes them.
+  let slotsLeft = 0
+  for (const l of layers) {
+    if (l.type !== 'drill' || !l.parsed?.drills) continue
+    for (const sl of l.parsed.drills.slots) {
+      const ok = steps.some(
+        (s) =>
+          s.enabled &&
+          s.kind === 'drill' &&
+          s.params.drill.includeSlots &&
+          s.layerIds.includes(l.id) &&
+          sl.diameter >= s.params.drill.minDiameter - DIAM_EPS &&
+          sl.diameter <= s.params.drill.maxDiameter + DIAM_EPS
+      )
+      if (!ok) slotsLeft++
+    }
+  }
+  if (slotsLeft > 0)
+    notes.push(
+      `${slotsLeft} slot(s) (oval holes) are not made by any step: turn on “Also drill slots” in the drill step of their size.`
+    )
 
   const post = (grouping: ExportGrouping): GcodeFile[] =>
     toolpaths.length

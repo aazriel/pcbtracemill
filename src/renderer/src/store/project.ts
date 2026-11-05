@@ -70,7 +70,7 @@ export const DEFAULT_SETTINGS: ProjectSettings = {
   edaTool: null,
   autoRegenerate: true,
   exportGrouping: 'per-step',
-  realisticColors: false,
+  realisticColors: true,
   highlightOnHover: true
 }
 

@@ -224,6 +224,8 @@ export function recipe(ctx: RecipeContext): CamStep[] {
   return steps
 }
 
+/** "0.4 mm" / "0.8–1 mm": sizes rounded to 0.01 mm (inch files give 0.399 for 0.0157"). */
 function fmtRange(min: number, max: number): string {
-  return min === max ? `${min} mm` : `${min}–${max} mm`
+  const r = (v: number): number => Math.round(v * 100) / 100
+  return r(min) === r(max) ? `${r(min)} mm` : `${r(min)}–${r(max)} mm`
 }
