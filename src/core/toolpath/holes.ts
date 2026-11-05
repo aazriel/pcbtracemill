@@ -80,6 +80,8 @@ export function drillPoints(
   return { segments, order }
 }
 
+const fmtMm = (v: number): string => String(Math.round(v * 100) / 100)
+
 function skippedHolesNote(n: number, what: string): string {
   return `${n} hole${n === 1 ? ' is' : 's are'} skipped as you chose and will not be ${what}.`
 }
@@ -106,9 +108,16 @@ export function generateDrill(ctx: StepContext): ToolpathSegment[] {
     ctx.warnings.push(
       `Drill depth ${fmt(depth)} mm does not go through the ${fmt(material.thickness)} mm stock.`
     )
-  const tooBig = sel.filter((h) => tool.geometry.diameter > h.diameter + 0.05).length
-  if (tooBig > 0)
-    ctx.warnings.push(`${tooBig} hole(s) are smaller than the ${fmt(tool.geometry.diameter)} mm tool.`)
+  // A drill up to 0.15 mm larger than the hole is normal practice (room for plating / leads); more
+  // than that is worth a warning, with the sizes spelled out.
+  const tooBig = sel.filter((h) => tool.geometry.diameter > h.diameter + 0.15)
+  if (tooBig.length > 0) {
+    const hd = Math.min(...tooBig.map((h) => h.diameter))
+    ctx.warnings.push(
+      `${tooBig.length} hole${tooBig.length === 1 ? '' : 's'} of ${fmtMm(hd)} mm will come out ${fmtMm(tool.geometry.diameter)} mm — ` +
+        `${fmtMm(tool.geometry.diameter - hd)} mm larger than designed. Use a drill closer to the hole size if the part needs a tight fit.`
+    )
+  }
 
   const pts = sel.map((h) => pointToWork(ctx, h))
   const o: DrillOptions = { depth, retract: p.retract, peck: p.peck }
@@ -146,10 +155,8 @@ export function generateDrill(ctx: StepContext): ToolpathSegment[] {
       segments.push({ moves })
       pos = e
     }
-    if (ss.length < slots.length)
-      ctx.warnings.push(`${slots.length - ss.length} slot(s) outside the diameter range are skipped.`)
-  } else if (slots.length > 0)
-    ctx.warnings.push(`${slots.length} slot(s) are ignored (enable "include slots").`)
+    // Slots of other widths belong to other steps; slots no step makes are reported for the whole job.
+  }
   return segments
 }
 
