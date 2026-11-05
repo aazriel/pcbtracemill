@@ -78,19 +78,33 @@ export function drawTrail(
     ctx.stroke(air)
     ctx.setLineDash([])
   }
-  // a fine line: it marks the tool centre, not the width of the cut
-  const w = v.project ? 0.9 : Math.max(0.8, Math.min(1.4, v.zoom * 0.02))
+  // A hairline that marks the tool centre, never the width of the cut: about 0.03 mm wide in screen
+  // pixels, so zoomed out it stays far thinner than the milled grooves instead of covering them.
+  const ppm = pixelsPerMm(v, ts.x, ts.y, ts.z)
+  const w = Math.max(0.35, Math.min(1.1, ppm * 0.03))
+  const outline = ppm > 25
   for (let b = 0; b < BUCKETS; b++) {
-    const a = 0.3 + 0.7 * Math.pow((b + 1) / BUCKETS, 2)
-    // dark under-stroke keeps the line readable on bright copper
-    ctx.lineWidth = w + 0.8
-    ctx.strokeStyle = `rgba(2,6,23,${a * 0.45})`
-    ctx.stroke(feed[b])
+    const a = (0.3 + 0.7 * Math.pow((b + 1) / BUCKETS, 2)) * (outline ? 1 : 0.85)
+    // dark under-stroke keeps the line readable on bright copper (only when zoomed in)
+    if (outline) {
+      ctx.lineWidth = w + 0.8
+      ctx.strokeStyle = `rgba(2,6,23,${a * 0.45})`
+      ctx.stroke(feed[b])
+    }
     ctx.lineWidth = w
     ctx.strokeStyle = withAlpha(color, a)
     ctx.stroke(feed[b])
   }
   ctx.restore()
+}
+
+/** Screen pixels per millimetre around a point (works for the top view and the 3D camera). */
+function pixelsPerMm(v: Parameters<typeof toScreen>[0], x: number, y: number, z: number): number {
+  const [ax, ay] = toScreen(v, x, y, z)
+  const [bx, by] = toScreen(v, x + 1, y, z)
+  const [cx, cy] = toScreen(v, x, y + 1, z)
+  const d = Math.max(Math.hypot(bx - ax, by - ay), Math.hypot(cx - ax, cy - ay))
+  return Number.isFinite(d) && d > 0 ? d : 10
 }
 
 function tipRadius(tool: Tool): number {

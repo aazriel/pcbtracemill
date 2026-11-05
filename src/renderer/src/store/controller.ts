@@ -27,6 +27,7 @@ import {
 import { summarizeLayerStatus } from '@core/import'
 import { serializeProject, deserializeProject, newProjectName } from '@core/project'
 import { bboxIsEmpty } from '@core/geometry'
+import * as Comlink from 'comlink'
 import { camWorker } from '@workers/index'
 import { parsedCache, layersWithParsed, toProject, useProject, type ProjectState } from './project'
 import { useUi, type BrowseKind, type Stage } from './ui'
@@ -474,6 +475,23 @@ export function scheduleRegenerate(force = false): void {
   }, 350)
 }
 
+const gapCache = new Map<string, number | null>()
+
+/**
+ * Narrowest distance between copper features on these layers (null: nothing closer than 1 mm), so
+ * the tool picker can recommend V-bits whose groove fits. Cached per layers / parsed version.
+ */
+export async function measureNarrowestGap(layerIds: string[], ignoreBelow = 0): Promise<number | null> {
+  const s = useProject.getState()
+  const key = `${[...layerIds].sort().join(',')}|${s.parsedVersion}|${ignoreBelow}`
+  if (gapCache.has(key)) return gapCache.get(key)!
+  const copper = layerIds.flatMap((id) => parsedCache.get(id)?.geometry ?? [])
+  if (!copper.length) return null
+  const gap = await camWorker().narrowestGap(copper, 1, ignoreBelow)
+  gapCache.set(key, gap)
+  return gap
+}
+
 export async function regenerate(): Promise<void> {
   const s = useProject.getState()
   if (!s.machine || !s.material || !s.layers.length) return
@@ -481,21 +499,26 @@ export async function regenerate(): Promise<void> {
   const ui = useUi.getState()
   ui.set({ generating: true, camError: null })
   try {
-    const res = await camWorker().runCam({
-      projectName: safeName(s.name),
-      layers: layersWithParsed(s.layers),
-      steps: s.steps,
-      tools: s.tools,
-      material: s.material,
-      machine: s.machine,
-      grouping: s.settings.exportGrouping
-    })
+    const res = await camWorker().runCam(
+      {
+        projectName: safeName(s.name),
+        layers: layersWithParsed(s.layers),
+        steps: s.steps,
+        tools: s.tools,
+        material: s.material,
+        machine: s.machine,
+        grouping: s.settings.exportGrouping
+      },
+      Comlink.proxy((stepId: string | null) => {
+        if (id === requestId) useUi.getState().set({ generatingStepId: stepId })
+      })
+    )
     if (id !== requestId) return // a newer request superseded this one
     useUi.getState().set({ cam: res, camVersion: useUi.getState().camVersion + 1, camStale: false })
   } catch (e) {
     if (id === requestId) useUi.getState().set({ camError: e instanceof Error ? e.message : String(e) })
   } finally {
-    if (id === requestId) useUi.getState().set({ generating: false })
+    if (id === requestId) useUi.getState().set({ generating: false, generatingStepId: null })
   }
 }
 

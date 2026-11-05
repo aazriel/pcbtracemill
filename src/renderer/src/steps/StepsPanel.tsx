@@ -8,6 +8,7 @@ import {
   ArrowUp,
   Copy,
   GripVertical,
+  Loader2,
   MapPin,
   Pencil,
   Plus,
@@ -217,6 +218,7 @@ function StepCard({
   const upsertStep = useProject((s) => s.upsertStep)
   const removeStep = useProject((s) => s.removeStep)
   const selected = useUi((s) => s.selectedStepId === step.id)
+  const working = useUi((s) => s.generating && s.generatingStepId === step.id)
   const problems = useUi((s) => s.cam?.toolpaths.find((t) => t.stepId === step.id)?.problems?.length ?? 0)
   const openEdit = useStepEditor((s) => s.openEdit)
   const status = useStepStatus(step, ctx)
@@ -253,6 +255,7 @@ function StepCard({
               ? 'border-amber-500/60 bg-amber-500/5'
               : 'border-slate-700 hover:border-slate-500',
         selected && 'ring-2 ring-sky-500/70',
+        working && 'border-sky-500/80 shadow-[0_0_0_1px_rgba(56,189,248,0.35)]',
         dragging && 'opacity-30'
       )}
     >
@@ -333,7 +336,17 @@ function StepCard({
                 {step.enabled && status.warnings > 0 && (
                   <span className="text-[10px] font-bold text-amber-400">{status.warnings}!</span>
                 )}
-                <StatusCircle level={level} size={18} />
+                {working ? (
+                  <span
+                    className="flex items-center gap-1 text-[10px] font-medium text-sky-300"
+                    data-testid="step-working"
+                  >
+                    <Loader2 className="size-4 animate-spin" />
+                    working…
+                  </span>
+                ) : (
+                  <StatusCircle level={level} size={18} />
+                )}
               </span>
             </Tooltip>
           </div>

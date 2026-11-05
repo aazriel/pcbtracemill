@@ -34,7 +34,7 @@ export {
   moveLength,
   type Vec3
 } from './moves'
-export { findNarrowGaps, type GapReport } from './gaps'
+export { findNarrowGaps, narrowestGap, type GapReport } from './gaps'
 export { placeTabs } from './cutout'
 export { drillMoves, holeMillSegment } from './holes'
 export { isolationOffsets } from './isolate'

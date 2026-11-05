@@ -350,7 +350,19 @@ export function MaterialDialog({
               min={0}
               value={draft.copperThickness}
               description="In millimetres. Almost every board has 0.035 mm (35 µm, “1 oz”); some have 0.018 mm (½ oz) or 0.07 mm (2 oz)."
-              help={help('copperThickness')}
+              helpWide
+              help={
+                <>
+                  {help('copperThickness')}
+                  <div className="mt-2 rounded-md bg-slate-950/70 px-3 py-2">
+                    <MaterialCrossSection
+                      thickness={draft.thickness}
+                      copperThickness={draft.copperThickness}
+                      doubleSided={draft.doubleSided}
+                    />
+                  </div>
+                </>
+              }
               {...msg('copperThickness')}
               onChange={(v) => update({ copperThickness: v })}
             />
@@ -599,13 +611,6 @@ export function MaterialDialog({
         <div className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-slate-800 bg-[#0b0f14]">
           <div className="min-h-0 flex-1">
             <MaterialPreview material={draft} bbox={bbox} drawing={drawing} />
-          </div>
-          <div className="border-t border-slate-800 bg-slate-950/60 px-3 py-2">
-            <MaterialCrossSection
-              thickness={draft.thickness}
-              copperThickness={draft.copperThickness}
-              doubleSided={draft.doubleSided}
-            />
           </div>
         </div>
       </div>

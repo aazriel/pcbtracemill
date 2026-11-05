@@ -34,6 +34,8 @@ export interface UiState {
   /** Bumped every time `cam` changes. */
   camVersion: number
   generating: boolean
+  /** The step whose toolpath is being generated right now (null otherwise). */
+  generatingStepId: string | null
   /** Set when inputs changed after the last generation. */
   camStale: boolean
   camError: string | null
@@ -67,6 +69,7 @@ export const useUi = create<UiState>()((set) => ({
   cam: null,
   camVersion: 0,
   generating: false,
+  generatingStepId: null,
   camStale: true,
   camError: null,
   pendingImport: null,

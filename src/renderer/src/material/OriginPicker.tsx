@@ -16,8 +16,8 @@ export function originLabel(o: OriginCorner, on: 'stock' | 'board'): string {
 }
 
 /**
- * Mini diagram with five clickable dots for the work zero (X0 Y0): on the corners / centre of the
- * copper-clad sheet, or of the board placed on it.
+ * Mini diagram of the sheet with the board on it (always shown) and five clickable dots for the work
+ * zero (X0 Y0), placed on the corners / centre of the sheet or of the board.
  */
 export function OriginPicker({
   value,
@@ -62,13 +62,10 @@ export function OriginPicker({
           <span className="absolute inset-x-0 -bottom-5 text-center text-[9px] uppercase tracking-wider text-slate-500">
             front (you)
           </span>
-          {on === 'board' ? (
-            <div className="absolute left-[22%] top-[22%] h-[56%] w-[56%] rounded-[2px] border border-emerald-200/80 bg-[#2f6b3a]/85">
-              {dots}
-            </div>
-          ) : (
-            dots
-          )}
+          <div className="absolute left-[22%] top-[22%] h-[56%] w-[56%] rounded-[2px] border border-emerald-200/80 bg-[#2f6b3a]/85">
+            {on === 'board' && dots}
+          </div>
+          {on === 'stock' && dots}
         </div>
       </div>
       <div className="min-w-0 text-xs font-medium text-sky-300">{originLabel(value, on)}</div>

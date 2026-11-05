@@ -43,13 +43,18 @@ export interface CamResult {
 
 const DIAM_EPS = 1e-3
 
-export function runCam(req: CamRequest): CamResult {
+/**
+ * `onStep` is told which step is being worked on (null when the toolpaths are done), so the UI can
+ * show progress.
+ */
+export function runCam(req: CamRequest, onStep?: (stepId: string | null) => void): CamResult {
   const t0 = Date.now()
   const { layers, steps, tools, material, machine } = req
   const boardBBox = computeBoardBBox(layers)
   const toolpaths: Toolpath[] = []
   const validations: StepValidation[] = []
   for (const step of steps) {
+    if (step.enabled) onStep?.(step.id)
     let v = validateStep(step, { layers, tools, material, machine })
     if (step.enabled && v.level !== 'error' && !bboxIsEmpty(boardBBox)) {
       const tool = tools.find((t) => t.id === step.toolId)!
@@ -70,6 +75,7 @@ export function runCam(req: CamRequest): CamResult {
     }
     validations.push(v)
   }
+  onStep?.(null)
 
   const notes: string[] = []
   // Holes that no enabled drill / hole-mill step covers.
