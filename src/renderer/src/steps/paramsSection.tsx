@@ -61,34 +61,33 @@ function DirectionField({
   helpKey: string
 }): React.JSX.Element {
   return (
-    <div className="flex flex-col gap-2">
-      <FieldShell
-        label="Cutting direction"
-        description="Which way the bit travels around the copper. Climb usually leaves cleaner edges."
-        helpWide
-        help={
-          <>
-            {help(helpKey)} {help('concept.climb')}
-            <div className="mt-2">
-              <Figure caption="Seen from above: the bit spins clockwise while it moves to the right.">
-                <DirectionAnimation direction={value} />
-              </Figure>
-            </div>
-          </>
-        }
-      >
-        <div>
-          <Segmented
-            value={value}
-            onChange={onChange}
-            options={[
-              { value: 'climb', label: 'Climb' },
-              { value: 'conventional', label: 'Conventional' }
-            ]}
-          />
-        </div>
-      </FieldShell>
-    </div>
+    <FieldShell
+      label="Cutting direction"
+      description="Which way the bit travels around the copper. Climb usually leaves cleaner edges."
+      helpWide
+      help={
+        <>
+          {help(helpKey)} {help('concept.climb')}
+          <div className="mt-2">
+            <Figure caption="Seen from above: the bit spins clockwise while it moves to the right.">
+              <DirectionAnimation direction={value} />
+            </Figure>
+          </div>
+        </>
+      }
+    >
+      <div>
+        <Segmented
+          stretch
+          value={value}
+          onChange={onChange}
+          options={[
+            { value: 'climb', label: 'Climb' },
+            { value: 'conventional', label: 'Conventional' }
+          ]}
+        />
+      </div>
+    </FieldShell>
   )
 }
 
@@ -132,7 +131,7 @@ function Grid({
         <div
           className={cn(
             'grid grid-cols-1 items-start gap-y-4',
-            row ? 'gap-x-4 sm:grid-cols-2 lg:grid-cols-4' : 'gap-x-6 lg:grid-cols-2'
+            row ? 'grid-cols-2 gap-x-3 md:grid-cols-4' : 'gap-x-6 lg:grid-cols-2'
           )}
         >
           {children}
@@ -295,6 +294,7 @@ export function ParamsSection({
       )
       return (
         <Grid
+          row
           how={
             <>
               <Figure caption="Top view of one pad: each dashed line is one pass of the bit, dark bands are where copper is removed. Updates as you change the values.">
@@ -310,7 +310,7 @@ export function ParamsSection({
           }
         >
           <NumberField
-            label="Number of passes"
+            label="Passes"
             min={1}
             max={20}
             step={1}
@@ -322,7 +322,7 @@ export function ParamsSection({
             warning={warn(/passes/i)}
           />
           <NumberField
-            label="Overlap between passes"
+            label="Overlap"
             unit="%"
             min={0}
             max={90}
@@ -359,6 +359,7 @@ export function ParamsSection({
       const cp = p.clear
       return (
         <Grid
+          row
           how={
             <Figure caption="Side by side passes remove the copper between traces. Tiny copper islands smaller than the limit are not worth chasing and are skipped.">
               <ClearDiagram
@@ -370,7 +371,7 @@ export function ParamsSection({
           }
         >
           <NumberField
-            label="Overlap between passes"
+            label="Overlap"
             unit="%"
             min={0}
             max={90}
@@ -385,7 +386,7 @@ export function ParamsSection({
             error={err(/overlap/i)}
           />
           <NumberField
-            label="Ignore copper islands smaller than"
+            label="Skip islands under"
             unit="mm²"
             min={0}
             step={0.05}
@@ -396,7 +397,7 @@ export function ParamsSection({
             error={err(/island/i)}
           />
           <NumberField
-            label="Clear only near traces (margin)"
+            label="Clear margin"
             unit="mm"
             min={0}
             step={0.5}
@@ -431,12 +432,13 @@ export function ParamsSection({
           }
         >
           <FieldShell
-            label="Cut on which side of the outline"
+            label="Cut side"
             description="Outside keeps the board at its exact designed size; inside makes it slightly smaller."
             {...fig(help('cutout.outside'), <CutSideFigure outside={c.outside} />)}
           >
             <div>
               <Segmented
+                stretch
                 value={c.outside ? 'outside' : 'inside'}
                 onChange={(v) => setParam(update, 'cutout', { outside: v === 'outside' })}
                 options={[
@@ -447,7 +449,7 @@ export function ParamsSection({
             </div>
           </FieldShell>
           <NumberField
-            label="Number of tabs"
+            label="Tabs"
             min={0}
             max={20}
             step={1}

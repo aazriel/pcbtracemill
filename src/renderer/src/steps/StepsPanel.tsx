@@ -1,6 +1,6 @@
 /**
  * STEPS panel of the Manufacture stage: the ordered job list with status circles, flip markers,
- * drag-and-drop reordering and per-step actions; plus "Add step" and "Recipe".
+ * drag-and-drop reordering and per-step actions; "Recipe" and "Add step" sit below the list.
  */
 import { useState } from 'react'
 import {
@@ -87,16 +87,6 @@ export function StepsPanel(): React.JSX.Element {
           <b className="text-slate-200">Add step</b> to build it yourself.
         </div>
       )}
-      <div className="mb-3 grid grid-cols-2 gap-2">
-        <Tooltip content="Let TraceMill plan the whole job for you: it picks the steps, their order and the tools from your layers.">
-          <Button variant="secondary" className="h-10 text-sm" onClick={runRecipe} data-testid="recipe">
-            <Wand2 /> Recipe
-          </Button>
-        </Tooltip>
-        <Button className="h-10 text-sm" onClick={openPicker} data-testid="add-step">
-          <Plus /> Add step
-        </Button>
-      </div>
       {steps.length > 0 && (
         <div
           className="flex flex-col"
@@ -138,6 +128,16 @@ export function StepsPanel(): React.JSX.Element {
           ))}
         </div>
       )}
+      <div className="mt-1 grid grid-cols-2 gap-2">
+        <Tooltip content="Let TraceMill plan the whole job for you: it picks the steps, their order and the tools from your layers.">
+          <Button variant="secondary" className="h-10 text-sm" onClick={runRecipe} data-testid="recipe">
+            <Wand2 /> Recipe
+          </Button>
+        </Tooltip>
+        <Button className="h-10 text-sm" onClick={openPicker} data-testid="add-step">
+          <Plus /> Add step
+        </Button>
+      </div>
       <Dialog
         open={confirmRecipe}
         onOpenChange={setConfirmRecipe}
@@ -246,7 +246,7 @@ function StepCard({
       onClick={() => useUi.getState().set({ selectedStepId: selected ? null : step.id })}
       onDoubleClick={() => openEdit(step)}
       className={cn(
-        'group relative mb-1.5 cursor-pointer rounded-lg border bg-slate-900 p-2 pl-2.5 transition-colors',
+        'group relative mb-1.5 cursor-pointer rounded-lg border bg-slate-900 px-2 pb-1.5 pl-2.5 pt-1.5 transition-colors',
         !step.enabled
           ? 'border-dashed border-slate-700 opacity-55'
           : level === 'error'
@@ -264,7 +264,7 @@ function StepCard({
         style={{ background: step.enabled ? color : '#475569' }}
       />
       <div className="flex gap-1.5">
-        <div className="flex w-4 shrink-0 flex-col items-center gap-1.5 pt-0.5">
+        <div className="flex w-4 shrink-0 flex-col items-center gap-1 pt-0.5">
           <Tooltip content="Drag to move the step up or down">
             <GripVertical className="size-4 cursor-grab text-slate-500" />
           </Tooltip>
@@ -301,6 +301,16 @@ function StepCard({
               title={step.name}
             >
               {step.name}
+            </span>
+            <span
+              className={cn(
+                'shrink-0 rounded px-1 py-px text-[9px] font-bold tracking-wide',
+                step.side === 'top' ? 'bg-sky-500/15 text-sky-300' : 'bg-violet-500/20 text-violet-200'
+              )}
+              title={`${step.side === 'top' ? 'Top' : 'Bottom'} side of the board faces up`}
+              data-testid="step-side-badge"
+            >
+              {step.side === 'top' ? 'TOP' : 'BOTTOM'}
             </span>
             {step.enabled && problems > 0 && (
               <Tooltip content="Places this step cannot machine as designed — click to see them on the board">
@@ -350,20 +360,10 @@ function StepCard({
               </span>
             </Tooltip>
           </div>
-          <div className="mt-1.5 flex flex-col gap-1 rounded-md bg-slate-950/50 px-2 py-1.5 text-[10.5px]">
-            <InfoRow label="Side">
-              <span
-                className={cn(
-                  'rounded px-1.5 py-px text-[9.5px] font-bold tracking-wide',
-                  step.side === 'top' ? 'bg-sky-500/15 text-sky-300' : 'bg-violet-500/20 text-violet-200'
-                )}
-              >
-                {step.side === 'top' ? 'TOP' : 'BOTTOM'} side up
-              </span>
-              {!step.enabled && (
-                <span className="text-[10px] font-semibold text-slate-400">· not in the G-code</span>
-              )}
-            </InfoRow>
+          <div className="mt-1 flex flex-col gap-0.5 rounded-md bg-slate-950/50 px-1.5 py-1 text-[10.5px]">
+            {!step.enabled && (
+              <span className="text-[10px] font-semibold text-slate-400">Skipped: not in the G-code</span>
+            )}
             <InfoRow label={stepLayers.length > 1 ? 'Layers' : 'Layer'}>
               {needsLayer ? (
                 stepLayers.length ? (
@@ -406,7 +406,7 @@ function StepCard({
         </div>
       </div>
       <div
-        className="-mx-2 -mb-2 mt-2 flex items-center gap-0.5 rounded-b-lg border-t border-slate-800 bg-slate-950/40 px-1.5 py-0.5"
+        className="-mx-2 -mb-1.5 mt-1.5 flex items-center gap-0.5 rounded-b-lg border-t border-slate-800 bg-slate-950/40 px-1.5"
         data-testid="step-actions"
         onClick={(e) => e.stopPropagation()}
         onDoubleClick={(e) => e.stopPropagation()}
@@ -453,14 +453,14 @@ const SIDE_SHORT: Record<string, string> = {
   top: 'top',
   bottom: 'bottom',
   inner: 'inner',
-  all: 'both sides',
+  all: 'both',
   none: ''
 }
 
 function InfoRow({ label, children }: { label: string; children: React.ReactNode }): React.JSX.Element {
   return (
-    <div className="flex items-start gap-2">
-      <span className="w-10 shrink-0 pt-px text-[10px] text-slate-500">{label}</span>
+    <div className="flex items-start gap-1.5">
+      <span className="w-9 shrink-0 pt-px text-[10px] text-slate-500">{label}</span>
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">{children}</div>
     </div>
   )

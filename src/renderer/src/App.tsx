@@ -8,6 +8,7 @@ import { Toasts } from '@renderer/components/Toasts'
 import { Stepper } from '@renderer/layout/Stepper'
 import { EdaDialog } from '@renderer/layers/EdaDialog'
 import { DuplicateDialog } from '@renderer/layers/DuplicateDialog'
+import { FolderBrowserDialog } from '@renderer/layers/FolderBrowserDialog'
 import { HelpDialog } from '@renderer/components/HelpDialog'
 import { useProject, useTemporal } from '@renderer/store/project'
 import { useUi } from '@renderer/store/ui'
@@ -220,6 +221,7 @@ export function App(): React.JSX.Element {
           onClose={cancelEdaChoice}
         />
         <DuplicateDialog pending={duplicates} onResolve={resolveDuplicates} />
+        <FolderBrowserDialog />
         <HelpDialog
           open={helpOpen}
           topic={helpTopic}

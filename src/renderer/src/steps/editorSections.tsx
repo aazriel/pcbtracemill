@@ -20,7 +20,7 @@ import { ToolLibraryDialog } from '@renderer/tools/ToolLibraryDialog'
 import { ToolPickerDialog } from '@renderer/tools/ToolPickerDialog'
 import { ToolCard } from '@renderer/tools/ToolCard'
 import { Button } from '@renderer/components/ui/button'
-import { NumberField, Segmented, Switch, TextField, FieldShell } from '@renderer/components/ui/fields'
+import { NumberField, Segmented, TextField, FieldShell } from '@renderer/components/ui/fields'
 import { HelpTip } from '@renderer/components/ui/help'
 import { cn, formatDuration } from '@renderer/lib/utils'
 import { DepthCrossSection, Figure, SideIllustration } from './illustrations'
@@ -168,26 +168,32 @@ export function ToolSection({ draft, update }: SectionProps): React.JSX.Element 
             </div>
           )}
         </div>
-        <div className="flex w-48 shrink-0 flex-col justify-center gap-1.5">
-          <Button onClick={() => setPickOpen(true)} data-testid="tool-choose" className="justify-start">
-            <Wrench /> {tool ? 'Choose another tool…' : 'Choose a tool…'}
-          </Button>
-          <div className="flex items-center gap-1.5">
+        <div className="flex shrink-0 items-center gap-1.5">
+          <div className="flex w-60 flex-col justify-center gap-2">
             <Button
+              size="lg"
+              onClick={() => setPickOpen(true)}
+              data-testid="tool-choose"
+              className="w-full justify-start"
+            >
+              <Wrench /> {tool ? 'Choose another tool…' : 'Choose a tool…'}
+            </Button>
+            <Button
+              size="lg"
               variant="secondary"
               onClick={() => setLibOpen(true)}
               data-testid="tool-open-library"
-              className="flex-1 justify-start"
+              className="w-full justify-start"
             >
               <Library /> Tool library…
             </Button>
-            <HelpTip title="Tool">
-              {help('step.tool')} Speeds and feeds belong to the tool; change them in the tool library.
-              {machine &&
-                !machine.supportsToolChange &&
-                ' Your machine pauses so you can change the bit by hand.'}
-            </HelpTip>
           </div>
+          <HelpTip title="Tool">
+            {help('step.tool')} Speeds and feeds belong to the tool; change them in the tool library.
+            {machine &&
+              !machine.supportsToolChange &&
+              ' Your machine pauses so you can change the bit by hand.'}
+          </HelpTip>
         </div>
       </div>
       {tool && fit && !fit.ok && <p className="text-[11px] text-rose-300">✕ {fit.message}</p>}
@@ -236,47 +242,56 @@ export function GeneralSection({ draft, update, issues }: SectionProps): React.J
   const sideWarn = firstIssue(issues, /bottom side/i, 'warning')
   const width = tool && draft.cutDepth > 0 ? effectiveCutWidth(tool, draft.cutDepth) : null
   const machineSafe = machine?.safeZ ?? 5
+  const heights = (
+    <div className="mt-2 overflow-hidden rounded-md border border-slate-800">
+      <HeightsIllustration
+        safeZ={draft.safeZ ?? machineSafe}
+        travelZ={machine?.travelZ ?? 2}
+        toolChangeZ={machine?.toolChangeZ ?? 30}
+        highlight="safe"
+      />
+    </div>
+  )
   return (
-    <div className="grid grid-cols-1 gap-x-6 gap-y-4 lg:grid-cols-2">
-      <div className="flex flex-col gap-4">
-        <TextField
-          label="Step name"
-          value={draft.name}
-          onChange={(v) => update((d) => ({ ...d, name: v }))}
-          description="Shown in the step list and written as a comment into the G-code."
-          help={help('step.name')}
-        />
-        <FieldShell
-          label="Side facing up"
-          description="Bottom-side steps are mirrored automatically so they line up after you flip the board."
-          helpWide
-          help={
-            <>
-              {help('step.side')}
-              <div className="mt-2">
-                <Figure>
-                  <SideIllustration side={draft.side} />
-                </Figure>
-              </div>
-            </>
-          }
-          warning={sideWarn}
-        >
-          <div data-testid="step-side">
-            <Segmented
-              value={draft.side}
-              onChange={(v) => update((d) => withSide(d, v))}
-              options={[
-                { value: 'top', label: 'Top' },
-                { value: 'bottom', label: 'Bottom (mirrored)' }
-              ]}
-            />
-          </div>
-        </FieldShell>
-      </div>
-      <div className="flex flex-col gap-4">
+    <div className="grid grid-cols-2 items-start gap-x-3 gap-y-4 md:grid-cols-4">
+      <TextField
+        label="Step name"
+        value={draft.name}
+        onChange={(v) => update((d) => ({ ...d, name: v }))}
+        description="Shown in the step list and written as a comment into the G-code."
+        help={help('step.name')}
+      />
+      <FieldShell
+        label="Side facing up"
+        description="Bottom-side steps are mirrored automatically so they line up after you flip the board."
+        helpWide
+        help={
+          <>
+            {help('step.side')}
+            <div className="mt-2">
+              <Figure>
+                <SideIllustration side={draft.side} />
+              </Figure>
+            </div>
+          </>
+        }
+        warning={sideWarn}
+      >
+        <div data-testid="step-side">
+          <Segmented
+            stretch
+            value={draft.side}
+            onChange={(v) => update((d) => withSide(d, v))}
+            options={[
+              { value: 'top', label: 'Top' },
+              { value: 'bottom', label: 'Bottom', title: 'Bottom (mirrored automatically)' }
+            ]}
+          />
+        </div>
+      </FieldShell>
+      <div className="flex flex-col gap-1">
         <NumberField
-          label="Cut depth below Z0"
+          label="Cut depth"
           unit="mm"
           step={draft.kind === 'isolate' || draft.kind === 'clear' ? 0.01 : 0.1}
           min={0}
@@ -306,7 +321,7 @@ export function GeneralSection({ draft, update, issues }: SectionProps): React.J
           warning={depthWarn}
         />
         {(recommended !== null || (width !== null && tool?.type === 'vbit')) && (
-          <p className="-mt-3 text-[11px] text-slate-500">
+          <p className="text-[11px] text-slate-500">
             {recommended !== null && (
               <>
                 Suggested <b className="text-slate-300">{r3(recommended)} mm</b>
@@ -323,60 +338,53 @@ export function GeneralSection({ draft, update, issues }: SectionProps): React.J
             )}
             {width !== null && tool?.type === 'vbit' && (
               <>
-                {recommended !== null && ' · '}cuts a {r3(width)} mm wide groove
+                {recommended !== null && ' · '}
+                {r3(width)} mm groove
               </>
             )}
           </p>
         )}
-        <div className="flex flex-col gap-2">
-          <Switch
-            label={`Use the machine's safe height (${machineSafe} mm)`}
-            checked={draft.safeZ === null}
-            onChange={(v) => update((d) => ({ ...d, safeZ: v ? null : machineSafe }))}
-            description="Safe height is how high the bit lifts above the board to travel between cuts."
-            helpWide
-            help={
-              <>
-                {help('step.safeZ')} {help('concept.safeZ')}
-                <div className="mt-2 overflow-hidden rounded-md border border-slate-800">
-                  <HeightsIllustration
-                    safeZ={draft.safeZ ?? machineSafe}
-                    travelZ={machine?.travelZ ?? 2}
-                    toolChangeZ={machine?.toolChangeZ ?? 30}
-                    highlight="safe"
-                  />
-                </div>
-              </>
-            }
-          />
-          {draft.safeZ !== null && (
+      </div>
+      <FieldShell
+        label="Safe height"
+        description="How high the bit lifts above the board to travel between cuts. Must clear clamps and screws."
+        helpWide
+        help={
+          <>
+            {help('step.safeZ')} {help('concept.safeZ')}
+            {heights}
+          </>
+        }
+        error={safeErr}
+      >
+        <div className="flex items-center gap-2">
+          <div className="min-w-0 flex-1">
             <NumberField
+              hideLabel
               label="Safe Z for this step"
               unit="mm"
               min={0}
               step={0.5}
-              value={draft.safeZ}
+              value={draft.safeZ ?? machineSafe}
+              disabled={draft.safeZ === null}
               onChange={(v) => update((d) => ({ ...d, safeZ: v }))}
-              description="Height above the copper surface for travel moves. Must clear clamps and screws."
-              helpWide
-              help={
-                <>
-                  {help('concept.safeZ')}
-                  <div className="mt-2 overflow-hidden rounded-md border border-slate-800">
-                    <HeightsIllustration
-                      safeZ={draft.safeZ ?? machineSafe}
-                      travelZ={machine?.travelZ ?? 2}
-                      toolChangeZ={machine?.toolChangeZ ?? 30}
-                      highlight="safe"
-                    />
-                  </div>
-                </>
-              }
-              error={safeErr}
             />
-          )}
+          </div>
+          <label
+            className="flex shrink-0 cursor-pointer items-center gap-1 text-[11px] text-slate-400"
+            title="Use the safe height set for the machine"
+          >
+            <input
+              type="checkbox"
+              className="accent-sky-500"
+              checked={draft.safeZ === null}
+              onChange={(e) => update((d) => ({ ...d, safeZ: e.target.checked ? null : machineSafe }))}
+              data-testid="step-safe-machine"
+            />
+            machine
+          </label>
         </div>
-      </div>
+      </FieldShell>
     </div>
   )
 }
