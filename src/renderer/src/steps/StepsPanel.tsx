@@ -11,7 +11,10 @@ import {
   ArrowUp,
   Ban,
   ChevronRight,
+  ChevronsDownUp,
+  ChevronsUpDown,
   Copy,
+  ListX,
   GripVertical,
   Loader2,
   MapPin,
@@ -172,6 +175,25 @@ export function StepsPanel(): React.JSX.Element {
     setDrag(null)
   }
 
+  const [confirmClear, setConfirmClear] = useState(false)
+  const setAll = (value: boolean): void => {
+    const next: Record<string, boolean> = {}
+    for (const ph of outline) {
+      next[ph.key] = value || false
+      for (const it of ph.items) if (it.type === 'group') next[it.key] = value
+    }
+    // "Collapse all" keeps the side groups open but folds every run of steps; a second click folds the sides too
+    if (!value && Object.entries(open).every(([k, v]) => !k.startsWith('group-') || !v))
+      for (const ph of outline) next[ph.key] = false
+    else if (!value) for (const ph of outline) next[ph.key] = true
+    setOpen(next)
+  }
+  const removeSteps = (ids: string[]): void => {
+    const gone = new Set(ids)
+    setSteps(steps.filter((s) => !gone.has(s.id)))
+    if (selectedId && gone.has(selectedId)) useUi.getState().set({ selectedStepId: null })
+  }
+
   const isOpen = (key: string, def: boolean): boolean => open[key] ?? def
   const toggle = (key: string, def: boolean): void => setOpen((o) => ({ ...o, [key]: !(o[key] ?? def) }))
 
@@ -204,7 +226,33 @@ export function StepsPanel(): React.JSX.Element {
   )
 
   return (
-    <PanelSection title="Steps">
+    <PanelSection
+      title="Steps"
+      actions={
+        steps.length > 0 && (
+          <>
+            <HeaderBtn label="Expand all" onClick={() => setAll(true)} testId="steps-expand-all">
+              <ChevronsUpDown />
+            </HeaderBtn>
+            <HeaderBtn
+              label="Collapse all (click again to fold the sides too)"
+              onClick={() => setAll(false)}
+              testId="steps-collapse-all"
+            >
+              <ChevronsDownUp />
+            </HeaderBtn>
+            <HeaderBtn
+              label="Remove all steps…"
+              onClick={() => setConfirmClear(true)}
+              testId="steps-remove-all"
+              danger
+            >
+              <ListX />
+            </HeaderBtn>
+          </>
+        )
+      }
+    >
       {steps.length === 0 && (
         <div className="mb-2 rounded-lg border border-dashed border-slate-700 p-3 text-center text-xs leading-relaxed text-slate-400">
           <Wand2 className="mx-auto mb-1.5 size-6 text-sky-400" />
@@ -230,10 +278,12 @@ export function StepsPanel(): React.JSX.Element {
             return (
               <div key={ph.key}>
                 {pi > 0 && <FlipSpacer axis={material?.alignment.axis ?? 'x'} toSide={ph.side} />}
-                <button
-                  type="button"
+                <div
+                  role="button"
+                  tabIndex={0}
                   onClick={() => toggle(ph.key, true)}
-                  className="mb-1 flex w-full items-center gap-1.5 rounded-md px-1 py-1 text-left hover:bg-slate-800/50"
+                  onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && toggle(ph.key, true)}
+                  className="group/ph mb-1 flex w-full cursor-pointer items-center gap-1.5 rounded-md px-1 py-1 text-left hover:bg-slate-800/50"
                   data-testid="steps-phase"
                   aria-expanded={phOpen}
                 >
@@ -256,8 +306,13 @@ export function StepsPanel(): React.JSX.Element {
                     {t > 0 && ` · ${formatDuration(t)}`}
                   </span>
                   <span className="flex-1" />
+                  <RemoveBtn
+                    what={`the ${ph.rows.length} ${SIDE_LABEL[ph.side].toLowerCase()} step${ph.rows.length === 1 ? '' : 's'}`}
+                    onRemove={() => removeSteps(ph.rows.map((r) => r.step.id))}
+                    testId="steps-phase-remove"
+                  />
                   <StatusCircle level={phLevel} size={14} />
-                </button>
+                </div>
                 {phOpen && (
                   <div className="flex flex-col gap-1 pb-1">
                     {ph.items.map((it) => {
@@ -273,6 +328,7 @@ export function StepsPanel(): React.JSX.Element {
                             seconds={seconds(it.rows)}
                             onToggle={() => toggle(it.key, hasSel)}
                             onEnable={(on) => it.rows.forEach((r) => upsertStep({ ...r.step, enabled: on }))}
+                            onRemove={() => removeSteps(it.rows.map((r) => r.step.id))}
                           />
                           {gOpen && (
                             <div className="ml-2.5 flex flex-col gap-1 border-l border-slate-700/80 pl-1.5">
@@ -299,6 +355,32 @@ export function StepsPanel(): React.JSX.Element {
           <Plus /> Add step
         </Button>
       </div>
+      <Dialog
+        open={confirmClear}
+        onOpenChange={setConfirmClear}
+        title="Remove all steps?"
+        description={`All ${steps.length} steps are removed. You can bring them back with Undo (Ctrl+Z), or plan the job again with Recipe.`}
+        className="w-[min(92vw,460px)]"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setConfirmClear(false)}>
+              Keep them
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                setConfirmClear(false)
+                removeSteps(steps.map((s) => s.id))
+              }}
+              data-testid="steps-remove-all-confirm"
+            >
+              <ListX /> Remove all
+            </Button>
+          </>
+        }
+      >
+        <span />
+      </Dialog>
       <Dialog
         open={confirmRecipe}
         onOpenChange={setConfirmRecipe}
@@ -362,7 +444,8 @@ function GroupRow({
   level,
   seconds,
   onToggle,
-  onEnable
+  onEnable,
+  onRemove
 }: {
   group: KindGroup
   open: boolean
@@ -370,6 +453,7 @@ function GroupRow({
   seconds: number
   onToggle: () => void
   onEnable: (on: boolean) => void
+  onRemove: () => void
 }): React.JSX.Element {
   const Icon = stepIcon(group.kind)
   const steps = group.rows.map((r) => r.step)
@@ -387,7 +471,7 @@ function GroupRow({
   return (
     <div
       className={cn(
-        'flex cursor-pointer items-center gap-1.5 rounded-lg border bg-slate-900 px-2 py-1.5 transition-colors hover:border-slate-500',
+        'group/g flex cursor-pointer items-center gap-1.5 rounded-lg border bg-slate-900 px-2 py-1.5 transition-colors hover:border-slate-500',
         level === 'error'
           ? 'border-rose-500/60'
           : level === 'warning'
@@ -431,6 +515,7 @@ function GroupRow({
           {seconds > 0 ? formatDuration(seconds) : `${on} of ${steps.length} included`}
         </div>
       </div>
+      <RemoveBtn what={`these ${steps.length} steps`} onRemove={onRemove} testId="step-group-remove" />
       <StatusCircle level={level} size={16} />
     </div>
   )
@@ -787,6 +872,81 @@ function IconBtn({
       <Button size="iconSm" variant="ghost" aria-label={label} disabled={disabled} onClick={onClick}>
         {children}
       </Button>
+    </Tooltip>
+  )
+}
+
+/** Small header icon button (Expand / Collapse / Remove all). */
+function HeaderBtn({
+  label,
+  onClick,
+  testId,
+  danger,
+  children
+}: {
+  label: string
+  onClick: () => void
+  testId?: string
+  danger?: boolean
+  children: React.ReactNode
+}): React.JSX.Element {
+  return (
+    <Tooltip content={label}>
+      <Button
+        size="iconSm"
+        variant="ghost"
+        aria-label={label}
+        onClick={onClick}
+        data-testid={testId}
+        className={danger ? 'hover:bg-rose-500/20 hover:text-rose-300' : undefined}
+      >
+        {children}
+      </Button>
+    </Tooltip>
+  )
+}
+
+/** Trash icon on a group header; the first click asks "Remove?", the second removes (Undo brings it back). */
+function RemoveBtn({
+  what,
+  onRemove,
+  testId
+}: {
+  what: string
+  onRemove: () => void
+  testId?: string
+}): React.JSX.Element {
+  const [ask, setAsk] = useState(false)
+  if (ask)
+    return (
+      <Button
+        size="sm"
+        variant="danger"
+        className="h-5 shrink-0 px-1.5 text-[10px]"
+        onClick={(e) => {
+          e.stopPropagation()
+          onRemove()
+        }}
+        onMouseLeave={() => setAsk(false)}
+        data-testid={testId ? `${testId}-confirm` : undefined}
+      >
+        Remove?
+      </Button>
+    )
+  return (
+    <Tooltip content={`Remove ${what} (Ctrl+Z undoes it)`}>
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation()
+          setAsk(true)
+        }}
+        className="flex size-5 shrink-0 items-center justify-center rounded text-slate-600 opacity-0 transition-opacity hover:bg-rose-500/20 hover:text-rose-300 focus:opacity-100 group-hover/g:opacity-100 group-hover/ph:opacity-100"
+        aria-label={`Remove ${what}`}
+        data-testid={testId}
+      >
+        <Trash2 className="size-3.5" />
+      </button>
     </Tooltip>
   )
 }
