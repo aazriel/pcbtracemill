@@ -68,7 +68,7 @@ Choose **one file per step**, **one per tool**, or **one combined file**. The ta
 
 ### Auto-level (optional, recommended)
 Copper is only 0.035 mm thick and no board is perfectly flat, so TraceMill can measure the surface and correct the depth:
-1. **Generate probe program** — read the safety notes, choose the probing area and grid, save the program and run it with a probe clip on the bit and a wire on the copper. The area is given by its left / right edges (X) and front / back edges (Y), all measured from X0 Y0, the same zero you use for milling; *Board + 2 mm* and *Whole material* fill them in. Every setting's (?) shows a short animation of what it does.
+1. **Generate probe program** — read the safety notes, choose the probing area and grid, save the program and run it with a probe clip on the bit and a wire on the copper. The area is given by its left / right edges (X) and front / back edges (Y), all measured from X0 Y0, the same zero you use for milling; *Board shape* follows the real outline (on a round board the far corners are skipped and filled in from their neighbours), *Whole material* covers the sheet, and *Custom* lets you type the edges or drag a rectangle on the picture. Every setting's (?) shows a short animation of what it does.
 2. **Import probe results** — load the log your controller produced. TraceMill shows a colour heat map and a 3D surface and, when enabled, corrects Z in every exported file.
 
 ## Projects

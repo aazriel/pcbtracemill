@@ -1,9 +1,17 @@
 /** Geometry helpers shared by the probe preview, heat map and 3D surface (all in WORK coordinates). */
 import { useMemo } from 'react'
-import type { BBox, HeightMap, ImportedLayer, Material, Path, ProbeGridConfig } from '@core/model/types'
-import { applyAffine, bboxIsEmpty, rings } from '@core/geometry'
-import { boardToWorkTransform, stockRectInWork } from '@core/toolpath'
-import { heightMapStats } from '@core/heightmap'
+import type {
+  BBox,
+  HeightMap,
+  ImportedLayer,
+  Material,
+  Path,
+  PolygonSet,
+  ProbeGridConfig
+} from '@core/model/types'
+import { applyAffine, bboxIsEmpty, rings, transformPolygonSet } from '@core/geometry'
+import { boardToWorkTransform, buildOutline, stockRectInWork } from '@core/toolpath'
+import { heightMapStats, probePoints } from '@core/heightmap'
 import { interpolateTurbo } from 'd3-scale-chromatic'
 import { useProject } from '@renderer/store/project'
 import { useBoardBBox, useLayersWithParsed } from '@renderer/store/controller'
@@ -14,6 +22,8 @@ export interface WorkScene {
   board: BBox
   /** Board outline rings in work coordinates (falls back to the bbox rectangle). */
   outline: Path[]
+  /** The board's real shape (filled) in work coordinates, e.g. a disc for a round board. */
+  shape: PolygonSet
 }
 
 function transformedBBox(paths: Path[]): BBox {
@@ -63,7 +73,8 @@ export function buildWorkScene(
   return {
     stock: stockRectInWork(material, bbox),
     board: transformedBBox([rect.map((q) => applyAffine(m, q))]),
-    outline
+    outline,
+    shape: transformPolygonSet(m, buildOutline(outlineLayers, bbox).shape)
   }
 }
 
@@ -99,10 +110,10 @@ export function stockProbeArea(scene: WorkScene, inset = 3): BBox {
 
 /** Estimated probing time in seconds. */
 export function estimateProbeSeconds(cfg: ProbeGridConfig, rapidXY: number, rapidZ: number): number {
-  const n = cfg.countX * cfg.countY
-  const dx = cfg.countX > 1 ? (cfg.maxX - cfg.minX) / (cfg.countX - 1) : 0
-  const dy = cfg.countY > 1 ? (cfg.maxY - cfg.minY) / (cfg.countY - 1) : 0
-  const travel = (cfg.countX - 1) * dx * cfg.countY + (cfg.countY - 1) * dy
+  const pts = probePoints(cfg)
+  const n = pts.length
+  let travel = 0
+  for (let i = 1; i < pts.length; i++) travel += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y)
   const clear = Math.max(cfg.clearanceZ, 0.5)
   const feed = cfg.probeFeed > 0 ? cfg.probeFeed : 50
   // Down at probe speed (from clearance to the copper), back up at rapid, plus settle overhead.

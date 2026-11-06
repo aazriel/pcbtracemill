@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { AlertTriangle, ArrowLeft, ArrowRight, Loader2, ShieldAlert, Save } from 'lucide-react'
 import type { ProbeGridConfig } from '@core/model/types'
 import { HELP } from '@core/help'
-import { defaultProbeGrid, gridStep } from '@core/heightmap'
+import { cellsNearShape, defaultProbeGrid, gridStep, probePoints } from '@core/heightmap'
 import { camWorker } from '@workers/index'
 import { Dialog } from '@renderer/components/ui/dialog'
 import { Button } from '@renderer/components/ui/button'
@@ -189,6 +189,7 @@ function IntroPage({
 }
 
 type GridMode = 'spacing' | 'count'
+type AreaMode = 'board' | 'stock' | 'custom'
 
 export function ProbeDialog({
   open,
@@ -208,21 +209,46 @@ export function ProbeDialog({
   const [mode, setMode] = useState<GridMode>('spacing')
   const [spacing, setSpacing] = useState(10)
   const [cfg, setCfg] = useState<ProbeGridConfig | null>(null)
+  const [areaMode, setAreaMode] = useState<AreaMode>('board')
   const [saving, setSaving] = useState(false)
 
-  // Initialise the grid when the dialog opens (last saved grid, else board area).
+  // Initialise the grid when the dialog opens (last saved grid, else the board shape).
   useEffect(() => {
     if (!open) return
     setPage('intro')
     setUnderstood(false)
-    if (al.probeCfg) setCfg(al.probeCfg)
-    else if (scene) setCfg(defaultProbeGrid(boardProbeArea(scene), 10))
+    const saved = al.probeCfg
+    if (saved && scene) {
+      setCfg(saved)
+      setAreaMode(
+        saved.cells?.length || sameArea(saved, boardProbeArea(scene))
+          ? 'board'
+          : sameArea(saved, stockProbeArea(scene))
+            ? 'stock'
+            : 'custom'
+      )
+    } else if (scene) {
+      setCfg(defaultProbeGrid(boardProbeArea(scene), 10))
+      setAreaMode('board')
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
   useEffect(() => {
-    if (open && !cfg && scene) setCfg(defaultProbeGrid(boardProbeArea(scene), spacing))
+    if (open && !cfg && scene) {
+      setCfg(defaultProbeGrid(boardProbeArea(scene), spacing))
+      setAreaMode('board')
+    }
   }, [open, cfg, scene, spacing])
+
+  // The grid that is really probed: on "Board shape" only the points near the board's real outline.
+  const live = useMemo<ProbeGridConfig | null>(() => {
+    if (!cfg) return null
+    const { cells: _old, ...base } = cfg
+    if (areaMode !== 'board' || !scene) return base
+    const cells = cellsNearShape(base, scene.shape, 2)
+    return cells ? { ...base, cells } : base
+  }, [cfg, areaMode, scene])
 
   const withSpacing = (c: ProbeGridConfig, sp: number): ProbeGridConfig => {
     const g = defaultProbeGrid(c, sp)
@@ -236,25 +262,23 @@ export function ProbeDialog({
   const patch = (p: Partial<ProbeGridConfig>): void => setCfg((c) => (c ? { ...c, ...p } : c))
 
   const stats = useMemo(() => {
-    if (!cfg || !machine) return null
-    const { dx, dy } = gridStep(cfg)
+    if (!live || !machine) return null
+    const { dx, dy } = gridStep(live)
     return {
-      n: cfg.countX * cfg.countY,
+      n: probePoints(live).length,
+      all: live.countX * live.countY,
       dx,
       dy,
-      seconds: estimateProbeSeconds(cfg, machine.maxFeedXY, machine.maxFeedZ)
+      seconds: estimateProbeSeconds(live, machine.maxFeedXY, machine.maxFeedZ)
     }
-  }, [cfg, machine])
+  }, [live, machine])
 
   const boardArea = scene ? boardProbeArea(scene) : null
   const stockArea = scene ? stockProbeArea(scene) : null
-  const areaPreset: 'board' | 'stock' | 'custom' =
-    cfg && boardArea && sameArea(cfg, boardArea)
-      ? 'board'
-      : cfg && stockArea && sameArea(cfg, stockArea)
-        ? 'stock'
-        : 'custom'
+  const followsShape = !!live?.cells
   const areasAlike =
+    areaMode !== 'custom' &&
+    !followsShape &&
     !!boardArea &&
     !!stockArea &&
     Math.max(
@@ -289,13 +313,14 @@ export function ProbeDialog({
     if (!cfg || !machine) return
     setSaving(true)
     try {
-      const text = await camWorker().probeProgram(cfg, machine)
+      if (!live) return
+      const text = await camWorker().probeProgram(live, machine)
       const ext = (machine.fileExtension || 'nc').replace(/^\.+/, '')
       const ok = await saveOne(`${safeName(projectName)}_probe.${ext}`, text)
       if (!ok) return
-      al.set({ probeSaved: true, probeCfg: cfg })
+      al.set({ probeSaved: true, probeCfg: live })
       void window.tracemill
-        ?.settingsSet(PROBE_CFG_SETTINGS_KEY, { cfg, side: al.measuredSide })
+        ?.settingsSet(PROBE_CFG_SETTINGS_KEY, { cfg: live, side: al.measuredSide })
         .catch(() => undefined)
       toast('success', 'Probe program saved. Run it on your machine, then import the results (step 2).')
       onOpenChange(false)
@@ -372,7 +397,7 @@ export function ProbeDialog({
                     value={al.measuredSide}
                     onChange={(v) => {
                       al.set({ measuredSide: v })
-                      setCfg(null)
+                      if (areaMode !== 'custom') setCfg(null)
                     }}
                     options={[
                       { value: 'top', label: 'Top side' },
@@ -394,17 +419,38 @@ export function ProbeDialog({
                 </div>
                 <Segmented
                   stretch
-                  value={areaPreset}
+                  value={areaMode}
                   onChange={(v) => {
+                    setAreaMode(v)
                     if (v === 'board' && boardArea) setArea(boardArea)
                     else if (v === 'stock' && stockArea) setArea(stockArea)
                   }}
                   options={[
-                    { value: 'board', label: 'Board + 2 mm' },
+                    { value: 'board', label: 'Board shape' },
                     { value: 'stock', label: 'Whole material' },
                     { value: 'custom', label: 'Custom' }
                   ]}
                 />
+                <p className="text-[11px] leading-snug text-slate-400" data-testid="probe-area-note">
+                  {areaMode === 'board' ? (
+                    followsShape && stats ? (
+                      <>
+                        Follows the board outline + 2 mm: <b className="text-slate-200">{stats.n}</b> of the{' '}
+                        {stats.all} grid points are measured. Points far from the board are skipped (shown
+                        faint) and filled in from their neighbours.
+                      </>
+                    ) : (
+                      'The board plus 2 mm all around.'
+                    )
+                  ) : areaMode === 'stock' ? (
+                    'The whole sheet, 3 mm in from its edges (clear of clamps).'
+                  ) : (
+                    <>
+                      <b className="text-sky-300">Drag on the picture</b> to draw the area, or type its edges
+                      below.
+                    </>
+                  )}
+                </p>
                 {areasAlike && (
                   <p className="text-[11px] leading-snug text-slate-500">
                     Your material is only a little larger than the board, so these two are almost the same.
@@ -415,21 +461,30 @@ export function ProbeDialog({
                     label="Left edge (X)"
                     unit="mm"
                     value={round(cfg.minX)}
-                    onChange={(v) => setArea({ ...cfg, minX: v })}
+                    onChange={(v) => {
+                      setAreaMode('custom')
+                      setArea({ ...cfg, minX: v })
+                    }}
                     {...fig('Distance from X0 to the left side of the area.', <ProbeAreaFigure />)}
                   />
                   <NumberField
                     label="Right edge (X)"
                     unit="mm"
                     value={round(cfg.maxX)}
-                    onChange={(v) => setArea({ ...cfg, maxX: v })}
+                    onChange={(v) => {
+                      setAreaMode('custom')
+                      setArea({ ...cfg, maxX: v })
+                    }}
                     {...fig('Distance from X0 to the right side of the area.', <ProbeAreaFigure />)}
                   />
                   <NumberField
                     label="Front edge (Y)"
                     unit="mm"
                     value={round(cfg.minY)}
-                    onChange={(v) => setArea({ ...cfg, minY: v })}
+                    onChange={(v) => {
+                      setAreaMode('custom')
+                      setArea({ ...cfg, minY: v })
+                    }}
                     {...fig(
                       'Distance from Y0 to the front side of the area (nearest to you).',
                       <ProbeAreaFigure />
@@ -439,7 +494,10 @@ export function ProbeDialog({
                     label="Back edge (Y)"
                     unit="mm"
                     value={round(cfg.maxY)}
-                    onChange={(v) => setArea({ ...cfg, maxY: v })}
+                    onChange={(v) => {
+                      setAreaMode('custom')
+                      setArea({ ...cfg, maxY: v })
+                    }}
                     {...fig('Distance from Y0 to the back side of the area.', <ProbeAreaFigure />)}
                   />
                 </div>
@@ -506,8 +564,11 @@ export function ProbeDialog({
                 )}
                 {stats && (
                   <p className="text-[11px] text-slate-500">
-                    {cfg.countX} × {cfg.countY} = <b className="text-slate-300">{stats.n} points</b>, one
-                    every {stats.dx.toFixed(1)} × {stats.dy.toFixed(1)} mm.
+                    {stats.n < stats.all
+                      ? `${stats.n} of ${cfg.countX} × ${cfg.countY}`
+                      : `${cfg.countX} × ${cfg.countY}`}{' '}
+                    = <b className="text-slate-300">{stats.n} points</b>, one every {stats.dx.toFixed(1)} ×{' '}
+                    {stats.dy.toFixed(1)} mm.
                   </p>
                 )}
               </div>
@@ -556,7 +617,24 @@ export function ProbeDialog({
             </div>
             <div className="flex min-w-0 flex-1 flex-col gap-2">
               <div className="rounded-lg border border-slate-800 bg-slate-950 p-2">
-                <ProbePreview scene={scene} cfg={cfg} className="h-[470px] w-full" />
+                <ProbePreview
+                  scene={scene}
+                  cfg={live ?? cfg}
+                  className="h-[470px] w-full"
+                  onDraw={
+                    areaMode === 'custom'
+                      ? (a) => {
+                          const s = scene.stock
+                          setArea({
+                            minX: Math.max(s.minX, a.minX),
+                            minY: Math.max(s.minY, a.minY),
+                            maxX: Math.min(s.maxX, a.maxX),
+                            maxY: Math.min(s.maxY, a.maxY)
+                          })
+                        }
+                      : undefined
+                  }
+                />
               </div>
               <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-400">
                 <Legend color="rgba(217,149,84,0.9)" dashed label="material (stock)" />

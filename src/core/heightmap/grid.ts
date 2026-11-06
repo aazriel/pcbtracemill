@@ -1,4 +1,5 @@
-import type { HeightMap, ProbeGridConfig } from '../model/types'
+import type { HeightMap, PolygonSet, ProbeGridConfig } from '../model/types'
+import { offset, pointInPolygonSet } from '../geometry'
 
 export interface ProbePoint {
   x: number
@@ -42,17 +43,42 @@ export function gridStep(cfg: ProbeGridConfig): { dx: number; dy: number } {
   }
 }
 
-/** Probe points in serpentine order: row 0 left→right, row 1 right→left, ... First point = (minX, minY). */
+/**
+ * Probe points in serpentine order: row 0 left→right, row 1 right→left, ... Without `cells` the
+ * first point is (minX, minY); with `cells` only those grid points are visited, in the same order.
+ */
 export function probePoints(cfg: ProbeGridConfig): { x: number; y: number; ix: number; iy: number }[] {
   const { dx, dy } = gridStep(cfg)
+  const keep = cfg.cells?.length ? new Set(cfg.cells) : null
   const out: { x: number; y: number; ix: number; iy: number }[] = []
   for (let iy = 0; iy < cfg.countY; iy++) {
     for (let k = 0; k < cfg.countX; k++) {
       const ix = iy % 2 === 0 ? k : cfg.countX - 1 - k
+      if (keep && !keep.has(iy * cfg.countX + ix)) continue
       out.push({ x: cfg.minX + ix * dx, y: cfg.minY + iy * dy, ix, iy })
     }
   }
   return out
+}
+
+/**
+ * The grid cells worth probing for a board of this shape (work coordinates): every point within
+ * `margin` of the board, plus the ring just outside so the board edge lies between measured points.
+ * Returns undefined when that is every point anyway.
+ */
+export function cellsNearShape(cfg: ProbeGridConfig, shape: PolygonSet, margin = 2): number[] | undefined {
+  if (!shape.length) return undefined
+  const { dx, dy } = gridStep(cfg)
+  // half a cell diagonal: a board point is never further than that from a probed point
+  const reach = margin + 0.5 * Math.hypot(dx, dy)
+  const region = offset(shape, reach)
+  const cells: number[] = []
+  for (let iy = 0; iy < cfg.countY; iy++)
+    for (let ix = 0; ix < cfg.countX; ix++)
+      if (pointInPolygonSet({ x: cfg.minX + ix * dx, y: cfg.minY + iy * dy }, region))
+        cells.push(iy * cfg.countX + ix)
+  if (cells.length === cfg.countX * cfg.countY || cells.length < 3) return undefined
+  return cells
 }
 
 /** Cluster sorted values whose gaps are below `tol`; returns cluster means. */
@@ -129,8 +155,10 @@ export function buildHeightMap(points: ProbePoint[], cfg?: ProbeGridConfig, sour
   if (cfg) {
     const ok = pts.filter((p) => onGrid(p.x, p.y)).length
     if (ok < pts.length / 2) {
-      shiftX = grid.minX - pts[0].x
-      shiftY = grid.minY - pts[0].y
+      // the log's first point is the program's first point
+      const first = probePoints(grid)[0]
+      shiftX = first.x - pts[0].x
+      shiftY = first.y - pts[0].y
     }
   }
 
