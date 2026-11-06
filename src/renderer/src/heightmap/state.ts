@@ -9,6 +9,8 @@ import { useProject } from '@renderer/store/project'
 export interface ProbeImportInfo {
   fileName: string
   format: string
+  /** Why the results were rejected (no map was built). */
+  errors: string[]
   warnings: string[]
   ok: boolean
 }
@@ -16,6 +18,8 @@ export interface ProbeImportInfo {
 export interface AutoLevelState {
   /** Pass every eligible exported file through the height-map correction. */
   apply: boolean
+  /** Corrected files probe Z0 at point 1 before each bit starts (no exact manual zeroing). */
+  touchOff: boolean
   /** Which side of the board was facing up while it was probed. */
   measuredSide: 'top' | 'bottom'
   /** Last probe grid the user saved a program for (used to align the imported results). */
@@ -23,24 +27,34 @@ export interface AutoLevelState {
   /** True once a probe program has been saved in this session. */
   probeSaved: boolean
   importInfo: ProbeImportInfo | null
+  /** The height-map viewer dialog is open. */
+  mapOpen: boolean
   set(patch: Partial<Omit<AutoLevelState, 'set'>>): void
 }
 
 export const useAutoLevel = create<AutoLevelState>()((set) => ({
   apply: false,
+  touchOff: true,
   measuredSide: 'top',
   probeCfg: null,
   probeSaved: false,
   importInfo: null,
+  mapOpen: false,
   set: (patch) => {
     set(patch)
-    const settings: { autoLevelApply?: boolean; autoLevelSide?: 'top' | 'bottom' } = {}
+    const settings: {
+      autoLevelApply?: boolean
+      autoLevelSide?: 'top' | 'bottom'
+      autoLevelTouchOff?: boolean
+    } = {}
     if (patch.apply !== undefined) settings.autoLevelApply = patch.apply
+    if (patch.touchOff !== undefined) settings.autoLevelTouchOff = patch.touchOff
     if (patch.measuredSide !== undefined) settings.autoLevelSide = patch.measuredSide
     const cur = useProject.getState().settings
     if (
       (settings.autoLevelApply !== undefined && settings.autoLevelApply !== cur.autoLevelApply) ||
-      (settings.autoLevelSide !== undefined && settings.autoLevelSide !== cur.autoLevelSide)
+      (settings.autoLevelSide !== undefined && settings.autoLevelSide !== cur.autoLevelSide) ||
+      (settings.autoLevelTouchOff !== undefined && settings.autoLevelTouchOff !== cur.autoLevelTouchOff)
     )
       useProject.getState().setSettings(settings)
   }
@@ -56,7 +70,9 @@ useProject.subscribe((s, prev) => {
     const al = useAutoLevel.getState()
     const apply = s.settings.autoLevelApply ?? al.apply
     const side = s.settings.autoLevelSide ?? al.measuredSide
-    if (apply !== al.apply || side !== al.measuredSide) useAutoLevel.setState({ apply, measuredSide: side })
+    const touchOff = s.settings.autoLevelTouchOff ?? al.touchOff
+    if (apply !== al.apply || side !== al.measuredSide || touchOff !== al.touchOff)
+      useAutoLevel.setState({ apply, measuredSide: side, touchOff })
   }
   if (s.heightMap === prev.heightMap) return
   // A freshly loaded project keeps its saved switch state.

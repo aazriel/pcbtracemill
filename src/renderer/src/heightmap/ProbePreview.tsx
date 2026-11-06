@@ -7,6 +7,8 @@ import { cn } from '@renderer/lib/utils'
 
 export type DrawTool = 'rect' | 'circle' | 'polygon'
 
+const fmtMm = (v: number): string => String(Math.round(v * 10) / 10)
+
 /**
  * To-scale top view (work coordinates) of the stock, the board and the probe grid. The serpentine
  * order the machine follows is drawn as a path with a dot travelling along it; grid points that are
@@ -83,7 +85,7 @@ export function ProbePreview({
   const outlineD = scene.outline
     .map((ring) => ring.map((q, i) => `${i ? 'L' : 'M'}${q.x.toFixed(3)} ${(-q.y).toFixed(3)}`).join(' '))
     .join(' ')
-  const axisLen = span * 0.09
+  const axisLen = span * 0.13
   const tooMany = pts.length > 600
   const closeDist = span * 0.025
   const d = (p: Path, close = true): string =>
@@ -148,6 +150,17 @@ export function ProbePreview({
       data-testid="probe-preview"
     >
       <defs>
+        <marker
+          id="pp-ax"
+          viewBox="0 0 10 10"
+          refX="8"
+          refY="5"
+          markerWidth="5"
+          markerHeight="5"
+          orient="auto"
+        >
+          <path d="M0 0 L10 5 L0 10 Z" fill="context-stroke" />
+        </marker>
         <pattern id="pp-grid" width={10} height={10} patternUnits="userSpaceOnUse">
           <path d="M10 0 H0 V10" fill="none" stroke="#1e293b" strokeWidth={0.15} />
         </pattern>
@@ -222,14 +235,59 @@ export function ProbePreview({
       {pts.map((p, i) => (
         <circle key={i} cx={p.x} cy={-p.y} r={i === 0 ? r * 1.6 : r} fill={i === 0 ? '#fb7185' : '#e2e8f0'} />
       ))}
+      {/* where point 1 is, measured from X0 Y0 */}
+      <g data-testid="probe-point1-dims">
+        <line
+          x1={0}
+          y1={0}
+          x2={pts[0].x}
+          y2={0}
+          stroke="#fda4af"
+          strokeDasharray="3 3"
+          strokeWidth={1}
+          vectorEffect="non-scaling-stroke"
+        />
+        <line
+          x1={pts[0].x}
+          y1={0}
+          x2={pts[0].x}
+          y2={-pts[0].y}
+          stroke="#fda4af"
+          strokeDasharray="3 3"
+          strokeWidth={1}
+          vectorEffect="non-scaling-stroke"
+        />
+        {Math.abs(pts[0].x) > fs && (
+          <text
+            x={pts[0].x / 2}
+            y={pts[0].y >= 0 ? fs * 2.2 : -fs * 0.4}
+            fontSize={fs * 0.75}
+            fill="#fda4af"
+            textAnchor="middle"
+          >
+            X {fmtMm(pts[0].x)}
+          </text>
+        )}
+        {Math.abs(pts[0].y) > fs && (
+          <text
+            x={pts[0].x + fs * 0.35}
+            y={-pts[0].y / 2}
+            fontSize={fs * 0.75}
+            fill="#fda4af"
+            dominantBaseline="middle"
+          >
+            Y {fmtMm(pts[0].y)}
+          </text>
+        )}
+      </g>
       <text
         x={pts[0].x + r * 2.2}
-        y={-pts[0].y + fs * 1.1}
+        y={-pts[0].y - fs * 0.5}
         fontSize={fs * 0.85}
         fill="#fda4af"
         fontWeight={600}
       >
-        1 · start, zero Z here
+        1 · start here, zero Z (X{fmtMm(pts[0].x)} Y{fmtMm(pts[0].y)})
       </text>
       {/* travelling dot */}
       <circle r={r * 1.5} fill="#38bdf8" stroke="#0c4a6e" strokeWidth={r * 0.3}>
@@ -265,15 +323,16 @@ export function ProbePreview({
           ))}
         </g>
       )}
-      {/* work origin */}
-      <g stroke="none">
+      {/* work origin with the + directions */}
+      <g data-testid="probe-origin">
         <line
           x1={0}
           y1={0}
           x2={axisLen}
           y2={0}
           stroke="#f87171"
-          strokeWidth={2}
+          strokeWidth={2.5}
+          markerEnd="url(#pp-ax)"
           vectorEffect="non-scaling-stroke"
         />
         <line
@@ -282,17 +341,25 @@ export function ProbePreview({
           x2={0}
           y2={-axisLen}
           stroke="#4ade80"
-          strokeWidth={2}
+          strokeWidth={2.5}
+          markerEnd="url(#pp-ax)"
           vectorEffect="non-scaling-stroke"
         />
-        <circle r={r * 1.2} fill="#f8fafc" />
-        <text x={axisLen + fs * 0.2} y={-fs * 0.2} fontSize={fs * 0.8} fill="#fca5a5">
-          X
+        <circle r={r * 1.6} fill="#f8fafc" stroke="#0f172a" strokeWidth={r * 0.4} />
+        <text x={axisLen + fs * 0.25} y={fs * 0.3} fontSize={fs * 0.85} fill="#fca5a5" fontWeight={700}>
+          X+
         </text>
-        <text x={-fs * 0.3} y={-axisLen - fs * 0.3} fontSize={fs * 0.8} fill="#86efac">
-          Y
+        <text
+          x={0}
+          y={-axisLen - fs * 0.35}
+          fontSize={fs * 0.85}
+          fill="#86efac"
+          fontWeight={700}
+          textAnchor="middle"
+        >
+          Y+
         </text>
-        <text x={-fs * 0.3} y={fs * 1.1} fontSize={fs * 0.75} fill="#cbd5e1" textAnchor="end">
+        <text x={-fs * 0.3} y={fs * 1.1} fontSize={fs * 0.8} fill="#f8fafc" fontWeight={700} textAnchor="end">
           X0 Y0
         </text>
       </g>

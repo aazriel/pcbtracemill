@@ -43,10 +43,12 @@ export async function importProbeText(name: string, text: string): Promise<boole
   const al = useAutoLevel.getState()
   const ui = useUi.getState()
   let res = await camWorker().importProbe(text, al.probeCfg ?? undefined)
-  // The saved grid may belong to another run; fall back to inferring the grid from the points.
-  if (!res.map && al.probeCfg) {
+  // The saved grid may belong to another run; fall back to inferring the grid from the points. Not
+  // when the results themselves are bad (probe never touched…): those errors must be shown as they are.
+  const gridMismatch = !res.map && al.probeCfg && res.errors.some((e) => /match the probe grid/.test(e))
+  if (gridMismatch) {
     const inferred = await camWorker().importProbe(text)
-    if (inferred.map)
+    if (inferred.map || inferred.errors.length)
       res = {
         ...inferred,
         warnings: [
@@ -55,16 +57,21 @@ export async function importProbeText(name: string, text: string): Promise<boole
         ]
       }
   }
-  al.set({ importInfo: { fileName: name, format: res.format, warnings: res.warnings, ok: !!res.map } })
+  al.set({
+    importInfo: {
+      fileName: name,
+      format: res.format,
+      errors: res.map ? [] : res.errors,
+      warnings: res.warnings,
+      ok: !!res.map
+    }
+  })
   if (!res.map) {
-    ui.toast(
-      'error',
-      `Could not build a height map from ${name}: ${res.warnings.slice(-1)[0] ?? 'no points'}`
-    )
+    ui.toast('error', `${name} can’t be used: ${res.errors[0] ?? 'no probe points'}`)
     return false
   }
   useProject.getState().setHeightMap({ ...res.map, source: name })
-  al.set({ apply: true })
+  al.set({ apply: true, mapOpen: true })
   ui.toast(
     'success',
     `Height map imported: ${res.map.config.countX} × ${res.map.config.countY} points. Exported files are now height-corrected.`
@@ -81,3 +88,11 @@ export async function importProbeResults(): Promise<void> {
     useUi.getState().toast('error', `Import failed: ${e instanceof Error ? e.message : String(e)}`)
   }
 }
+
+// automation hook for the e2e / scripted checks
+declare global {
+  interface Window {
+    __tmProbe?: { importProbeText: typeof importProbeText }
+  }
+}
+window.__tmProbe = { importProbeText }
