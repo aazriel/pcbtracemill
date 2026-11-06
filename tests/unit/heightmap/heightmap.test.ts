@@ -66,8 +66,8 @@ describe('probe programs (golden)', () => {
           expect(mv.from[2]).toBeGreaterThanOrEqual(2)
       }
       const probes = text.split('\n').filter((l) => /^G(38\.2|31) /.test(l))
-      // Mach3 (G-code variables, the default) touches every point twice: fast, then slowly
-      expect(probes.length).toBe(d === 'mach3' ? 12 : 6)
+      // Mach3 (G-code variables, the default) touches every point twice (fast, then slowly) and point 1 again at the end
+      expect(probes.length).toBe(d === 'mach3' ? 14 : 6)
       if (d !== 'mach3') expect(text).not.toMatch(/G92|G10/)
     })
   }
@@ -241,7 +241,9 @@ describe('applyHeightMap', () => {
     expect(text).toMatch(
       /^G31 Z-2 F50\nG91\nG0 Z0\.25\nG90\nG31 Z-2 F10\nG92 Z0\n#501=\[#5213-#498\]\nG92 Z#501$/m
     )
-    expect(text).toMatch(/^#501=\[#501-#500\]$/m)
+    // point 1 is touched again at the end and is the reference
+    expect(text).toMatch(/^#497=\[#5213-#498\]$/m)
+    expect(text).toMatch(/^#501=\[#501-#497\]$/m)
     expect(text).toMatch(/^#500=0$/m)
     // cells 3, 4, 7 were not probed: filled from the nearest probed ones
     expect(text).toMatch(/^#503=\[\[[\d.]+\*#5\d\d\]/m)
