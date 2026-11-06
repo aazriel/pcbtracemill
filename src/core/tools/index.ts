@@ -182,14 +182,26 @@ interface VbitSpec {
   feed: number
   plunge: number
 }
+// Feeds at 12 000 rpm. A 0.1 mm tip takes about 0.004 mm per turn: 50 mm/min at 12k (100 at 24k);
+// faster snapped tips on a user's machine. 0.2 mm tips take about twice that.
 const VBITS: VbitSpec[] = [
-  { angle: 10, tip: 0.1, feed: 120, plunge: 50 },
-  { angle: 20, tip: 0.1, feed: 150, plunge: 60 },
-  { angle: 30, tip: 0.1, feed: 200, plunge: 80 },
-  { angle: 30, tip: 0.2, feed: 250, plunge: 80 },
-  { angle: 60, tip: 0.1, feed: 250, plunge: 80 },
-  { angle: 90, tip: 0.2, feed: 300, plunge: 100 }
+  { angle: 10, tip: 0.1, feed: 40, plunge: 20 },
+  { angle: 20, tip: 0.1, feed: 50, plunge: 20 },
+  { angle: 30, tip: 0.1, feed: 50, plunge: 20 },
+  { angle: 30, tip: 0.2, feed: 100, plunge: 30 },
+  { angle: 60, tip: 0.1, feed: 50, plunge: 20 },
+  { angle: 90, tip: 0.2, feed: 100, plunge: 30 }
 ]
+
+/** Starter V-bit feeds before 2026-11 (feedXY / feedZ), replaced when a project still has them untouched. */
+const OLD_VBIT_FEEDS: Record<string, [number, number]> = {
+  'starter-vbit-10-0.1': [120, 50],
+  'starter-vbit-20-0.1': [150, 60],
+  'starter-vbit-30-0.1': [200, 80],
+  'starter-vbit-30-0.2': [250, 80],
+  'starter-vbit-60-0.1': [250, 80],
+  'starter-vbit-90-0.2': [300, 100]
+}
 
 interface MillSpec {
   d: number
@@ -310,6 +322,22 @@ function buildStarterTools(): Tool[] {
 
 export const STARTER_TOOLS: Tool[] = buildStarterTools()
 
+/**
+ * Starter V-bits that still carry the old (too fast) feeds get the current ones; tools the user
+ * edited are left alone. Returns the same array when nothing changed.
+ */
+export function refreshStarterFeeds(tools: Tool[]): Tool[] {
+  let changed = false
+  const out = tools.map((t) => {
+    const old = OLD_VBIT_FEEDS[t.id]
+    const now = STARTER_TOOLS.find((s) => s.id === t.id)
+    if (!old || !now || t.feeds.feedXY !== old[0] || t.feeds.feedZ !== old[1]) return t
+    changed = true
+    return { ...t, feeds: { ...t.feeds, feedXY: now.feeds.feedXY, feedZ: now.feeds.feedZ } }
+  })
+  return changed ? out : tools
+}
+
 // ─────────────────────────────────────────────────────────────── Create / duplicate
 
 const DEFAULT_GEOMETRY: Record<ToolType, ToolGeometry> = {
@@ -327,7 +355,7 @@ const DEFAULT_GEOMETRY: Record<ToolType, ToolGeometry> = {
 }
 
 const DEFAULT_FEEDS: Record<ToolType, FeedsSpeeds> = {
-  vbit: { spindleRpm: 12000, feedXY: 200, feedZ: 80, stepDown: 0.1, stepOver: 0.4 },
+  vbit: { spindleRpm: 12000, feedXY: 50, feedZ: 20, stepDown: 0.1, stepOver: 0.4 },
   flat: { spindleRpm: 12000, feedXY: 250, feedZ: 60, stepDown: 0.3, stepOver: 0.4 },
   ball: { spindleRpm: 12000, feedXY: 200, feedZ: 50, stepDown: 0.2, stepOver: 0.3 },
   drill: { spindleRpm: 12000, feedXY: 300, feedZ: 80, stepDown: 2, stepOver: 0.5 },

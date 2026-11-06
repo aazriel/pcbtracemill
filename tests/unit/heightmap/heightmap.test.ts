@@ -32,7 +32,9 @@ function planeMap(): HeightMap {
 describe('probe grid', () => {
   it('defaultProbeGrid', () => {
     const g = defaultProbeGrid({ minX: 0, minY: 0, maxX: 45, maxY: 30 })
-    expect(g).toMatchObject({ countX: 6, countY: 4, probeFeed: 50, probeDepth: -2, clearanceZ: 2 })
+    // lift between points = 5 % of the 9 x 10 mm spacing
+    expect(g).toMatchObject({ countX: 6, countY: 4, probeFeed: 50, probeDepth: -2, clearanceZ: 0.5 })
+    expect(defaultProbeGrid({ minX: 0, minY: 0, maxX: 40, maxY: 40 }, 20).clearanceZ).toBe(1)
     const tiny = defaultProbeGrid({ minX: 0, minY: 0, maxX: 3, maxY: 0 })
     expect(tiny.countX).toBe(2)
     expect(tiny.countY).toBe(2)
@@ -60,11 +62,17 @@ describe('probe programs (golden)', () => {
       const sim = interpretGcode(text)
       // the Mach3 program reads each height through a G92 offset that it puts back right away
       expect(sim.warnings.filter((x) => !/G92/.test(x))).toEqual([])
-      // never moves XY below the clearance height
-      for (const mv of sim.moves) {
-        if (Math.hypot(mv.to[0] - mv.from[0], mv.to[1] - mv.from[1]) > 1e-9)
-          expect(mv.from[2]).toBeGreaterThanOrEqual(2)
-      }
+      // every XY move comes right after a lift: absolute to >= 2 mm, or relative above the touch
+      const lines = text
+        .split('\n')
+        .map((l) => l.replace(/\s*\(.*\)$/, ''))
+        .filter((l) => /^G/.test(l))
+      lines.forEach((l, i) => {
+        if (!/^G0 X/.test(l)) return
+        const abs = /^G0 Z([\d.]+)$/.exec(lines[i - 1])
+        const rel = lines[i - 1] === 'G90' && /^G0 Z[\d.]+$/.test(lines[i - 2]) && lines[i - 3] === 'G91'
+        expect(rel || (!!abs && Number(abs[1]) >= 2), `line ${i + 1}: ${l}`).toBe(true)
+      })
       const probes = text.split('\n').filter((l) => /^G(38\.2|31) /.test(l))
       // Mach3 (G-code variables, the default) touches every point twice (fast, then slowly) and point 1 again at the end
       expect(probes.length).toBe(d === 'mach3' ? 14 : 6)
@@ -261,7 +269,7 @@ describe('applyHeightMap', () => {
       slowFeed: MACH3_SLOW_FEED
     })
     // the cutting bit (V-bit tip) touches once, slowly - never at the 50 mm/min probe feed
-    expect(t).toMatch(/^G31 Z-1 F10 \(slow - protects the tip\)\nG92 Z0 /m)
+    expect(t).toMatch(/^G31 Z-1 F2 \(slow - protects the tip\)\nG92 Z0 /m)
     expect(t).not.toMatch(/F50/)
     // old G92 offsets are cleared before the operator sets Z roughly
     expect(t).toMatch(/^M5\nG92\.1 .*\nM0 /m)

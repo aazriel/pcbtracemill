@@ -21,8 +21,8 @@ export const MACH3_VAR_MAX_CELLS = 500
  */
 export const MACH3_RETOUCH_LIFT = 0.25
 export const MACH3_RETOUCH_FEED = 10
-/** The cutting bit touches off at most this fast (a 0.1 mm V-bit tip). */
-export const MACH3_SLOW_FEED = 10
+/** The cutting bit touches off at most this fast: F2 so a 0.1 mm V-bit tip survives the touch. */
+export const MACH3_SLOW_FEED = 2
 /** Variables used for bookkeeping by the Mach3 G-code-only probe program. */
 /** Point 1 measured again at the end of the run: the reference all heights are relative to. */
 const VAR_REF = 497
@@ -134,7 +134,14 @@ export function generateProbeProgram(
   const c = (t: string): string => `(${t.replace(/[()]/g, '')})`
   const pts = probePoints(cfg)
   const { dx, dy } = gridStep(cfg)
-  const clear = Math.max(cfg.clearanceZ, 0.5)
+  // Lift above each touch (relative), more for moves longer than the grid spacing; long moves,
+  // start and end at an absolute safe height.
+  const lift = Math.max(0.2, cfg.clearanceZ || 0.5)
+  const safe = Math.max(2, lift)
+  const spacing = Math.max(dx, dy) || 10
+  const liftFor = (dist: number): number =>
+    Math.ceil(Math.max(lift, (lift * dist) / spacing) / 0.05 - 1e-9) * 0.05
+  const reLift = cfg.retouchLift && cfg.retouchLift > 0 ? cfg.retouchLift : MACH3_RETOUCH_LIFT
   const depth = cfg.probeDepth < 0 ? cfg.probeDepth : -Math.abs(cfg.probeDepth || 2)
   const feed = cfg.probeFeed > 0 ? cfg.probeFeed : 50
   const L: string[] = []
@@ -146,7 +153,12 @@ export function generateProbeProgram(
       `Grid ${cfg.countX} x ${cfg.countY} = ${pts.length} points, X${n(cfg.minX)}..${n(cfg.maxX)} Y${n(cfg.minY)}..${n(cfg.maxY)}, spacing ${fmtNum(dx, 2)} x ${fmtNum(dy, 2)} mm`
     )
   )
-  L.push(c(`Probe feed ${fmtNum(feed, 1)} mm/min, max depth Z${n(depth)}, clearance Z${n(clear)}`))
+  L.push(
+    c(
+      `Probe feed ${fmtNum(feed, 1)} mm/min, max depth Z${n(depth)}, lift ${fmtNum(lift, 2)} mm above each touch`
+    )
+  )
+  L.push(c('The bit lifts only a little above each touch - if a point does NOT touch, stop the machine.'))
   L.push(c('SAFETY: clip the probe wire to the bit and the ground clip to the copper board'))
   L.push(c('SAFETY: test continuity first - touch clip to bit and check the controller sees the probe'))
   L.push(c('SAFETY: start with the bit ABOVE the board, spindle OFF'))
@@ -183,7 +195,7 @@ export function generateProbeProgram(
       L.push(c('Do not close Mach3 between probing and milling, or probe again.'))
       L.push(
         c(
-          `Each point: fast touch, up ${fmtNum(MACH3_RETOUCH_LIFT, 2)} mm, slow touch at F${MACH3_RETOUCH_FEED}, height read with G92 / #5213.`
+          `Each point: fast touch, up ${fmtNum(reLift, 2)} mm, slow touch at F${MACH3_RETOUCH_FEED}, height read with G92 / #5213.`
         )
       )
     } else if (macros) {
@@ -216,7 +228,7 @@ export function generateProbeProgram(
       `M0 ${c('Check the Z DRO: if it changed, zero Z on the copper at point 1 again with Zero Z, then press Cycle Start')}`
     )
   }
-  L.push(`G0 Z${n(clear)}`)
+  L.push(`G0 Z${n(safe)}`)
   if (dialect === 'linuxcnc') L.push(`(PROBEOPEN ${LINUXCNC_PROBE_FILE})`)
   if (vars) {
     L.push(`#${VAR_DONE}=0 (heights not complete yet)`)
@@ -225,7 +237,7 @@ export function generateProbeProgram(
   // Mach3 G-code variables: lift, touch again slowly, read the height through G92 into #v, clear G92
   const retouch = (v: number): void => {
     L.push('G91')
-    L.push(`G0 Z${n(MACH3_RETOUCH_LIFT)}`)
+    L.push(`G0 Z${n(reLift)}`)
     L.push('G90')
     L.push(`${probe} Z${n(depth)} F${fmtNum(Math.min(feed, MACH3_RETOUCH_FEED), 1)}`)
     L.push('G92 Z0')
@@ -237,7 +249,12 @@ export function generateProbeProgram(
     L.push(`${probe} Z${n(depth)} F${fmtNum(feed, 1)}`)
     if (macros) L.push('M402 (TraceMill: write where the probe stopped)')
     if (vars) retouch(MACH3_VAR_BASE + p.iy * cfg.countX + p.ix)
-    L.push(`G0 Z${n(clear)}`)
+    const next = pts[i + 1]
+    if (next) {
+      L.push('G91')
+      L.push(`G0 Z${n(liftFor(Math.hypot(next.x - p.x, next.y - p.y)))}`)
+      L.push('G90')
+    } else L.push(`G0 Z${n(safe)}`)
   })
   if (vars) {
     // Point 1 is measured once more at the end and that value is the reference: a wrong first
@@ -247,7 +264,7 @@ export function generateProbeProgram(
     L.push(`G0 X${n(pts[0].x)} Y${n(pts[0].y)}`)
     L.push(`${probe} Z${n(depth)} F${fmtNum(feed, 1)}`)
     retouch(VAR_REF)
-    L.push(`G0 Z${n(clear)}`)
+    L.push(`G0 Z${n(safe)}`)
     // heights relative to point 1, then fill cells that were not probed from their neighbours
     const probed = new Set(pts.map((p) => p.iy * cfg.countX + p.ix))
     L.push(c('Make every height relative to point 1'))

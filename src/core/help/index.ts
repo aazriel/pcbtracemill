@@ -215,7 +215,7 @@ export const HELP: Record<string, HelpEntry> = {
   },
   'autolevel.clearanceZ': {
     title: 'Probe clearance',
-    body: 'How high the bit lifts between probe points. A couple of millimetres is enough on a flat board.'
+    body: 'How far the bit lifts above the copper it just touched before it moves to the next point. By default 5 % of the spacing (0.5 mm at 10 mm): enough for a warped board, and much faster than a fixed couple of millimetres.'
   },
 
   // ───────────────────────────────────────── Export

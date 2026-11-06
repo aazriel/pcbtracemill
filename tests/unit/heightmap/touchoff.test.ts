@@ -14,9 +14,9 @@ describe('Z touch-off at point 1', () => {
     const spindle = lines.filter((l) => /^M3\b/.test(l)).length
     expect(lines.filter((l) => l.startsWith('G38.2 Z-1 F50')).length).toBe(spindle)
     expect(lines.filter((l) => l.startsWith('G10 L20 P0 Z0')).length).toBe(spindle)
-    // every probe is preceded by a move to point 1 at safe height and a rapid to Z1 (never below)
+    // every probe is preceded by a move to point 1 at safe height and a rapid to Z0.5 (never below)
     const i = lines.findIndex((l) => l.startsWith('G38.2'))
-    expect(lines.slice(i - 3, i)).toEqual(['G0 Z5', 'G0 X12.5 Y7', 'G0 Z1'])
+    expect(lines.slice(i - 3, i)).toEqual(['G0 Z5', 'G0 X12.5 Y7', 'G0 Z0.5'])
     // spindle is off while the probe clip is on: the clip is removed (M0) before M3
     const k = lines.findIndex((l, j) => j > i && /^M3\b/.test(l))
     expect(lines.slice(i, k).some((l) => l.startsWith('M0') && /Remove the probe clip/.test(l))).toBe(true)

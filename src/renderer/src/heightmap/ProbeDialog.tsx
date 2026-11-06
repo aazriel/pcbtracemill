@@ -3,6 +3,8 @@ import {
   AlertTriangle,
   ArrowLeft,
   ArrowRight,
+  ChevronDown,
+  ChevronRight,
   Circle,
   Loader2,
   Pentagon,
@@ -13,6 +15,7 @@ import {
 import type { Path, ProbeGridConfig } from '@core/model/types'
 import { HELP } from '@core/help'
 import {
+  autoProbeLift,
   cellsNearShape,
   defaultProbeGrid,
   gridStep,
@@ -27,7 +30,7 @@ import {
 import { camWorker } from '@workers/index'
 import { Dialog } from '@renderer/components/ui/dialog'
 import { Button } from '@renderer/components/ui/button'
-import { NumberField, Segmented } from '@renderer/components/ui/fields'
+import { NumberField, Segmented, Switch } from '@renderer/components/ui/fields'
 import { HelpTip } from '@renderer/components/ui/help'
 import { cn, formatDuration } from '@renderer/lib/utils'
 import { useProject } from '@renderer/store/project'
@@ -254,6 +257,9 @@ export function ProbeDialog({
   const [customShape, setCustomShape] = useState<Path | null>(null)
   const [saving, setSaving] = useState(false)
   const [mach3Recorder, setMach3Recorder] = useState<Mach3Recorder>('variables')
+  const [advancedOpen, setAdvancedOpen] = useState(false)
+  /** Lift between points follows the spacing (5 %) until the user types a value. */
+  const [liftAuto, setLiftAuto] = useState(true)
 
   // Initialise the grid when the dialog opens (last saved grid, else the board shape).
   useEffect(() => {
@@ -330,11 +336,18 @@ export function ProbeDialog({
         machine.maxFeedXY,
         machine.maxFeedZ,
         machine.postProcessor === 'mach3' && mach3Recorder === 'variables'
-          ? { lift: MACH3_RETOUCH_LIFT, feed: MACH3_RETOUCH_FEED }
+          ? { lift: live.retouchLift ?? MACH3_RETOUCH_LIFT, feed: MACH3_RETOUCH_FEED }
           : undefined
       )
     }
   }, [live, machine, mach3Recorder])
+
+  // Automatic lift between points: 5 % of the grid spacing
+  const autoLift = cfg ? autoProbeLift(Math.max(gridStep(cfg).dx, gridStep(cfg).dy)) : null
+  useEffect(() => {
+    if (liftAuto && cfg && autoLift !== null && Math.abs(cfg.clearanceZ - autoLift) > 1e-9)
+      setCfg((c) => (c ? { ...c, clearanceZ: autoLift } : c))
+  }, [liftAuto, autoLift, cfg])
 
   const boardArea = scene ? boardProbeArea(scene) : null
   const stockArea = scene ? stockProbeArea(scene) : null
@@ -736,28 +749,77 @@ export function ProbeDialog({
                 description="How far below zero it searches before giving up (an error on most controllers)."
                 {...fig(HELP['autolevel.probeDepth']?.body, <ProbeDepthFigure depth={cfg.probeDepth} />)}
               />
-              <NumberField
-                label="Lift between points"
-                unit="mm"
-                min={0.5}
-                max={30}
-                step={0.5}
-                value={cfg.clearanceZ}
-                onChange={(v) => patch({ clearanceZ: v })}
-                description="How high the bit rises while moving to the next point."
-                {...fig(HELP['autolevel.clearanceZ']?.body, <ProbeLiftFigure lift={cfg.clearanceZ} />)}
-              />
+              <div className="flex flex-col gap-2 rounded-md border border-slate-800 bg-slate-950/40 p-2">
+                <button
+                  type="button"
+                  data-testid="probe-advanced"
+                  className="flex items-center gap-1 text-left text-xs font-medium text-slate-300 hover:text-slate-100"
+                  onClick={() => setAdvancedOpen((v) => !v)}
+                >
+                  {advancedOpen ? (
+                    <ChevronDown className="size-3.5" />
+                  ) : (
+                    <ChevronRight className="size-3.5" />
+                  )}
+                  Advanced
+                  <span className="ml-1 font-normal text-slate-500">
+                    lift {cfg.clearanceZ} mm
+                    {machine?.postProcessor === 'mach3' && mach3Recorder === 'variables'
+                      ? ` · re-touch ${cfg.retouchLift ?? MACH3_RETOUCH_LIFT} mm`
+                      : ''}
+                  </span>
+                </button>
+                {advancedOpen && (
+                  <div className="flex flex-col gap-2" data-testid="probe-advanced-body">
+                    <Switch
+                      label="Automatic lift between points"
+                      checked={liftAuto}
+                      onChange={(v) => {
+                        setLiftAuto(v)
+                        if (v && autoLift !== null) patch({ clearanceZ: autoLift })
+                      }}
+                      description="5 % of the distance between points: 0.5 mm at 10 mm spacing, 1 mm at 20 mm."
+                    />
+                    <NumberField
+                      label="Lift between points"
+                      unit="mm"
+                      min={0.2}
+                      max={30}
+                      step={0.05}
+                      value={cfg.clearanceZ}
+                      onChange={(v) => {
+                        setLiftAuto(false)
+                        patch({ clearanceZ: v })
+                      }}
+                      description="How far the bit rises above the copper it just touched before moving to the next point. Longer moves rise proportionally more; the start, the end and the move back to point 1 go to 2 mm."
+                      {...fig(HELP['autolevel.clearanceZ']?.body, <ProbeLiftFigure lift={cfg.clearanceZ} />)}
+                    />
+                    {machine?.postProcessor === 'mach3' && mach3Recorder === 'variables' && (
+                      <NumberField
+                        label="Re-touch lift"
+                        unit="mm"
+                        min={0.05}
+                        max={2}
+                        step={0.05}
+                        value={cfg.retouchLift ?? MACH3_RETOUCH_LIFT}
+                        onChange={(v) => patch({ retouchLift: v })}
+                        description={`After the first (fast) touch the bit rises this much and touches again slowly at F${MACH3_RETOUCH_FEED}. Only the slow touch is recorded.`}
+                      />
+                    )}
+                  </div>
+                )}
+              </div>
               {machine?.postProcessor === 'mach3' && (
                 <div className="flex flex-col gap-1">
                   <div className="flex items-center gap-1.5 text-xs font-medium text-slate-300">
                     Mach3 records the points with
                     <HelpTip title="How Mach3 records the points">
                       <b>G-code variables</b> (normal): plain G-code, no file and nothing to install. Each
-                      point is touched fast, then the bit lifts {MACH3_RETOUCH_LIFT} mm (so a pressed-down
-                      board springs back) and touches again slowly at F{MACH3_RETOUCH_FEED}; the height is
-                      read with G92 and kept in Mach3 variables #500…. The corrected files read them – so do
-                      not close Mach3 between probing and milling. Works also when your motion controller
-                      never tells Mach3 where the probe tripped.
+                      point is touched fast, then the bit lifts {cfg.retouchLift ?? MACH3_RETOUCH_LIFT} mm (so
+                      a pressed-down board springs back) and touches again slowly at F{MACH3_RETOUCH_FEED};
+                      the height is read with G92 and kept in Mach3 variables #500…. The corrected files read
+                      them – so do not close Mach3 between probing and milling. Works also when your motion
+                      controller never tells Mach3 where the probe tripped.
                       <br />
                       <b>Digitize file</b>: Mach3’s own M40 / M41 write every touch into a file that you load
                       into TraceMill. Only correct if your motion controller reports the probe position.

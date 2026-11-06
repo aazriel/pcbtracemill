@@ -96,9 +96,9 @@ function ProbeZeroSwitch(): React.JSX.Element {
           <>
             For a probe clip on the bit and the copper – no height map needed. Each file stops before every
             bit: you set Z zero <b>roughly</b> (a sheet of paper), clip the probe on and press Start. The bit
-            touches the copper slowly (F10) near the corner of the board – the same place as point 1 of the
-            probe grid – sets Z0 there and stops so you can remove the clip. Files corrected with a height map
-            use the setting in Auto-level step 3 instead.
+            touches the copper very slowly (F2) near the corner of the board – the same place as point 1 of
+            the probe grid – sets Z0 there and stops so you can remove the clip. Files corrected with a height
+            map use the setting in Auto-level step 3 instead.
           </>
         }
       />

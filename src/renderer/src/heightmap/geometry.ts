@@ -119,7 +119,7 @@ export function estimateProbeSeconds(
   const n = pts.length
   let travel = 0
   for (let i = 1; i < pts.length; i++) travel += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y)
-  const clear = Math.max(cfg.clearanceZ, 0.5)
+  const clear = Math.max(cfg.clearanceZ, 0.2)
   const feed = cfg.probeFeed > 0 ? cfg.probeFeed : 50
   // Down at probe speed (from clearance to the copper), back up at rapid, plus settle overhead.
   const again = retouch ? (retouch.lift / Math.min(feed, retouch.feed)) * 60 + 0.3 : 0
