@@ -20,7 +20,8 @@ export function ProbePreview({
   className,
   tool = 'rect',
   areaShape,
-  onDraw
+  onDraw,
+  onDrawStart
 }: {
   scene: WorkScene
   cfg: ProbeGridConfig
@@ -29,6 +30,8 @@ export function ProbePreview({
   /** A drawn area (work coordinates) to outline instead of the plain rectangle. */
   areaShape?: Path | null
   onDraw?: (shape: Path) => void
+  /** The user started drawing (first press on the picture). */
+  onDrawStart?: () => void
 }): React.JSX.Element {
   const pts = useMemo(() => probePoints(cfg), [cfg])
   const skipped = useMemo(() => {
@@ -105,6 +108,7 @@ export function ProbePreview({
           ? (e) => {
               const q = toWork(e)
               if (!q) return
+              onDrawStart?.()
               if (tool === 'polygon') {
                 if (poly.length >= 3 && Math.hypot(q.x - poly[0].x, q.y - poly[0].y) < closeDist)
                   finishPoly(poly)
