@@ -85,12 +85,44 @@ function fitEntries(entries: Entry[], gap: number, depth: number): Entry[] {
         : `Cuts ${fmt(w)} mm wide at ${fmt(depth)} mm deep: too wide for the narrowest ${fmt(gap)} mm gap, so some places would not be isolated.`
     }
   })
+  if (!out.some((e) => e.recommended)) {
+    // Nothing fits the narrowest gap: still recommend the bits with the narrowest groove (the
+    // V-bits, normally), so the right kind of bit stays on top. The places they cannot reach are
+    // shown on the board as problems.
+    const narrowest = Math.min(...out.map((e) => e.width))
+    const close = out.map((e) =>
+      e.width <= narrowest * 1.35 + 1e-6
+        ? {
+            ...e,
+            recommended: true,
+            reason: `Cuts ${fmt(e.width)} mm wide at ${fmt(depth)} mm deep: the narrowest groove you have. Nothing fits the ${fmt(gap)} mm gap, so those few places stay joined (Show on board).`
+          }
+        : e
+    )
+    const best = close
+      .filter((e) => e.recommended)
+      .reduce<(typeof close)[number] | null>((b, e) => (!b || e.width < b.width ? e : b), null)
+    return close
+      .map((e) => (e === best ? { ...e, best: true } : e))
+      .sort(
+        (a, b) =>
+          Number(!!b.best) - Number(!!a.best) ||
+          Number(b.recommended) - Number(a.recommended) ||
+          a.width - b.width
+      )
+  }
   const fitting = out.filter((e) => e.recommended)
   const pool = fitting.some((e) => !e.tool.builtIn) ? fitting.filter((e) => !e.tool.builtIn) : fitting
   const best = pool.reduce<(typeof out)[number] | null>((b, e) => (!b || e.width > b.width ? e : b), null)
   return out
     .map((e) => (e === best ? { ...e, best: true, reason: `Best fit. ${e.reason}` } : e))
-    .sort((a, b) => Number(!!b.best) - Number(!!a.best) || ownFirst(a, b) || b.width - a.width)
+    .sort(
+      (a, b) =>
+        Number(!!b.best) - Number(!!a.best) ||
+        Number(b.recommended) - Number(a.recommended) ||
+        ownFirst(a, b) ||
+        (a.recommended ? b.width - a.width : a.width - b.width)
+    )
 }
 
 export function ToolPickerDialog({

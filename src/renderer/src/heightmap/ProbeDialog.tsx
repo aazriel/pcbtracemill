@@ -1,14 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import {
-  AlertTriangle,
-  ArrowLeft,
-  ArrowRight,
-  Loader2,
-  Maximize2,
-  ShieldAlert,
-  Save,
-  SquareDashed
-} from 'lucide-react'
+import { AlertTriangle, ArrowLeft, ArrowRight, Loader2, ShieldAlert, Save } from 'lucide-react'
 import type { ProbeGridConfig } from '@core/model/types'
 import { HELP } from '@core/help'
 import { defaultProbeGrid, gridStep } from '@core/heightmap'
@@ -31,6 +22,32 @@ import {
   ZeroIllustration
 } from './ProbeIllustrations'
 import { PROBE_CFG_SETTINGS_KEY, useAutoLevel } from './state'
+import {
+  ProbeAreaFigure,
+  ProbeDepthFigure,
+  ProbeLiftFigure,
+  ProbeSpacingFigure,
+  ProbeSpeedFigure
+} from './ProbeFigures'
+
+/** Help text with an animated figure below it, shown wide in the (?). */
+const fig = (text: React.ReactNode, node: React.ReactNode): { help: React.ReactNode; helpWide: true } => ({
+  help: (
+    <>
+      {text}
+      <div className="mt-2">{node}</div>
+    </>
+  ),
+  helpWide: true
+})
+
+type Area = { minX: number; minY: number; maxX: number; maxY: number }
+
+const sameArea = (a: Area, b: Area): boolean =>
+  Math.abs(a.minX - b.minX) < 0.01 &&
+  Math.abs(a.minY - b.minY) < 0.01 &&
+  Math.abs(a.maxX - b.maxX) < 0.01 &&
+  Math.abs(a.maxY - b.maxY) < 0.01
 
 const RESULT_INFO: Record<string, { title: string; body: string }> = {
   grbl: {
@@ -229,6 +246,24 @@ export function ProbeDialog({
     }
   }, [cfg, machine])
 
+  const boardArea = scene ? boardProbeArea(scene) : null
+  const stockArea = scene ? stockProbeArea(scene) : null
+  const areaPreset: 'board' | 'stock' | 'custom' =
+    cfg && boardArea && sameArea(cfg, boardArea)
+      ? 'board'
+      : cfg && stockArea && sameArea(cfg, stockArea)
+        ? 'stock'
+        : 'custom'
+  const areasAlike =
+    !!boardArea &&
+    !!stockArea &&
+    Math.max(
+      Math.abs(boardArea.minX - stockArea.minX),
+      Math.abs(boardArea.minY - stockArea.minY),
+      Math.abs(boardArea.maxX - stockArea.maxX),
+      Math.abs(boardArea.maxY - stockArea.maxY)
+    ) < 4
+
   const warnings: string[] = []
   if (cfg && scene) {
     const s = scene.stock
@@ -322,19 +357,7 @@ export function ProbeDialog({
           <div className="p-6 text-sm text-slate-400">Import a board and set up the material first.</div>
         ) : (
           <div className="flex flex-col gap-4 md:flex-row">
-            <div className="flex min-w-0 flex-1 flex-col gap-2">
-              <div className="rounded-lg border border-slate-800 bg-slate-950 p-2">
-                <ProbePreview scene={scene} cfg={cfg} className="h-[430px] w-full" />
-              </div>
-              <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-400">
-                <Legend color="rgba(217,149,84,0.9)" dashed label="material (stock)" />
-                <Legend color="#34d399" label="board outline" />
-                <Legend color="#38bdf8" dashed label="probe area" />
-                <Legend color="#fb7185" dot label="point 1 – zero Z here" />
-                <Legend color="#38bdf8" dot label="order the machine follows" />
-              </div>
-            </div>
-            <div className="flex w-full shrink-0 flex-col gap-3 md:w-80">
+            <div className="flex w-full shrink-0 flex-col gap-3 md:w-[340px]">
               {material.doubleSided && (
                 <div className="flex flex-col gap-1">
                   <div className="flex items-center gap-1.5 text-xs font-medium text-slate-300">
@@ -345,6 +368,7 @@ export function ProbeDialog({
                     </HelpTip>
                   </div>
                   <Segmented
+                    stretch
                     value={al.measuredSide}
                     onChange={(v) => {
                       al.set({ measuredSide: v })
@@ -352,7 +376,7 @@ export function ProbeDialog({
                     }}
                     options={[
                       { value: 'top', label: 'Top side' },
-                      { value: 'bottom', label: 'Bottom side (flipped)' }
+                      { value: 'bottom', label: 'Bottom side' }
                     ]}
                   />
                 </div>
@@ -360,56 +384,69 @@ export function ProbeDialog({
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center gap-1.5 text-xs font-medium text-slate-300">
                   Area to measure
-                  <HelpTip title="Probe area">
+                  <HelpTip title="Probe area" wide>
                     The rectangle in which the machine measures heights. It only needs to cover the parts that
-                    will be milled – usually the board plus a small margin. Coordinates are in mm from your X0
-                    Y0.
+                    will be milled: usually the board plus a small margin.
+                    <div className="mt-2">
+                      <ProbeAreaFigure />
+                    </div>
                   </HelpTip>
                 </div>
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    className="flex-1"
-                    onClick={() => setArea(boardProbeArea(scene))}
-                  >
-                    <SquareDashed /> Board area
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    className="flex-1"
-                    onClick={() => setArea(stockProbeArea(scene))}
-                  >
-                    <Maximize2 /> Whole material
-                  </Button>
-                </div>
+                <Segmented
+                  stretch
+                  value={areaPreset}
+                  onChange={(v) => {
+                    if (v === 'board' && boardArea) setArea(boardArea)
+                    else if (v === 'stock' && stockArea) setArea(stockArea)
+                  }}
+                  options={[
+                    { value: 'board', label: 'Board + 2 mm' },
+                    { value: 'stock', label: 'Whole material' },
+                    { value: 'custom', label: 'Custom' }
+                  ]}
+                />
+                {areasAlike && (
+                  <p className="text-[11px] leading-snug text-slate-500">
+                    Your material is only a little larger than the board, so these two are almost the same.
+                  </p>
+                )}
                 <div className="grid grid-cols-2 gap-2">
                   <NumberField
-                    label="From X"
+                    label="Left edge (X)"
                     unit="mm"
                     value={round(cfg.minX)}
                     onChange={(v) => setArea({ ...cfg, minX: v })}
+                    {...fig('Distance from X0 to the left side of the area.', <ProbeAreaFigure />)}
                   />
                   <NumberField
-                    label="To X"
+                    label="Right edge (X)"
                     unit="mm"
                     value={round(cfg.maxX)}
                     onChange={(v) => setArea({ ...cfg, maxX: v })}
+                    {...fig('Distance from X0 to the right side of the area.', <ProbeAreaFigure />)}
                   />
                   <NumberField
-                    label="From Y"
+                    label="Front edge (Y)"
                     unit="mm"
                     value={round(cfg.minY)}
                     onChange={(v) => setArea({ ...cfg, minY: v })}
+                    {...fig(
+                      'Distance from Y0 to the front side of the area (nearest to you).',
+                      <ProbeAreaFigure />
+                    )}
                   />
                   <NumberField
-                    label="To Y"
+                    label="Back edge (Y)"
                     unit="mm"
                     value={round(cfg.maxY)}
                     onChange={(v) => setArea({ ...cfg, maxY: v })}
+                    {...fig('Distance from Y0 to the back side of the area.', <ProbeAreaFigure />)}
                   />
                 </div>
+                <p className="text-[11px] text-slate-500">
+                  {fmt1(cfg.maxX - cfg.minX)} × {fmt1(cfg.maxY - cfg.minY)} mm, measured from X0 Y0 (where you
+                  zero the machine for milling).
+                </p>
               </div>
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between">
@@ -439,6 +476,7 @@ export function ProbeDialog({
                     step={1}
                     value={spacing}
                     description="About 10 mm works well. Smaller = more detail but slower."
+                    {...fig(HELP['autolevel.grid']?.body, <ProbeSpacingFigure spacing={spacing} />)}
                     onChange={(v) => {
                       setSpacing(v)
                       setCfg(withSpacing(cfg, v))
@@ -453,6 +491,7 @@ export function ProbeDialog({
                       step={1}
                       value={cfg.countX}
                       onChange={(v) => patch({ countX: Math.max(2, Math.round(v)) })}
+                      {...fig(HELP['autolevel.grid']?.body, <ProbeSpacingFigure spacing={stats?.dx || 10} />)}
                     />
                     <NumberField
                       label="Points along Y"
@@ -461,6 +500,7 @@ export function ProbeDialog({
                       step={1}
                       value={cfg.countY}
                       onChange={(v) => patch({ countY: Math.max(2, Math.round(v)) })}
+                      {...fig(HELP['autolevel.grid']?.body, <ProbeSpacingFigure spacing={stats?.dy || 10} />)}
                     />
                   </div>
                 )}
@@ -480,7 +520,7 @@ export function ProbeDialog({
                 value={cfg.probeFeed}
                 onChange={(v) => patch({ probeFeed: v })}
                 description="How fast the bit goes down looking for the copper. Slow is more accurate."
-                help={HELP['autolevel.probeFeed']?.body}
+                {...fig(HELP['autolevel.probeFeed']?.body, <ProbeSpeedFigure feed={cfg.probeFeed} />)}
               />
               <NumberField
                 label="Maximum probe depth"
@@ -491,7 +531,7 @@ export function ProbeDialog({
                 value={Math.abs(cfg.probeDepth)}
                 onChange={(v) => patch({ probeDepth: -Math.abs(v) })}
                 description="How far below zero it searches before giving up (an error on most controllers)."
-                help={HELP['autolevel.probeDepth']?.body}
+                {...fig(HELP['autolevel.probeDepth']?.body, <ProbeDepthFigure depth={cfg.probeDepth} />)}
               />
               <NumberField
                 label="Lift between points"
@@ -502,7 +542,7 @@ export function ProbeDialog({
                 value={cfg.clearanceZ}
                 onChange={(v) => patch({ clearanceZ: v })}
                 description="How high the bit rises while moving to the next point."
-                help={HELP['autolevel.clearanceZ']?.body}
+                {...fig(HELP['autolevel.clearanceZ']?.body, <ProbeLiftFigure lift={cfg.clearanceZ} />)}
               />
               {warnings.length > 0 && (
                 <div className="flex flex-col gap-1 rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-[11px] text-amber-200">
@@ -514,6 +554,18 @@ export function ProbeDialog({
                 </div>
               )}
             </div>
+            <div className="flex min-w-0 flex-1 flex-col gap-2">
+              <div className="rounded-lg border border-slate-800 bg-slate-950 p-2">
+                <ProbePreview scene={scene} cfg={cfg} className="h-[470px] w-full" />
+              </div>
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-400">
+                <Legend color="rgba(217,149,84,0.9)" dashed label="material (stock)" />
+                <Legend color="#34d399" label="board outline" />
+                <Legend color="#38bdf8" dashed label="probe area" />
+                <Legend color="#fb7185" dot label="point 1 – zero Z here" />
+                <Legend color="#38bdf8" dot label="order the machine follows" />
+              </div>
+            </div>
           </div>
         )}
       </div>
@@ -522,6 +574,7 @@ export function ProbeDialog({
 }
 
 const round = (v: number): number => Math.round(v * 100) / 100
+const fmt1 = (v: number): string => String(Math.round(v * 10) / 10)
 
 function Legend({
   color,

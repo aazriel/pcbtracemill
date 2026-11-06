@@ -158,6 +158,9 @@ export function problemId(kind: string, p: Vec2): string {
   return `${kind}:${p.x.toFixed(2)},${p.y.toFixed(2)}`
 }
 
+/** Gaps narrower than this are drawing slivers between touching copper, not gaps to isolate. */
+const MIN_REAL_GAP = 0.02
+
 /**
  * The narrowest distance between two different copper features, if any are closer than `limit`
  * mm (null when everything is at least `limit` apart). Places narrower than `ignoreBelow` are
@@ -166,6 +169,8 @@ export function problemId(kind: string, p: Vec2): string {
 export function narrowestGap(copper: PolygonSet, limit = 1, ignoreBelow = 0): number | null {
   const r = findNarrowGaps(copper, limit / 2)
   let best = Infinity
-  for (const w of r.widths) if (w > 1e-6 && w >= ignoreBelow && w < best) best = w
+  // Slivers under MIN_REAL_GAP are copper that touches (a trace ending on a pad), not a real gap.
+  const floor = Math.max(ignoreBelow, MIN_REAL_GAP)
+  for (const w of r.widths) if (w >= floor && w < best) best = w
   return Number.isFinite(best) ? best : null
 }
