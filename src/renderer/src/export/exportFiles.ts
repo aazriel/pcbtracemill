@@ -77,8 +77,8 @@ export function useExportFiles(): { files: ExportFile[]; levelling: boolean; lev
       safeZ: machine.safeZ,
       dialect: machine.postProcessor,
       probeCommand: machine.probeCommand,
-      // the Mach3 G-code-only heights were found with a fast + slow touch: find Z0 the same way
-      slowFeed: map.mach3Vars !== undefined ? MACH3_SLOW_FEED : undefined
+      // the cutting bit touches: one slow touch so a 0.1 mm V-bit tip survives
+      slowFeed: MACH3_SLOW_FEED
     }
   }, [touchOffOn, map, machine])
   const key = useMemo(() => [base, map, touch], [base, map, touch])
