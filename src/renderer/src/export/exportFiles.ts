@@ -4,12 +4,19 @@
  */
 import { useEffect, useMemo, useState } from 'react'
 import type { GcodeFile, MachineProfile } from '@core/model/types'
-import { MACH3_SLOW_FEED, probePoints, type TouchOffOptions } from '@core/heightmap'
+import {
+  addZTouchOff,
+  defaultProbeGrid,
+  MACH3_SLOW_FEED,
+  probePoints,
+  type TouchOffOptions
+} from '@core/heightmap'
 import { camWorker } from '@workers/index'
 import { useProject } from '@renderer/store/project'
 import { useUi } from '@renderer/store/ui'
 import { downloadText } from '@renderer/store/controller'
 import { useAutoLevel } from '@renderer/heightmap/state'
+import { boardProbeArea, useWorkScene } from '@renderer/heightmap/geometry'
 
 export type Side = 'top' | 'bottom'
 
@@ -21,7 +28,7 @@ export interface ExportFile {
   sides: Side[]
   /** Z correction from the height map was applied to this file. */
   levelled: boolean
-  /** The corrected file finds Z0 with the probe at point 1 before each bit. */
+  /** The file finds Z0 with the probe before each bit (at point 1 of the height map when corrected). */
   touchOff: boolean
   /** Why the correction is NOT applied although it is switched on. */
   levelSkip: string | null
@@ -39,6 +46,19 @@ function sidesOf(file: GcodeFile, sideByStep: Map<string, Side>): Side[] {
   return out
 }
 
+function touchOffAt(machine: MachineProfile, x: number, y: number, probeFeed: number): TouchOffOptions {
+  return {
+    x,
+    y,
+    feed: probeFeed > 0 ? probeFeed : 50,
+    safeZ: machine.safeZ,
+    dialect: machine.postProcessor,
+    probeCommand: machine.probeCommand,
+    // the cutting bit touches: one slow touch so a 0.1 mm V-bit tip survives
+    slowFeed: MACH3_SLOW_FEED
+  }
+}
+
 export function levelSkipReason(sides: Side[], measured: Side): string | null {
   if (sides.length > 1)
     return 'Mills both sides in one file – the height map only fits the side that was face-up while probing.'
@@ -53,7 +73,10 @@ export function useExportFiles(): { files: ExportFile[]; levelling: boolean; lev
   const apply = useAutoLevel((s) => s.apply)
   const measured = useAutoLevel((s) => s.measuredSide)
   const touchOffOn = useAutoLevel((s) => s.touchOff)
+  const probeZeroOn = useAutoLevel((s) => s.probeZero)
   const machine = useProject((s) => s.machine)
+  const sceneTop = useWorkScene('top')
+  const sceneBottom = useWorkScene('bottom')
   const [levelled, setLevelled] = useState<{ key: unknown[]; texts: Map<string, string> } | null>(null)
   const [levelError, setLevelError] = useState<string | null>(null)
 
@@ -70,17 +93,26 @@ export function useExportFiles(): { files: ExportFile[]; levelling: boolean; lev
   const touch = useMemo<TouchOffOptions | undefined>(() => {
     if (!touchOffOn || !map || !machine) return undefined
     const p1 = probePoints(map.config)[0]
-    return {
-      x: p1.x,
-      y: p1.y,
-      feed: map.config.probeFeed > 0 ? map.config.probeFeed : 50,
-      safeZ: machine.safeZ,
-      dialect: machine.postProcessor,
-      probeCommand: machine.probeCommand,
-      // the cutting bit touches: one slow touch so a 0.1 mm V-bit tip survives
-      slowFeed: MACH3_SLOW_FEED
-    }
+    return touchOffAt(machine, p1.x, p1.y, map.config.probeFeed)
   }, [touchOffOn, map, machine])
+
+  // Files without a height-map correction: probe Z0 at point 1 of the default probe grid of their side
+  const zeroed = useMemo(() => {
+    const texts = new Map<string, string>()
+    if (!probeZeroOn || !machine) return texts
+    const at = (side: Side): { x: number; y: number } | null => {
+      const sc = side === 'top' ? sceneTop : sceneBottom
+      return sc ? probePoints(defaultProbeGrid(boardProbeArea(sc), 10))[0] : null
+    }
+    for (const b of base) {
+      const pts = (b.sides.length ? b.sides : (['top'] as Side[])).map(at)
+      const p = pts[0]
+      // a file that mills both sides would need a different point after the flip
+      if (!p || pts.some((q) => !q || Math.hypot(q.x - p.x, q.y - p.y) > 1e-6)) continue
+      texts.set(b.file.name, addZTouchOff(b.file.text, touchOffAt(machine, p.x, p.y, 0)))
+    }
+    return texts
+  }, [probeZeroOn, machine, base, sceneTop, sceneBottom])
   const key = useMemo(() => [base, map, touch], [base, map, touch])
 
   useEffect(() => {
@@ -111,18 +143,19 @@ export function useExportFiles(): { files: ExportFile[]; levelling: boolean; lev
     () =>
       base.map((b) => {
         const lv = active && ready ? levelled!.texts.get(b.file.name) : undefined
-        const text = lv ?? b.file.text
+        const zt = lv ? undefined : zeroed.get(b.file.name)
+        const text = lv ?? zt ?? b.file.text
         return {
           file: b.file,
           text,
-          sizeBytes: lv ? encoder.encode(lv).length : b.file.sizeBytes,
+          sizeBytes: text !== b.file.text ? encoder.encode(text).length : b.file.sizeBytes,
           sides: b.sides,
           levelled: !!lv,
-          touchOff: !!lv && !!touch,
+          touchOff: (!!lv && !!touch) || !!zt,
           levelSkip: active ? b.skip : null
         }
       }),
-    [base, active, ready, levelled, touch]
+    [base, active, ready, levelled, touch, zeroed]
   )
   return { files, levelling: active && !ready, levelError: active ? levelError : null }
 }

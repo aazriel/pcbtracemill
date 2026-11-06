@@ -3,6 +3,7 @@ import { Cpu, Info } from 'lucide-react'
 import type { ExportGrouping, ProbeGridConfig } from '@core/model/types'
 import { HELP } from '@core/help'
 import { PanelSection } from '@renderer/components/ui/section'
+import { Switch } from '@renderer/components/ui/fields'
 import { HelpTip } from '@renderer/components/ui/help'
 import { StatusCircle } from '@renderer/components/ui/status'
 import { useProject } from '@renderer/store/project'
@@ -80,6 +81,31 @@ function MachineSummary(): React.JSX.Element | null {
   )
 }
 
+/** Probe Z0 before each bit in files that are not height-corrected (no probing of the board needed). */
+function ProbeZeroSwitch(): React.JSX.Element {
+  const probeZero = useAutoLevel((s) => s.probeZero)
+  const set = useAutoLevel((s) => s.set)
+  return (
+    <div data-testid="probe-zero" className="flex flex-col gap-1">
+      <Switch
+        label="Find Z zero with the probe before each bit"
+        checked={probeZero}
+        onChange={(v) => set({ probeZero: v })}
+        helpWide
+        help={
+          <>
+            For a probe clip on the bit and the copper – no height map needed. Each file stops before every
+            bit: you set Z zero <b>roughly</b> (a sheet of paper), clip the probe on and press Start. The bit
+            touches the copper slowly (F10) near the corner of the board – the same place as point 1 of the
+            probe grid – sets Z0 there and stops so you can remove the clip. Files corrected with a height map
+            use the setting in Auto-level step 3 instead.
+          </>
+        }
+      />
+    </div>
+  )
+}
+
 export function ExportStage(): React.JSX.Element {
   const grouping = useProject((s) => s.settings.exportGrouping)
   const setSettings = useProject((s) => s.setSettings)
@@ -125,6 +151,7 @@ export function ExportStage(): React.JSX.Element {
               </p>
               <GroupingCards value={grouping} onChange={setGrouping} />
               <MachineSummary />
+              <ProbeZeroSwitch />
             </div>
           </PanelSection>
           <AutoLevelSection files={files} levelling={levelling} onGenerate={() => setProbeOpen(true)} />

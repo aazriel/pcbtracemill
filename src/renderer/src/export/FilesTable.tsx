@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import {
+  Crosshair,
   AlertTriangle,
   Clock,
   Download,
@@ -88,6 +89,11 @@ function Contents({
         <div className="flex items-center gap-1 text-[11px] text-emerald-300">
           <Mountain className="size-3.5" /> Z adjusted to the measured height map
           {f.touchOff && ' · finds Z0 with the probe at point 1 before each bit'}
+        </div>
+      )}
+      {!f.levelled && f.touchOff && (
+        <div className="flex items-center gap-1 text-[11px] text-emerald-300">
+          <Crosshair className="size-3.5" /> Finds Z0 with the probe before each bit
         </div>
       )}
       {f.levelSkip && (

@@ -18,7 +18,7 @@ import {
   gridStep,
   MACH3_PROBE_FILE,
   MACH3_RETOUCH_LIFT,
-  MACH3_SLOW_FEED,
+  MACH3_RETOUCH_FEED,
   MACH3_VAR_MAX_CELLS,
   mach3ProbeMacros,
   probePoints,
@@ -330,7 +330,7 @@ export function ProbeDialog({
         machine.maxFeedXY,
         machine.maxFeedZ,
         machine.postProcessor === 'mach3' && mach3Recorder === 'variables'
-          ? { lift: MACH3_RETOUCH_LIFT, feed: MACH3_SLOW_FEED }
+          ? { lift: MACH3_RETOUCH_LIFT, feed: MACH3_RETOUCH_FEED }
           : undefined
       )
     }
@@ -745,10 +745,11 @@ export function ProbeDialog({
                     Mach3 records the points with
                     <HelpTip title="How Mach3 records the points">
                       <b>G-code variables</b> (normal): plain G-code, no file and nothing to install. Each
-                      point is touched fast, then again slowly at F{MACH3_SLOW_FEED}; the height is read with
-                      G92 and kept in Mach3 variables #500…. The corrected files read them – so do not close
-                      Mach3 between probing and milling. Works also when your motion controller never tells
-                      Mach3 where the probe tripped.
+                      point is touched fast, then the bit lifts {MACH3_RETOUCH_LIFT} mm (so a pressed-down
+                      board springs back) and touches again slowly at F{MACH3_RETOUCH_FEED}; the height is
+                      read with G92 and kept in Mach3 variables #500…. The corrected files read them – so do
+                      not close Mach3 between probing and milling. Works also when your motion controller
+                      never tells Mach3 where the probe tripped.
                       <br />
                       <b>Digitize file</b>: Mach3’s own M40 / M41 write every touch into a file that you load
                       into TraceMill. Only correct if your motion controller reports the probe position.
