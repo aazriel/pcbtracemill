@@ -11,7 +11,7 @@
 (TraceMill corrected files can find it with the probe - set Z only roughly then.)
 (RESULTS: M40 / M41 must exist as macros: M40.m1s containing OpenDigFile and M41.m1s CloseDigFile.)
 (M40 asks for a file name, each G31 then appends X,Y,Z to it. Import that file.)
-(WARNING: Mach3 G31 does not stop with an error when nothing is touched - watch the first point.)
+(WARNING: if nothing is touched Mach3 signals an error and stops - check the clip, then restart.)
 G21
 G90 G94 G17
 G91.1

@@ -69,7 +69,7 @@ export function addZTouchOff(gcode: string, o: TouchOffOptions): string {
       out.push(`G0 Z${n(TOUCH_OFF_START)}`)
       if (o.dialect === 'mach3')
         out.push(
-          c('Mach3 G31 does not stop when nothing is touched - watch the bit, stop if it does not trip')
+          c('If nothing is touched Mach3 signals an error - watch the bit anyway, stop if it does not trip')
         )
       out.push(`${probe} Z${n(-TOUCH_OFF_REACH)} F${fmtNum(o.feed * s, 1)}`)
       out.push(`${setZero} ${c('Z0 = copper at point 1')}`)

@@ -135,7 +135,7 @@ export function generateProbeProgram(
       L.push(c('M40 asks for a file name, each G31 then appends X,Y,Z to it. Import that file.'))
     }
     L.push(
-      c('WARNING: Mach3 G31 does not stop with an error when nothing is touched - watch the first point.')
+      c('WARNING: if nothing is touched Mach3 signals an error and stops - check the clip, then restart.')
     )
   } else {
     L.push(
