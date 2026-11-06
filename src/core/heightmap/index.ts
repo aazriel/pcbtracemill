@@ -21,6 +21,7 @@ export {
   MACH3_VAR_BASE,
   MACH3_VAR_MAX_CELLS,
   MACH3_RETOUCH_LIFT,
+  MACH3_RETOUCH_FEED,
   MACH3_SLOW_FEED
 } from './probeProgram'
 export { parseProbeResults } from './parse'

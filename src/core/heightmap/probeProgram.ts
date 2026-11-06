@@ -14,8 +14,14 @@ export const MACH3_PROBE_FILE = 'C:/Mach3/TraceMill-probe.txt'
 export const MACH3_VAR_BASE = 500
 /** Mach3 variables #500-#999 are used, so at most this many grid cells. */
 export const MACH3_VAR_MAX_CELLS = 500
-/** Mach3 G-code-only probing: after the first touch lift this far and touch again at this feed. */
-export const MACH3_RETOUCH_LIFT = 0.2
+/**
+ * Mach3 G-code-only probing: after the first (fast) touch lift this far – far enough for a board
+ * pressed down by the overshoot to spring back – and touch again slowly at MACH3_RETOUCH_FEED
+ * (1 mm in 3 s). The slow touch is the height that is recorded.
+ */
+export const MACH3_RETOUCH_LIFT = 1
+export const MACH3_RETOUCH_FEED = 20
+/** The cutting bit touches off at most this fast (a 0.1 mm V-bit tip). */
 export const MACH3_SLOW_FEED = 10
 /** Variables used for bookkeeping by the Mach3 G-code-only probe program. */
 const VAR_G92 = 498
@@ -176,7 +182,7 @@ export function generateProbeProgram(
       L.push(c('Do not close Mach3 between probing and milling, or probe again.'))
       L.push(
         c(
-          `Each point: fast touch, up ${fmtNum(MACH3_RETOUCH_LIFT, 1)} mm, slow touch at F${MACH3_SLOW_FEED}, height read with G92 / #5213.`
+          `Each point: fast touch, up ${fmtNum(MACH3_RETOUCH_LIFT, 1)} mm, slow touch at F${MACH3_RETOUCH_FEED}, height read with G92 / #5213.`
         )
       )
     } else if (macros) {
@@ -217,7 +223,7 @@ export function generateProbeProgram(
       L.push('G91')
       L.push(`G0 Z${n(MACH3_RETOUCH_LIFT)}`)
       L.push('G90')
-      L.push(`${probe} Z${n(depth)} F${fmtNum(Math.min(feed, MACH3_SLOW_FEED), 1)}`)
+      L.push(`${probe} Z${n(depth)} F${fmtNum(Math.min(feed, MACH3_RETOUCH_FEED), 1)}`)
       L.push('G92 Z0')
       L.push(`#${v}=[#5213-#${VAR_G92}]`)
       L.push(`G92 Z#${v}`)
