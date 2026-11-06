@@ -170,7 +170,11 @@ export function registerIpc(): void {
     const win = BrowserWindow.fromWebContents(e.sender)
     const res = await dialog.showSaveDialog(win!, { defaultPath: req.defaultName, filters: req.filters })
     if (res.canceled || !res.filePath) return null
-    await fs.writeFile(res.filePath, req.content, 'utf8')
+    try {
+      await fs.writeFile(res.filePath, req.content, 'utf8')
+    } catch (err) {
+      throw new Error(writeError(basename(res.filePath), err))
+    }
     return res.filePath
   })
   ipcMain.handle('files:saveToDir', async (e, files: { name: string; content: string }[]) => {
@@ -178,7 +182,19 @@ export function registerIpc(): void {
     const res = await dialog.showOpenDialog(win!, { properties: ['openDirectory', 'createDirectory'] })
     if (res.canceled || !res.filePaths[0]) return null
     const dir = res.filePaths[0]
-    for (const f of files) await fs.writeFile(join(dir, basename(f.name)), f.content, 'utf8')
+    // Write every file that can be written; report the ones Windows refused (e.g. locked by Mach3).
+    const failed: string[] = []
+    for (const f of files) {
+      try {
+        await fs.writeFile(join(dir, basename(f.name)), f.content, 'utf8')
+      } catch (err) {
+        failed.push(writeError(basename(f.name), err))
+      }
+    }
+    if (failed.length)
+      throw new Error(
+        `${failed.length} of ${files.length} file(s) were NOT saved to ${dir}: ${failed.join(' · ')}`
+      )
     return dir
   })
   ipcMain.handle('project:open', async (e) => {
@@ -194,4 +210,12 @@ export function registerIpc(): void {
   ipcMain.handle('settings:set', (_e, key: string, value: unknown) => {
     store.set(key, value)
   })
+}
+
+/** A readable reason why a file could not be (over)written. */
+function writeError(name: string, err: unknown): string {
+  const code = (err as { code?: string })?.code
+  if (code === 'EBUSY' || code === 'EPERM' || code === 'EACCES')
+    return `${name} is in use or read-only – if Mach3 (or an editor) has it loaded, close it there (Mach3: File → Close G-Code) and save again`
+  return `${name}: ${err instanceof Error ? err.message : String(err)}`
 }

@@ -13,7 +13,7 @@
 (#500-#505 until Mach3 is closed.)
 (The corrected TraceMill files read them - run them in the same Mach3 session.)
 (Do not close Mach3 between probing and milling, or probe again.)
-(Each point: fast touch, up 1 mm, slow touch at F20, height read with G92 / #5213.)
+(Each point: fast touch, up 0.25 mm, slow touch at F10, height read with G92 / #5213.)
 (WARNING: if nothing is touched Mach3 signals an error and stops - check the clip, then restart.)
 G21
 G90 G94 G17
@@ -24,9 +24,9 @@ G0 Z2
 G0 X0 Y0 (first point = height reference)
 G31 Z-2 F50
 G91
-G0 Z1
+G0 Z0.25
 G90
-G31 Z-2 F20
+G31 Z-2 F10
 G92 Z0
 #500=[#5213-#498]
 G92 Z#500
@@ -34,9 +34,9 @@ G0 Z2
 G0 X10 Y0
 G31 Z-2 F50
 G91
-G0 Z1
+G0 Z0.25
 G90
-G31 Z-2 F20
+G31 Z-2 F10
 G92 Z0
 #501=[#5213-#498]
 G92 Z#501
@@ -44,9 +44,9 @@ G0 Z2
 G0 X20 Y0
 G31 Z-2 F50
 G91
-G0 Z1
+G0 Z0.25
 G90
-G31 Z-2 F20
+G31 Z-2 F10
 G92 Z0
 #502=[#5213-#498]
 G92 Z#502
@@ -54,9 +54,9 @@ G0 Z2
 G0 X20 Y10
 G31 Z-2 F50
 G91
-G0 Z1
+G0 Z0.25
 G90
-G31 Z-2 F20
+G31 Z-2 F10
 G92 Z0
 #505=[#5213-#498]
 G92 Z#505
@@ -64,9 +64,9 @@ G0 Z2
 G0 X10 Y10
 G31 Z-2 F50
 G91
-G0 Z1
+G0 Z0.25
 G90
-G31 Z-2 F20
+G31 Z-2 F10
 G92 Z0
 #504=[#5213-#498]
 G92 Z#504
@@ -74,9 +74,9 @@ G0 Z2
 G0 X0 Y10
 G31 Z-2 F50
 G91
-G0 Z1
+G0 Z0.25
 G90
-G31 Z-2 F20
+G31 Z-2 F10
 G92 Z0
 #503=[#5213-#498]
 G92 Z#503

@@ -83,7 +83,9 @@ export function addZTouchOff(gcode: string, o: TouchOffOptions): string {
       )
       out.push(`${setZero} ${c('Z0 = copper at point 1')}`)
       out.push(`G0 Z${n(o.safeZ)}`)
-      out.push(`M0 ${c('Remove the probe clip from the bit, then press Cycle Start to mill')}`)
+      out.push(
+        `M0 ${c('Remove the probe clip. If your spindle is switched by hand, switch it on NOW and let it reach full speed - then press Cycle Start to mill')}`
+      )
       needed = false
     }
     if (pause && !spindleOn) needed = true

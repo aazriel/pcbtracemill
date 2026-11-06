@@ -239,7 +239,7 @@ describe('applyHeightMap', () => {
     const text = generateProbeProgram(cfg, machine({ postProcessor: 'mach3' }))
     // every probed point: fast, up, slow, read through G92 and put the offset back
     expect(text).toMatch(
-      /^G31 Z-2 F50\nG91\nG0 Z1\nG90\nG31 Z-2 F20\nG92 Z0\n#501=\[#5213-#498\]\nG92 Z#501$/m
+      /^G31 Z-2 F50\nG91\nG0 Z0\.25\nG90\nG31 Z-2 F10\nG92 Z0\n#501=\[#5213-#498\]\nG92 Z#501$/m
     )
     expect(text).toMatch(/^#501=\[#501-#500\]$/m)
     expect(text).toMatch(/^#500=0$/m)
