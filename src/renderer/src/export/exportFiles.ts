@@ -168,15 +168,29 @@ export function gcodeFileFilters(machine: MachineProfile | null): { name: string
   ]
 }
 
+/** Errors from the main process arrive as "Error invoking remote method '…': Error: <message>". */
+function showSaveError(e: unknown): void {
+  const msg = (e instanceof Error ? e.message : String(e)).replace(
+    /^Error invoking remote method '[^']*': (Error: )?/,
+    ''
+  )
+  useUi.getState().toast('error', `Not saved: ${msg}`)
+}
+
 /** Save one file: native "Save as" in the desktop app, browser download otherwise. */
 export async function saveOne(name: string, text: string): Promise<boolean> {
   if (window.tracemill) {
-    const path = await window.tracemill.saveFile({
-      defaultName: name,
-      content: text,
-      filters: gcodeFileFilters(useProject.getState().machine)
-    })
-    return !!path
+    try {
+      const path = await window.tracemill.saveFile({
+        defaultName: name,
+        content: text,
+        filters: gcodeFileFilters(useProject.getState().machine)
+      })
+      return !!path
+    } catch (e) {
+      showSaveError(e)
+      return false
+    }
   }
   downloadText(name, text)
   return true
@@ -184,8 +198,14 @@ export async function saveOne(name: string, text: string): Promise<boolean> {
 
 /** Save several files: pick a folder in the desktop app, one download per file in the browser. */
 export async function saveMany(files: { name: string; text: string }[]): Promise<string | null | true> {
-  if (window.tracemill)
-    return window.tracemill.saveFilesToDir(files.map((f) => ({ name: f.name, content: f.text })))
+  if (window.tracemill) {
+    try {
+      return await window.tracemill.saveFilesToDir(files.map((f) => ({ name: f.name, content: f.text })))
+    } catch (e) {
+      showSaveError(e)
+      return null
+    }
+  }
   files.forEach((f, i) => setTimeout(() => downloadText(f.name, f.text), i * 250))
   return true
 }

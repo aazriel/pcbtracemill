@@ -17,10 +17,10 @@ export const MACH3_VAR_MAX_CELLS = 500
 /**
  * Mach3 G-code-only probing: after the first (fast) touch lift this far – far enough for a board
  * pressed down by the overshoot to spring back – and touch again slowly at MACH3_RETOUCH_FEED
- * (1 mm in 3 s). The slow touch is the height that is recorded.
+ * (0.25 mm in 1.5 s). The slow touch is the height that is recorded.
  */
-export const MACH3_RETOUCH_LIFT = 1
-export const MACH3_RETOUCH_FEED = 20
+export const MACH3_RETOUCH_LIFT = 0.25
+export const MACH3_RETOUCH_FEED = 10
 /** The cutting bit touches off at most this fast (a 0.1 mm V-bit tip). */
 export const MACH3_SLOW_FEED = 10
 /** Variables used for bookkeeping by the Mach3 G-code-only probe program. */
@@ -182,7 +182,7 @@ export function generateProbeProgram(
       L.push(c('Do not close Mach3 between probing and milling, or probe again.'))
       L.push(
         c(
-          `Each point: fast touch, up ${fmtNum(MACH3_RETOUCH_LIFT, 1)} mm, slow touch at F${MACH3_RETOUCH_FEED}, height read with G92 / #5213.`
+          `Each point: fast touch, up ${fmtNum(MACH3_RETOUCH_LIFT, 2)} mm, slow touch at F${MACH3_RETOUCH_FEED}, height read with G92 / #5213.`
         )
       )
     } else if (macros) {
