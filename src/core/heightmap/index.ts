@@ -4,6 +4,7 @@ export {
   sampleHeight,
   heightMapStats,
   probePoints,
+  cellsNearShape,
   gridStep,
   DEFAULT_PROBE_FEED,
   DEFAULT_PROBE_DEPTH,

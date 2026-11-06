@@ -533,6 +533,11 @@ export interface ProbeGridConfig {
   probeDepth: number
   /** Clearance height between points. */
   clearanceZ: number
+  /**
+   * Grid cells to probe (row-major index iy * countX + ix), e.g. only the points near a round
+   * board. All cells when absent. Cells that are not probed are filled in from their neighbours.
+   */
+  cells?: number[]
 }
 
 export interface HeightMap {

@@ -1,22 +1,51 @@
-import { useMemo } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import type { ProbeGridConfig } from '@core/model/types'
 import { probePoints, gridStep } from '@core/heightmap'
 import type { WorkScene } from './geometry'
+import { cn } from '@renderer/lib/utils'
+
+type Area = { minX: number; minY: number; maxX: number; maxY: number }
 
 /**
  * To-scale top view (work coordinates) of the stock, the board and the probe grid. The serpentine
- * order the machine follows is drawn as a path with a dot travelling along it.
+ * order the machine follows is drawn as a path with a dot travelling along it; grid points that are
+ * skipped (away from a round board, say) are drawn faint. With `onDraw` the user drags a rectangle
+ * to set the probe area.
  */
 export function ProbePreview({
   scene,
   cfg,
-  className
+  className,
+  onDraw
 }: {
   scene: WorkScene
   cfg: ProbeGridConfig
   className?: string
+  onDraw?: (a: Area) => void
 }): React.JSX.Element {
   const pts = useMemo(() => probePoints(cfg), [cfg])
+  const skipped = useMemo(() => {
+    if (!cfg.cells?.length) return []
+    const keep = new Set(cfg.cells)
+    return probePoints({ ...cfg, cells: undefined }).filter((p) => !keep.has(p.iy * cfg.countX + p.ix))
+  }, [cfg])
+  const svgRef = useRef<SVGSVGElement>(null)
+  const [drag, setDrag] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null)
+  const toWork = (e: React.PointerEvent): { x: number; y: number } | null => {
+    const svg = svgRef.current
+    const m = svg?.getScreenCTM()
+    if (!svg || !m) return null
+    const q = new DOMPoint(e.clientX, e.clientY).matrixTransform(m.inverse())
+    return { x: q.x, y: -q.y }
+  }
+  const dragArea = drag
+    ? {
+        minX: Math.min(drag.x0, drag.x1),
+        maxX: Math.max(drag.x0, drag.x1),
+        minY: Math.min(drag.y0, drag.y1),
+        maxY: Math.max(drag.y0, drag.y1)
+      }
+    : null
   const { stock } = scene
   const minX = Math.min(stock.minX, cfg.minX, 0)
   const minY = Math.min(stock.minY, cfg.minY, 0)
@@ -38,8 +67,44 @@ export function ProbePreview({
 
   return (
     <svg
+      ref={svgRef}
       viewBox={vb.join(' ')}
-      className={className}
+      className={cn('select-none', className)}
+      style={onDraw ? { cursor: 'crosshair', touchAction: 'none' } : undefined}
+      onPointerDown={
+        onDraw
+          ? (e) => {
+              const q = toWork(e)
+              if (!q) return
+              e.currentTarget.setPointerCapture(e.pointerId)
+              setDrag({ x0: q.x, y0: q.y, x1: q.x, y1: q.y })
+            }
+          : undefined
+      }
+      onPointerMove={
+        onDraw && drag
+          ? (e) => {
+              const q = toWork(e)
+              if (q) setDrag({ ...drag, x1: q.x, y1: q.y })
+            }
+          : undefined
+      }
+      onPointerUp={
+        onDraw && drag
+          ? () => {
+              if (dragArea && dragArea.maxX - dragArea.minX > 2 && dragArea.maxY - dragArea.minY > 2) {
+                const r1 = (v: number): number => Math.round(v * 10) / 10
+                onDraw({
+                  minX: r1(dragArea.minX),
+                  minY: r1(dragArea.minY),
+                  maxX: r1(dragArea.maxX),
+                  maxY: r1(dragArea.maxY)
+                })
+              }
+              setDrag(null)
+            }
+          : undefined
+      }
       preserveAspectRatio="xMidYMid meet"
       role="img"
       aria-label="Material, board and probe points seen from above"
@@ -103,6 +168,9 @@ export function ProbePreview({
           vectorEffect="non-scaling-stroke"
         />
       )}
+      {skipped.map((p, i) => (
+        <circle key={`s${i}`} cx={p.x} cy={-p.y} r={r * 0.6} fill="#475569" opacity={0.6} />
+      ))}
       {pts.map((p, i) => (
         <circle key={i} cx={p.x} cy={-p.y} r={i === 0 ? r * 1.6 : r} fill={i === 0 ? '#fb7185' : '#e2e8f0'} />
       ))}
@@ -119,6 +187,18 @@ export function ProbePreview({
       <circle r={r * 1.5} fill="#38bdf8" stroke="#0c4a6e" strokeWidth={r * 0.3}>
         <animateMotion dur={`${dur}s`} repeatCount="indefinite" path={path} />
       </circle>
+      {dragArea && (
+        <rect
+          x={dragArea.minX}
+          y={-dragArea.maxY}
+          width={dragArea.maxX - dragArea.minX}
+          height={dragArea.maxY - dragArea.minY}
+          fill="rgba(56,189,248,0.15)"
+          stroke="#7dd3fc"
+          strokeWidth={1.5}
+          vectorEffect="non-scaling-stroke"
+        />
+      )}
       {/* work origin */}
       <g stroke="none">
         <line
