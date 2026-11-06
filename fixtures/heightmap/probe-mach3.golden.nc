@@ -6,36 +6,89 @@
 (SAFETY: start with the bit ABOVE the board, spindle OFF)
 (SAFETY: probe with a sturdy bit - flat end mill or steel pin - not a V-bit, a thin tip breaks)
 (SETUP: zero X/Y as for milling and zero Z on the copper at the first point X0 Y0)
-(This program does not change work offsets. Heights are relative to the first probed point.)
+(Work offsets stay as they are - G92 is used for a moment at each point and put back. Heights are relative to point 1.)
 (After a bit change Z0 must be at the copper of the first point again.)
 (TraceMill corrected files can find it with the probe - set Z only roughly then.)
-(RESULTS: M40 / M41 must exist as macros: M40.m1s containing OpenDigFile and M41.m1s CloseDigFile.)
-(M40 asks for a file name, each G31 then appends X,Y,Z to it. Import that file.)
+(RESULTS: no file. Every height is kept in Mach3 variables)
+(#500-#505 until Mach3 is closed.)
+(The corrected TraceMill files read them - run them in the same Mach3 session.)
+(Do not close Mach3 between probing and milling, or probe again.)
+(Each point: fast touch, up 0.2 mm, slow touch at F10, height read with G92 / #5213.)
 (WARNING: if nothing is touched Mach3 signals an error and stops - check the clip, then restart.)
 G21
 G90 G94 G17
 G91.1
 G0 Z2
-M40 (open digitize file)
+#499=0 (heights not complete yet)
+#498=#5213 (keep the G92 Z offset that is active now)
 G0 X0 Y0 (first point = height reference)
 G31 Z-2 F50
+G91
+G0 Z0.2
+G90
+G31 Z-2 F10
+G92 Z0
+#500=[#5213-#498]
+G92 Z#500
 G0 Z2
 G0 X10 Y0
 G31 Z-2 F50
+G91
+G0 Z0.2
+G90
+G31 Z-2 F10
+G92 Z0
+#501=[#5213-#498]
+G92 Z#501
 G0 Z2
 G0 X20 Y0
 G31 Z-2 F50
+G91
+G0 Z0.2
+G90
+G31 Z-2 F10
+G92 Z0
+#502=[#5213-#498]
+G92 Z#502
 G0 Z2
 G0 X20 Y10
 G31 Z-2 F50
+G91
+G0 Z0.2
+G90
+G31 Z-2 F10
+G92 Z0
+#505=[#5213-#498]
+G92 Z#505
 G0 Z2
 G0 X10 Y10
 G31 Z-2 F50
+G91
+G0 Z0.2
+G90
+G31 Z-2 F10
+G92 Z0
+#504=[#5213-#498]
+G92 Z#504
 G0 Z2
 G0 X0 Y10
 G31 Z-2 F50
+G91
+G0 Z0.2
+G90
+G31 Z-2 F10
+G92 Z0
+#503=[#5213-#498]
+G92 Z#503
 G0 Z2
-M41 (close digitize file)
+(Make every height relative to point 1)
+#501=[#501-#500]
+#502=[#502-#500]
+#503=[#503-#500]
+#504=[#504-#500]
+#505=[#505-#500]
+#500=0
+#499=1 (heights complete)
 G0 X0 Y0
 (Probing finished. Remove the probe clip before milling.)
 M30

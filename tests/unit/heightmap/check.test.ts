@@ -92,12 +92,15 @@ describe('Mach3 digitize-file failures', () => {
 })
 
 describe('Mach3 recorder option', () => {
-  it('uses the digitize file by default and the TraceMill macros only when asked', async () => {
+  it('uses G-code variables by default, the digitize file or macros only when asked', async () => {
     const { generateProbeProgram } = await import('@core/heightmap')
     const machine = { postProcessor: 'mach3', decimals: 4, probeCommand: 'G31' } as never
     const def = generateProbeProgram(grid, machine)
-    expect(def).toMatch(/^M40 /m)
-    expect(def).not.toMatch(/M402/)
+    expect(def).not.toMatch(/^M40 |M402/m)
+    expect(def).toMatch(/^#500=\[#5213-#498\]$/m)
+    const dig = generateProbeProgram(grid, machine, { mach3Recorder: 'digitize' })
+    expect(dig).toMatch(/^M40 /m)
+    expect(dig).not.toMatch(/M402|#5213/)
     const mac = generateProbeProgram(grid, machine, { mach3Recorder: 'macros' })
     expect(mac).toMatch(/^M401 /m)
     expect(mac.match(/^M402 /gm)?.length).toBe(plan.length)

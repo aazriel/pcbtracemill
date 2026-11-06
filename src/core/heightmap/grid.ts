@@ -210,9 +210,11 @@ export function buildHeightMap(points: ProbePoint[], cfg?: ProbeGridConfig, sour
   return { config: grid, z, source }
 }
 
-/** Bilinear interpolation of the map at (x, y), clamped to the grid outside its area. */
-export function sampleHeight(map: HeightMap, x: number, y: number): number {
-  const c = map.config
+/**
+ * Bilinear interpolation weights at (x, y), clamped to the grid outside its area: the height there
+ * is the sum of `w * z[cell]`. Weights below 1e-9 are left out.
+ */
+export function heightWeights(c: ProbeGridConfig, x: number, y: number): { cell: number; w: number }[] {
   const { dx, dy } = gridStep(c)
   const fx = dx > 0 ? Math.min(c.countX - 1, Math.max(0, (x - c.minX) / dx)) : 0
   const fy = dy > 0 ? Math.min(c.countY - 1, Math.max(0, (y - c.minY) / dy)) : 0
@@ -220,10 +222,20 @@ export function sampleHeight(map: HeightMap, x: number, y: number): number {
   const iy = Math.min(c.countY - 2, Math.floor(fy))
   const tx = fx - ix
   const ty = fy - iy
-  const at = (i: number, j: number): number => map.z[j * c.countX + i]
-  const z0 = at(ix, iy) * (1 - tx) + at(ix + 1, iy) * tx
-  const z1 = at(ix, iy + 1) * (1 - tx) + at(ix + 1, iy + 1) * tx
-  return z0 * (1 - ty) + z1 * ty
+  const all = [
+    { cell: iy * c.countX + ix, w: (1 - tx) * (1 - ty) },
+    { cell: iy * c.countX + ix + 1, w: tx * (1 - ty) },
+    { cell: (iy + 1) * c.countX + ix, w: (1 - tx) * ty },
+    { cell: (iy + 1) * c.countX + ix + 1, w: tx * ty }
+  ]
+  return all.filter((a) => a.w > 1e-9)
+}
+
+/** Bilinear interpolation of the map at (x, y), clamped to the grid outside its area. */
+export function sampleHeight(map: HeightMap, x: number, y: number): number {
+  let z = 0
+  for (const { cell, w } of heightWeights(map.config, x, y)) z += w * map.z[cell]
+  return z
 }
 
 export function heightMapStats(map: HeightMap): { min: number; max: number; range: number; mean: number } {

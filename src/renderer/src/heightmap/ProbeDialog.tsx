@@ -17,8 +17,12 @@ import {
   defaultProbeGrid,
   gridStep,
   MACH3_PROBE_FILE,
+  MACH3_RETOUCH_LIFT,
+  MACH3_SLOW_FEED,
+  MACH3_VAR_MAX_CELLS,
   mach3ProbeMacros,
-  probePoints
+  probePoints,
+  type Mach3Recorder
 } from '@core/heightmap'
 import { camWorker } from '@workers/index'
 import { Dialog } from '@renderer/components/ui/dialog'
@@ -80,7 +84,7 @@ const RESULT_INFO: Record<string, { title: string; body: string }> = {
   },
   mach3: {
     title: 'Mach3 / Mach4',
-    body: 'The program opens Mach3’s "digitize" file (M40) and Mach3 writes X,Y,Z of every touch into it (M40/M41 = OpenDigFile / CloseDigFile macros, included with most Mach3 installs). Import the file Mach3 asked you to name. If that file holds wrong numbers (the same Z everywhere), choose “TraceMill macros” on the next page.'
+    body: 'Plain G-code, nothing to install and no file: every point is touched twice (fast, then slowly) and the height is kept in a Mach3 variable (#500…). The corrected files read those heights, so run them in the same Mach3 session. Other ways (digitize file, TraceMill macros) can be chosen on the next page.'
   },
   generic: {
     title: 'Other controllers',
@@ -249,7 +253,7 @@ export function ProbeDialog({
   /** Custom area drawn as a circle or polygon (null: the plain rectangle of the edges). */
   const [customShape, setCustomShape] = useState<Path | null>(null)
   const [saving, setSaving] = useState(false)
-  const [mach3Recorder, setMach3Recorder] = useState<'digitize' | 'macros'>('digitize')
+  const [mach3Recorder, setMach3Recorder] = useState<Mach3Recorder>('variables')
 
   // Initialise the grid when the dialog opens (last saved grid, else the board shape).
   useEffect(() => {
@@ -321,9 +325,16 @@ export function ProbeDialog({
       all: live.countX * live.countY,
       dx,
       dy,
-      seconds: estimateProbeSeconds(live, machine.maxFeedXY, machine.maxFeedZ)
+      seconds: estimateProbeSeconds(
+        live,
+        machine.maxFeedXY,
+        machine.maxFeedZ,
+        machine.postProcessor === 'mach3' && mach3Recorder === 'variables'
+          ? { lift: MACH3_RETOUCH_LIFT, feed: MACH3_SLOW_FEED }
+          : undefined
+      )
     }
-  }, [live, machine])
+  }, [live, machine, mach3Recorder])
 
   const boardArea = scene ? boardProbeArea(scene) : null
   const stockArea = scene ? stockProbeArea(scene) : null
@@ -359,6 +370,14 @@ export function ProbeDialog({
       warnings.push('Fast probing is less accurate and can bend thin bits; 20–100 mm/min is typical.')
     if (cfg.probeDepth < -5)
       warnings.push('A deep maximum probe depth can break the bit if the wiring fails.')
+    if (
+      machine?.postProcessor === 'mach3' &&
+      mach3Recorder === 'variables' &&
+      cfg.countX * cfg.countY > MACH3_VAR_MAX_CELLS
+    )
+      warnings.push(
+        `Mach3 can keep at most ${MACH3_VAR_MAX_CELLS} heights in variables – use a wider spacing (now ${cfg.countX} × ${cfg.countY}).`
+      )
   }
 
   const save = async (): Promise<void> => {
@@ -370,15 +389,18 @@ export function ProbeDialog({
       const ext = (machine.fileExtension || 'nc').replace(/^\.+/, '')
       const ok = await saveOne(`${safeName(projectName)}_probe.${ext}`, text)
       if (!ok) return
-      al.set({ probeSaved: true, probeCfg: live })
+      const isMach3 = machine.postProcessor === 'mach3'
+      al.set({ probeSaved: true, probeCfg: live, probeRecorder: isMach3 ? mach3Recorder : null })
       void window.tracemill
         ?.settingsSet(PROBE_CFG_SETTINGS_KEY, { cfg: live, side: al.measuredSide })
         .catch(() => undefined)
       toast(
         'success',
-        machine.postProcessor === 'mach3' && mach3Recorder === 'macros'
+        isMach3 && mach3Recorder === 'macros'
           ? 'Probe program saved. It needs the TraceMill Mach3 macros M401 / M402 – save them with "Mach3 macros…" if you have not yet.'
-          : 'Probe program saved. Run it on your machine, then import the results (step 2).'
+          : isMach3 && mach3Recorder === 'variables'
+            ? 'Probe program saved. Run it in Mach3 – the heights stay in Mach3, there is no file to load. Then press “Probing done” (step 2).'
+            : 'Probe program saved. Run it on your machine, then import the results (step 2).'
       )
       if (machine.postProcessor !== 'mach3' || mach3Recorder !== 'macros') onOpenChange(false)
     } catch (e) {
@@ -722,12 +744,17 @@ export function ProbeDialog({
                   <div className="flex items-center gap-1.5 text-xs font-medium text-slate-300">
                     Mach3 records the points with
                     <HelpTip title="How Mach3 records the points">
-                      <b>Digitize file</b> (normal): Mach3’s own M40 / M41 write every touch into a file –
-                      nothing to install. <br />
-                      With some motion controllers Mach3 writes that file too early and it holds wrong numbers
-                      (every Z the same, X/Y repeating) although the machine probed correctly. Only then
-                      choose <b>TraceMill macros</b>: two small macro files (M401 / M402) that you copy into
-                      Mach3 once; they wait until the machine has stopped and write the real position.
+                      <b>G-code variables</b> (normal): plain G-code, no file and nothing to install. Each
+                      point is touched fast, then again slowly at F{MACH3_SLOW_FEED}; the height is read with
+                      G92 and kept in Mach3 variables #500…. The corrected files read them – so do not close
+                      Mach3 between probing and milling. Works also when your motion controller never tells
+                      Mach3 where the probe tripped.
+                      <br />
+                      <b>Digitize file</b>: Mach3’s own M40 / M41 write every touch into a file that you load
+                      into TraceMill. Only correct if your motion controller reports the probe position.
+                      <br />
+                      <b>TraceMill macros</b>: two small macro files (M401 / M402) that you copy into Mach3
+                      once; they write the DRO position to a file.
                     </HelpTip>
                   </div>
                   <Segmented
@@ -735,10 +762,17 @@ export function ProbeDialog({
                     value={mach3Recorder}
                     onChange={setMach3Recorder}
                     options={[
-                      { value: 'digitize', label: 'Digitize file (built in)' },
+                      { value: 'variables', label: 'G-code variables' },
+                      { value: 'digitize', label: 'Digitize file' },
                       { value: 'macros', label: 'TraceMill macros' }
                     ]}
                   />
+                  {mach3Recorder === 'variables' && (
+                    <p className="text-[11px] leading-snug text-slate-400">
+                      No file to load: the heights stay in Mach3 until it is closed. Probe, then mill in the
+                      same Mach3 session.
+                    </p>
+                  )}
                   {mach3Recorder === 'macros' && (
                     <p className="text-[11px] leading-snug text-slate-400">
                       Save the macros with <b>Mach3 macros…</b> below, copy them into Mach3/macros/&lt;your

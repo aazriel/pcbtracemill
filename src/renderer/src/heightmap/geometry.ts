@@ -109,7 +109,12 @@ export function stockProbeArea(scene: WorkScene, inset = 3): BBox {
 }
 
 /** Estimated probing time in seconds. */
-export function estimateProbeSeconds(cfg: ProbeGridConfig, rapidXY: number, rapidZ: number): number {
+export function estimateProbeSeconds(
+  cfg: ProbeGridConfig,
+  rapidXY: number,
+  rapidZ: number,
+  retouch?: { lift: number; feed: number }
+): number {
   const pts = probePoints(cfg)
   const n = pts.length
   let travel = 0
@@ -117,7 +122,8 @@ export function estimateProbeSeconds(cfg: ProbeGridConfig, rapidXY: number, rapi
   const clear = Math.max(cfg.clearanceZ, 0.5)
   const feed = cfg.probeFeed > 0 ? cfg.probeFeed : 50
   // Down at probe speed (from clearance to the copper), back up at rapid, plus settle overhead.
-  const perPoint = (clear / feed) * 60 + (clear / Math.max(rapidZ, 1)) * 60 + 0.4
+  const again = retouch ? (retouch.lift / Math.min(feed, retouch.feed)) * 60 + 0.3 : 0
+  const perPoint = (clear / feed) * 60 + (clear / Math.max(rapidZ, 1)) * 60 + 0.4 + again
   return n * perPoint + (travel / Math.max(rapidXY, 1)) * 60 * 1.3
 }
 

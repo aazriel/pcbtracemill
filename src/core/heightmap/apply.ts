@@ -2,7 +2,7 @@ import type { HeightMap } from '../model/types'
 import { arcPoints } from '../geometry'
 import { tokenizeLine, type GcodeWord } from '../gcode/tokenize'
 import { fmtNum } from '../post/format'
-import { heightMapStats, sampleHeight } from './grid'
+import { heightMapStats, heightWeights, probePoints, sampleHeight } from './grid'
 
 export interface ApplyHeightMapOptions {
   /** Longest XY piece after subdivision, mm. Default 1. */
@@ -14,6 +14,27 @@ export interface ApplyHeightMapOptions {
 const INCH = 25.4
 const AXIS_LETTERS = new Set(['X', 'Y', 'Z', 'I', 'J', 'K', 'R', 'P'])
 type Vec3 = [number, number, number]
+
+/**
+ * A Z offset: a constant plus (for Mach3 variable maps) terms coefficient * #variable, all in mm.
+ * Numeric height maps only ever use the constant.
+ */
+interface Lin {
+  c: number
+  t: Map<number, number>
+}
+const lin = (c: number, t?: Map<number, number>): Lin => ({ c, t: t ?? new Map() })
+const ZERO: Lin = lin(0)
+function addLin(a: Lin, b: Lin, sign = 1): Lin {
+  const t = new Map(a.t)
+  for (const [v, k] of b.t) {
+    const n = (t.get(v) ?? 0) + sign * k
+    if (Math.abs(n) < 1e-12) t.delete(v)
+    else t.set(v, n)
+  }
+  return lin(a.c + sign * b.c, t)
+}
+const isZero = (a: Lin): boolean => Math.abs(a.c) < 1e-12 && a.t.size === 0
 
 /**
  * Apply an auto-level height map to a G-code program.
@@ -41,16 +62,34 @@ export function applyHeightMap(gcode: string, map: HeightMap, opts: ApplyHeightM
   // Nominal (program) position in mm; null = unknown.
   let pos: [number | null, number | null, number | null] = [null, null, null]
   // Actual (emitted) Z minus nominal Z at the current position, mm.
-  let applied = 0
+  let applied: Lin = ZERO
   let cycleZ: number | null = null
   let cycleR: number | null = null
   let usesSemicolon = false
   let usesParens = false
   let ended = false
 
-  const off = (x: number, y: number): number => sampleHeight(map, x, y)
+  const vars = map.mach3Vars
+  const ref = vars !== undefined ? probePointCell(map) : -1
+  const off = (x: number, y: number): Lin => {
+    if (vars === undefined) return lin(sampleHeight(map, x, y))
+    const t = new Map<number, number>()
+    // the reference cell (point 1) is 0 by definition
+    for (const { cell, w } of heightWeights(map.config, x, y)) if (cell !== ref) t.set(vars + cell, w)
+    return lin(0, t)
+  }
   const decimals = (): number => (scale === 1 ? 4 : 5)
   const f = (mm: number): string => fmtNum(mm / scale, decimals())
+  /** A Z value: a plain number, or a Mach3 expression such as [-0.1+[0.25*#512]-[0.5*#513]]. */
+  const fz = (z: Lin): string => {
+    const terms: string[] = []
+    for (const [v, k] of [...z.t].sort((a, b) => a[0] - b[0])) {
+      const s = fmtNum(Math.abs(k) / scale, decimals())
+      if (Number(s) === 0) continue
+      terms.push(`${k < 0 ? '-' : '+'}[${s}*#${v}]`)
+    }
+    return terms.length ? `[${f(z.c)}${terms.join('')}]` : f(z.c)
+  }
 
   for (const line of src) {
     if (ended) {
@@ -98,7 +137,7 @@ export function applyHeightMap(gcode: string, map: HeightMap, opts: ApplyHeightM
       if (nonMotion && hasAxis) {
         // Homing / offsets: position becomes unknown.
         pos = [null, null, null]
-        applied = 0
+        applied = ZERO
       }
       if (explicitMotion) emittedMotion = motion
       out.push(line)
@@ -124,7 +163,7 @@ export function applyHeightMap(gcode: string, map: HeightMap, opts: ApplyHeightM
       out.push(line)
       emittedMotion = motion
       pos = [null, null, null]
-      applied = 0
+      applied = ZERO
       continue
     }
 
@@ -137,15 +176,14 @@ export function applyHeightMap(gcode: string, map: HeightMap, opts: ApplyHeightM
       if (!absolute || cycleZ === null) {
         out.push(line)
       } else {
-        const z = cycleZ + off(hx, hy)
-        const zw = `Z${f(z)}`
+        const zw = `Z${fz(addLin(lin(cycleZ), off(hx, hy)))}`
         const words = tok.words.map((x) => (x.letter === 'Z' ? zw : x.raw.trim()))
         if (!('Z' in w)) words.push(zw)
         out.push(withComments(words.join(' '), tok.comments, usesSemicolon && !usesParens))
       }
       const startZ = pos[2] ?? 0
       pos = [hx, hy, retractInitial ? Math.max(startZ, cycleR ?? startZ) : (cycleR ?? startZ)]
-      applied = 0
+      applied = ZERO
       emittedMotion = motion
       continue
     }
@@ -155,7 +193,7 @@ export function applyHeightMap(gcode: string, map: HeightMap, opts: ApplyHeightM
     const startZ = start[2] ?? end[2]
     const isRapid = motion === 0
     const adjust = isRapid ? end[2] < below : end[2] < below || startZ < below
-    const verbatimOk = !adjust && (absolute || Math.abs(applied) < 1e-12)
+    const verbatimOk = !adjust && (absolute || isZero(applied))
 
     if (verbatimOk) {
       let l = line
@@ -163,7 +201,7 @@ export function applyHeightMap(gcode: string, map: HeightMap, opts: ApplyHeightM
       out.push(l)
       emittedMotion = motion
       pos = [end[0], end[1], Number.isFinite(end[2]) ? end[2] : null]
-      if ('Z' in w) applied = 0
+      if ('Z' in w) applied = ZERO
       continue
     }
 
@@ -205,24 +243,24 @@ export function applyHeightMap(gcode: string, map: HeightMap, opts: ApplyHeightM
     }
 
     const code = isRapid ? 'G0' : 'G1'
-    let curActualZ = startZ + applied
+    let curActualZ = addLin(lin(startZ), applied)
     let curX = sx ?? end[0]
     let curY = sy ?? end[1]
     let lastApplied = applied
     pieces.forEach((p, k) => {
-      const o = p[2] < below ? off(p[0], p[1]) : 0
-      const az = p[2] + o
+      const o = p[2] < below ? off(p[0], p[1]) : ZERO
+      const az = addLin(lin(p[2]), o)
       let words: string[]
       if (absolute) {
-        words = [`X${f(p[0])}`, `Y${f(p[1])}`, `Z${f(az)}`]
+        words = [`X${f(p[0])}`, `Y${f(p[1])}`, `Z${fz(az)}`]
         if (k === 0 && !known) {
           words = []
           if ('X' in w) words.push(`X${f(p[0])}`)
           if ('Y' in w) words.push(`Y${f(p[1])}`)
-          words.push(`Z${f(az)}`)
+          words.push(`Z${fz(az)}`)
         }
       } else {
-        words = [`X${f(p[0] - curX)}`, `Y${f(p[1] - curY)}`, `Z${f(az - curActualZ)}`]
+        words = [`X${f(p[0] - curX)}`, `Y${f(p[1] - curY)}`, `Z${fz(addLin(az, curActualZ, -1))}`]
       }
       if (k === 0) {
         const kept = tok.words.filter(
@@ -242,12 +280,21 @@ export function applyHeightMap(gcode: string, map: HeightMap, opts: ApplyHeightM
 
   const st = heightMapStats(map)
   const c = map.config
-  const note = `TraceMill: auto-levelled with ${c.countX}x${c.countY} height map, range ${fmtNum(st.range, 3)} mm, max segment ${fmtNum(maxSeg, 3)} mm, applied below Z${fmtNum(below, 3)} mm`
+  const note =
+    vars !== undefined
+      ? `TraceMill: auto-levelled with the ${c.countX}x${c.countY} heights the TraceMill probe program left in Mach3 variables #${vars}-#${vars + c.countX * c.countY - 1}, max segment ${fmtNum(maxSeg, 3)} mm, applied below Z${fmtNum(below, 3)} mm`
+      : `TraceMill: auto-levelled with ${c.countX}x${c.countY} height map, range ${fmtNum(st.range, 3)} mm, max segment ${fmtNum(maxSeg, 3)} mm, applied below Z${fmtNum(below, 3)} mm`
   const header = usesSemicolon && !usesParens ? `; ${note}` : `(${note})`
   let insertAt = 0
   while (insertAt < out.length && out[insertAt].trim() === '%') insertAt++
   out.splice(insertAt, 0, header)
   return out.join('\n') + (trailingNewline ? '\n' : '')
+}
+
+/** Grid cell of point 1 (the height reference). */
+function probePointCell(map: HeightMap): number {
+  const p = probePoints(map.config)[0]
+  return p.iy * map.config.countX + p.ix
 }
 
 function isMotionCode(v: number): boolean {

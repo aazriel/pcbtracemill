@@ -4,6 +4,7 @@
  */
 import { create } from 'zustand'
 import type { ProbeGridConfig } from '@core/model/types'
+import type { Mach3Recorder } from '@core/heightmap'
 import { useProject } from '@renderer/store/project'
 
 export interface ProbeImportInfo {
@@ -26,6 +27,8 @@ export interface AutoLevelState {
   probeCfg: ProbeGridConfig | null
   /** True once a probe program has been saved in this session. */
   probeSaved: boolean
+  /** How the last saved Mach3 probe program records the heights (null: not a Mach3 program). */
+  probeRecorder: Mach3Recorder | null
   importInfo: ProbeImportInfo | null
   /** The height-map viewer dialog is open. */
   mapOpen: boolean
@@ -38,6 +41,7 @@ export const useAutoLevel = create<AutoLevelState>()((set) => ({
   measuredSide: 'top',
   probeCfg: null,
   probeSaved: false,
+  probeRecorder: null,
   importInfo: null,
   mapOpen: false,
   set: (patch) => {

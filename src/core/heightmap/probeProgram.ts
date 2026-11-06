@@ -1,4 +1,4 @@
-import type { MachineProfile, ProbeGridConfig } from '../model/types'
+import type { HeightMap, MachineProfile, ProbeGridConfig } from '../model/types'
 import { fmtNum } from '../post/format'
 import { gridStep, probePoints } from './grid'
 
@@ -9,6 +9,30 @@ export const LINUXCNC_PROBE_FILE = 'probe-results.txt'
 
 /** Where the TraceMill Mach3 macros write the probe results (editable at the top of the macros). */
 export const MACH3_PROBE_FILE = 'C:/Mach3/TraceMill-probe.txt'
+
+/** First Mach3 variable that holds a height (cell k of the grid is #(MACH3_VAR_BASE + k)). */
+export const MACH3_VAR_BASE = 500
+/** Mach3 variables #500-#999 are used, so at most this many grid cells. */
+export const MACH3_VAR_MAX_CELLS = 500
+/** Mach3 G-code-only probing: after the first touch lift this far and touch again at this feed. */
+export const MACH3_RETOUCH_LIFT = 0.2
+export const MACH3_SLOW_FEED = 10
+/** Variables used for bookkeeping by the Mach3 G-code-only probe program. */
+const VAR_G92 = 498
+const VAR_DONE = 499
+
+/**
+ * The height map of a Mach3 G-code-only probe run: TraceMill never sees the heights, they stay in
+ * Mach3 variables and the corrected files read them (D-025).
+ */
+export function mach3VariablesHeightMap(cfg: ProbeGridConfig): HeightMap {
+  return {
+    config: cfg,
+    z: new Array<number>(cfg.countX * cfg.countY).fill(0),
+    source: `Mach3 variables #${MACH3_VAR_BASE}-#${MACH3_VAR_BASE + cfg.countX * cfg.countY - 1}`,
+    mach3Vars: MACH3_VAR_BASE
+  }
+}
 
 /**
  * Mach3 macros used by the probe program instead of the built-in digitize file (M40/M41). The
@@ -71,8 +95,18 @@ export interface ProbeProgramOptions {
    * Mach3 installs, default) or the TraceMill macros M401 / M402 – only for setups where the digitize
    * file records wrong numbers.
    */
-  mach3Recorder?: 'digitize' | 'macros'
+  mach3Recorder?: Mach3Recorder
 }
+
+/**
+ * How Mach3 records the probed heights:
+ *  - `variables` (default): no file at all. Each touch is read in G-code through the G92 offset
+ *    (#5213) and kept in Mach3 variables #500…; the corrected files read them (D-025). Works with
+ *    motion controllers that never report the probe trip position (#2000-#2002 stay stale).
+ *  - `digitize`: Mach3's own M40 / M41 digitize file, imported into TraceMill.
+ *  - `macros`: the TraceMill macros M401 / M402 write the DRO position to a file.
+ */
+export type Mach3Recorder = 'variables' | 'digitize' | 'macros'
 
 export function generateProbeProgram(
   cfg: ProbeGridConfig,
@@ -80,7 +114,13 @@ export function generateProbeProgram(
   opts: ProbeProgramOptions = {}
 ): string {
   const dialect: ProbeDialect = machine.postProcessor
-  const macros = dialect === 'mach3' && opts.mach3Recorder === 'macros'
+  const recorder: Mach3Recorder = opts.mach3Recorder ?? 'variables'
+  const macros = dialect === 'mach3' && recorder === 'macros'
+  const vars = dialect === 'mach3' && recorder === 'variables'
+  if (vars && cfg.countX * cfg.countY > MACH3_VAR_MAX_CELLS)
+    throw new Error(
+      `Mach3 can keep at most ${MACH3_VAR_MAX_CELLS} heights - use fewer points (now ${cfg.countX} x ${cfg.countY}).`
+    )
   const probe = dialect === 'mach3' ? 'G31' : dialect === 'generic' ? machine.probeCommand : 'G38.2'
   const d = Math.max(3, Math.min(6, machine.decimals))
   const n = (v: number): string => fmtNum(v, d)
@@ -109,7 +149,13 @@ export function generateProbeProgram(
       `SETUP: zero X/Y as for milling and zero Z on the copper at the first point X${n(pts[0].x)} Y${n(pts[0].y)}`
     )
   )
-  L.push(c('This program does not change work offsets. Heights are relative to the first probed point.'))
+  L.push(
+    c(
+      vars
+        ? 'Work offsets stay as they are - G92 is used for a moment at each point and put back. Heights are relative to point 1.'
+        : 'This program does not change work offsets. Heights are relative to the first probed point.'
+    )
+  )
   L.push(c('After a bit change Z0 must be at the copper of the first point again.'))
   L.push(c('TraceMill corrected files can find it with the probe - set Z only roughly then.'))
   if (dialect === 'grbl') {
@@ -123,7 +169,17 @@ export function generateProbeProgram(
       c(`RESULTS: written to ${LINUXCNC_PROBE_FILE} in the LinuxCNC config directory. Import that file.`)
     )
   } else if (dialect === 'mach3') {
-    if (macros) {
+    if (vars) {
+      L.push(c('RESULTS: no file. Every height is kept in Mach3 variables'))
+      L.push(c(`#${MACH3_VAR_BASE}-#${MACH3_VAR_BASE + cfg.countX * cfg.countY - 1} until Mach3 is closed.`))
+      L.push(c('The corrected TraceMill files read them - run them in the same Mach3 session.'))
+      L.push(c('Do not close Mach3 between probing and milling, or probe again.'))
+      L.push(
+        c(
+          `Each point: fast touch, up ${fmtNum(MACH3_RETOUCH_LIFT, 1)} mm, slow touch at F${MACH3_SLOW_FEED}, height read with G92 / #5213.`
+        )
+      )
+    } else if (macros) {
       L.push(c('RESULTS: needs the TraceMill macros M401.m1s and M402.m1s in C:/Mach3/macros/<profile>/'))
       L.push(c('Save them from the TraceMill probe dialog. M401 starts the file, M402 after every G31'))
       L.push(c(`waits for the machine to stop and writes the DRO X,Y,Z to ${MACH3_PROBE_FILE}`))
@@ -147,16 +203,61 @@ export function generateProbeProgram(
   if (dialect === 'mach3') L.push('G91.1')
   L.push(`G0 Z${n(clear)}`)
   if (dialect === 'linuxcnc') L.push(`(PROBEOPEN ${LINUXCNC_PROBE_FILE})`)
-  if (dialect === 'mach3')
+  if (vars) {
+    L.push(`#${VAR_DONE}=0 (heights not complete yet)`)
+    L.push(`#${VAR_G92}=#5213 (keep the G92 Z offset that is active now)`)
+  } else if (dialect === 'mach3')
     L.push(macros ? 'M401 (TraceMill: start a new results file)' : 'M40 (open digitize file)')
   pts.forEach((p, i) => {
     L.push(`G0 X${n(p.x)} Y${n(p.y)}${i === 0 ? ' (first point = height reference)' : ''}`)
     L.push(`${probe} Z${n(depth)} F${fmtNum(feed, 1)}`)
     if (macros) L.push('M402 (TraceMill: write where the probe stopped)')
+    if (vars) {
+      const v = MACH3_VAR_BASE + p.iy * cfg.countX + p.ix
+      L.push('G91')
+      L.push(`G0 Z${n(MACH3_RETOUCH_LIFT)}`)
+      L.push('G90')
+      L.push(`${probe} Z${n(depth)} F${fmtNum(Math.min(feed, MACH3_SLOW_FEED), 1)}`)
+      L.push('G92 Z0')
+      L.push(`#${v}=[#5213-#${VAR_G92}]`)
+      L.push(`G92 Z#${v}`)
+    }
     L.push(`G0 Z${n(clear)}`)
   })
+  if (vars) {
+    // heights relative to point 1, then fill cells that were not probed from their neighbours
+    const ref = MACH3_VAR_BASE + pts[0].iy * cfg.countX + pts[0].ix
+    const probed = new Set(pts.map((p) => p.iy * cfg.countX + p.ix))
+    L.push(c('Make every height relative to point 1'))
+    for (const k of [...probed].sort((a, b) => a - b))
+      if (MACH3_VAR_BASE + k !== ref) L.push(`#${MACH3_VAR_BASE + k}=[#${MACH3_VAR_BASE + k}-#${ref}]`)
+    const fills: string[] = []
+    for (let k = 0; k < cfg.countX * cfg.countY; k++) {
+      if (probed.has(k)) continue
+      const near = [...probed]
+        .map((q) => ({
+          q,
+          d2:
+            ((q % cfg.countX) - (k % cfg.countX)) ** 2 * dx * dx +
+            (Math.floor(q / cfg.countX) - Math.floor(k / cfg.countX)) ** 2 * dy * dy
+        }))
+        .sort((a, b) => a.d2 - b.d2 || a.q - b.q)
+        .slice(0, 4)
+      const ws = near.map((a) => 1 / Math.max(a.d2, 1e-12))
+      const sum = ws.reduce((a, b) => a + b, 0)
+      fills.push(
+        `#${MACH3_VAR_BASE + k}=[${near.map((a, i) => `[${fmtNum(ws[i] / sum, 4)}*#${MACH3_VAR_BASE + a.q}]`).join('+')}]`
+      )
+    }
+    L.push(`#${ref}=0`)
+    if (fills.length) {
+      L.push(c('Points outside the board were not probed - fill them in from the nearest ones'))
+      L.push(...fills)
+    }
+    L.push(`#${VAR_DONE}=1 (heights complete)`)
+  }
   if (dialect === 'linuxcnc') L.push('(PROBECLOSE)')
-  if (dialect === 'mach3' && !macros) L.push('M41 (close digitize file)')
+  if (dialect === 'mach3' && !macros && !vars) L.push('M41 (close digitize file)')
   L.push(`G0 X${n(pts[0].x)} Y${n(pts[0].y)}`)
   L.push(c('Probing finished. Remove the probe clip before milling.'))
   L.push(dialect === 'linuxcnc' ? 'M2' : 'M30')
