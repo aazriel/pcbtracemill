@@ -531,8 +531,14 @@ export interface ProbeGridConfig {
   probeFeed: number
   /** Max probe depth below Z0 (negative number). */
   probeDepth: number
-  /** Clearance height between points. */
+  /**
+   * Lift above each touched point before moving to the next one, mm (moves longer than the grid
+   * spacing lift proportionally more). Start, end and the long move back to point 1 go to at
+   * least 2 mm absolute.
+   */
   clearanceZ: number
+  /** Mach3 G-code-variables probing: lift before the slow re-touch, mm (default 0.25). */
+  retouchLift?: number
   /**
    * Grid cells to probe (row-major index iy * countX + ix), e.g. only the points near a round
    * board. All cells when absent. Cells that are not probed are filled in from their neighbours.

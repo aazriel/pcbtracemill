@@ -1,4 +1,5 @@
 export {
+  autoProbeLift,
   defaultProbeGrid,
   buildHeightMap,
   sampleHeight,

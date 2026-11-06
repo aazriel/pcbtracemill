@@ -18,21 +18,29 @@ export const DEFAULT_PROBE_FEED = 50
 export const DEFAULT_PROBE_DEPTH = -2
 export const DEFAULT_CLEARANCE_Z = 2
 
+/** Automatic lift between probe points: 5 % of the spacing (10 mm → 0.5 mm), at least 0.3 mm. */
+export function autoProbeLift(spacing: number): number {
+  const v = Math.ceil((0.05 * Math.max(0, spacing)) / 0.05 - 1e-9) * 0.05
+  return Math.max(0.3, Math.round(v * 100) / 100)
+}
+
 /** A probe grid covering `area` with roughly `spacing` mm between points (at least 2×2). */
 export function defaultProbeGrid(area: ProbeArea, spacing = 10): ProbeGridConfig {
   const sp = spacing > 0 && Number.isFinite(spacing) ? spacing : 10
   const w = Math.max(0, area.maxX - area.minX)
   const h = Math.max(0, area.maxY - area.minY)
+  const countX = Math.max(2, Math.ceil(w / sp - 1e-9) + 1)
+  const countY = Math.max(2, Math.ceil(h / sp - 1e-9) + 1)
   return {
     minX: area.minX,
     minY: area.minY,
     maxX: area.minX + w,
     maxY: area.minY + h,
-    countX: Math.max(2, Math.ceil(w / sp - 1e-9) + 1),
-    countY: Math.max(2, Math.ceil(h / sp - 1e-9) + 1),
+    countX,
+    countY,
     probeFeed: DEFAULT_PROBE_FEED,
     probeDepth: DEFAULT_PROBE_DEPTH,
-    clearanceZ: DEFAULT_CLEARANCE_Z
+    clearanceZ: autoProbeLift(Math.max(w / (countX - 1), h / (countY - 1)))
   }
 }
 

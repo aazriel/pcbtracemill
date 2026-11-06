@@ -17,7 +17,7 @@ import type {
 } from '@core/model/types'
 import { computeBoardBBox } from '@core/model/board'
 import { DEFAULT_MACHINE_ID, MACHINE_PRESETS } from '@core/machines'
-import { STARTER_TOOLS } from '@core/tools'
+import { refreshStarterFeeds, STARTER_TOOLS } from '@core/tools'
 import {
   createStep,
   defaultMaterial,
@@ -125,7 +125,17 @@ export function ensureDefaults(): void {
   const p = useProject.getState()
   if (!p.machine) p.setMachine(MACHINE_PRESETS.find((m) => m.id === DEFAULT_MACHINE_ID) ?? MACHINE_PRESETS[0])
   if (!p.tools.length) p.setTools(STARTER_TOOLS.map((t) => ({ ...t })))
+  else refreshToolFeeds()
   syncMaterialToBoard()
+}
+
+/** Starter V-bits still on the old, too fast feeds get the current ones (edited tools are kept). */
+function refreshToolFeeds(): void {
+  const p = useProject.getState()
+  const fixed = refreshStarterFeeds(p.tools)
+  if (fixed === p.tools) return
+  p.setTools(fixed)
+  useUi.getState().toast('info', 'Starter V-bit feeds updated: 50 mm/min for 0.1 mm tips (at 12 000 rpm).')
 }
 
 /** Keeps the material at "board + margin" while `useDefaults` is on, and creates it when missing. */
@@ -664,6 +674,7 @@ export async function loadProjectText(content: string, path: string | null): Pro
     if (fresh.parsed) parsed[l.id] = fresh.parsed
   }
   useProject.getState().loadProject(project, parsed, path)
+  refreshToolFeeds()
   useProject.temporal.getState().clear()
   useUi.getState().set({ cam: null, camStale: true })
   void regenerate()

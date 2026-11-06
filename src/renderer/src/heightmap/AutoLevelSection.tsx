@@ -303,9 +303,9 @@ export function AutoLevelSection({
                   <>
                     Zeroing a V-bit exactly on 0.035 mm copper by hand is very hard. With this on, each
                     corrected file stops before every bit: you set Z zero <b>roughly</b> (a sheet of paper is
-                    enough) and clip the probe to the bit. The program then touches the copper at point 1
-                    slowly – at the same point and speed as the height map – and sets the exact Z0 there. Then
-                    it stops so you can remove the clip before the spindle starts.
+                    enough) and clip the probe to the bit. The program then touches the copper at point 1 very
+                    slowly (F2, so a 0.1 mm V-bit tip survives) at the same point as the height map and sets
+                    the exact Z0 there. Then it stops so you can remove the clip before the spindle starts.
                     <div className="mt-2">
                       <TouchOffFigure />
                     </div>

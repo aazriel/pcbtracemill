@@ -42,10 +42,9 @@ describe('starter kit', () => {
   it('V-bit 30/0.1 has conservative feeds and cuts ~0.15 mm at 0.1 depth', () => {
     const v = STARTER_TOOLS.find((t) => t.id === 'starter-vbit-30-0.1')!
     expect(v.feeds.spindleRpm).toBe(12000)
-    expect(v.feeds.feedXY).toBeGreaterThanOrEqual(150)
-    expect(v.feeds.feedXY).toBeLessThanOrEqual(300)
-    expect(v.feeds.feedZ).toBeGreaterThanOrEqual(50)
-    expect(v.feeds.feedZ).toBeLessThanOrEqual(100)
+    // a 0.1 mm tip snaps above ~0.004 mm per turn: 50 mm/min at 12 000 rpm
+    expect(v.feeds.feedXY).toBe(50)
+    expect(v.feeds.feedZ).toBeLessThanOrEqual(30)
     expect(effectiveCutWidth(v, 0.1)).toBeCloseTo(0.1 + 0.2 * Math.tan(Math.PI / 12), 6)
   })
 })

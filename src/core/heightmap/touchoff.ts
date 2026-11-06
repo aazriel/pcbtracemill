@@ -21,8 +21,8 @@ export interface TouchOffOptions {
   slowFeed?: number
 }
 
-/** The probe starts this far above the rough zero and searches this far below it (mm). */
-export const TOUCH_OFF_START = 1
+/** The probe starts this far above the rough zero (set on paper) and searches down to this far below it (mm). */
+export const TOUCH_OFF_START = 0.5
 export const TOUCH_OFF_REACH = 1
 
 /**
