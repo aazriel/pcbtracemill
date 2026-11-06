@@ -77,16 +77,30 @@ describe('probe result checks', () => {
 })
 
 describe('Mach3 digitize-file failures', () => {
-  it('rejects a file where every line is the same point and points at the TraceMill macros', () => {
+  it('rejects a file where every line is the same point and explains the Mach3 digitize file', () => {
     const line = '53.57500,238.41500,11.36000 '
     const r = importProbeLog(new Array(90).fill(line).join('\n'))
     expect(r.map).toBeNull()
     expect(r.errors[0]).toMatch(/same point \(X53\.575 Y238\.415 Z11\.36\), 90 times/)
-    expect(r.errors[1]).toMatch(/M401 \/ M402/)
+    expect(r.errors[1]).toMatch(/TraceMill macros/)
   })
 
   it('adds the Mach3 hint to the max-depth error of a digitize file', () => {
     const r = importProbeLog(fixture('mach3-no-contact.txt'))
     expect(r.errors.join(' ')).toMatch(/digitize file/)
+  })
+})
+
+describe('Mach3 recorder option', () => {
+  it('uses the digitize file by default and the TraceMill macros only when asked', async () => {
+    const { generateProbeProgram } = await import('@core/heightmap')
+    const machine = { postProcessor: 'mach3', decimals: 4, probeCommand: 'G31' } as never
+    const def = generateProbeProgram(grid, machine)
+    expect(def).toMatch(/^M40 /m)
+    expect(def).not.toMatch(/M402/)
+    const mac = generateProbeProgram(grid, machine, { mach3Recorder: 'macros' })
+    expect(mac).toMatch(/^M401 /m)
+    expect(mac.match(/^M402 /gm)?.length).toBe(plan.length)
+    expect(mac).not.toMatch(/^M40 /m)
   })
 })
