@@ -237,12 +237,10 @@ describe('applyHeightMap', () => {
   it('Mach3 variables probe program and probe program touches twice, the touch-off once slowly', () => {
     const cfg = { ...defaultProbeGrid({ minX: 0, minY: 0, maxX: 30, maxY: 20 }, 10), cells: [0, 1, 2, 5, 6] }
     const text = generateProbeProgram(cfg, machine({ postProcessor: 'mach3' }))
-    // every probed point: fast, up, slow, read through G92 and put the offset back
-    expect(text).toMatch(
-      /^G31 Z-2 F50\nG91\nG0 Z0\.25\nG90\nG31 Z-2 F10\nG92 Z0\n#501=\[#5213-#498\]\nG92 Z#501$/m
-    )
+    // every probed point: fast, up, slow, read through G92, clear G92 again
+    expect(text).toMatch(/^G31 Z-2 F50\nG91\nG0 Z0\.25\nG90\nG31 Z-2 F10\nG92 Z0\n#501=#5213\nG92\.1$/m)
     // point 1 is touched again at the end and is the reference
-    expect(text).toMatch(/^#497=\[#5213-#498\]$/m)
+    expect(text).toMatch(/^#497=#5213$/m)
     expect(text).toMatch(/^#501=\[#501-#497\]$/m)
     expect(text).toMatch(/^#500=0$/m)
     // cells 3, 4, 7 were not probed: filled from the nearest probed ones
@@ -265,6 +263,8 @@ describe('applyHeightMap', () => {
     // the cutting bit (V-bit tip) touches once, slowly - never at the 50 mm/min probe feed
     expect(t).toMatch(/^G31 Z-1 F10 \(slow - protects the tip\)\nG92 Z0 /m)
     expect(t).not.toMatch(/F50/)
+    // old G92 offsets are cleared before the operator sets Z roughly
+    expect(t).toMatch(/^M5\nG92\.1 .*\nM0 /m)
   })
 
   it('linearises arcs, handles inches and relative mode', () => {

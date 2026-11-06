@@ -24,7 +24,6 @@ export const MACH3_RETOUCH_FEED = 10
 /** The cutting bit touches off at most this fast (a 0.1 mm V-bit tip). */
 export const MACH3_SLOW_FEED = 10
 /** Variables used for bookkeeping by the Mach3 G-code-only probe program. */
-const VAR_G92 = 498
 /** Point 1 measured again at the end of the run: the reference all heights are relative to. */
 const VAR_REF = 497
 const VAR_DONE = 499
@@ -160,7 +159,7 @@ export function generateProbeProgram(
   L.push(
     c(
       vars
-        ? 'Work offsets stay as they are - G92 is used for a moment at each point and put back. Heights are relative to point 1.'
+        ? 'Zero Z with the Zero Z button (G54). Any G92 offset is cleared (G92.1) - G92 is used only to read each height. Heights are relative to point 1.'
         : 'This program does not change work offsets. Heights are relative to the first probed point.'
     )
   )
@@ -209,22 +208,29 @@ export function generateProbeProgram(
   L.push('G21')
   L.push('G90 G94 G17')
   if (dialect === 'mach3') L.push('G91.1')
+  if (vars) {
+    // Each height is read through G92 and cleared again with G92.1 - exactly as measured on a
+    // user's Mach3. Clearing an old G92 offset (e.g. from a TraceMill touch-off) can move Z0.
+    L.push('G92.1 (clear any G92 offset)')
+    L.push(
+      `M0 ${c('Check the Z DRO: if it changed, zero Z on the copper at point 1 again with Zero Z, then press Cycle Start')}`
+    )
+  }
   L.push(`G0 Z${n(clear)}`)
   if (dialect === 'linuxcnc') L.push(`(PROBEOPEN ${LINUXCNC_PROBE_FILE})`)
   if (vars) {
     L.push(`#${VAR_DONE}=0 (heights not complete yet)`)
-    L.push(`#${VAR_G92}=#5213 (keep the G92 Z offset that is active now)`)
   } else if (dialect === 'mach3')
     L.push(macros ? 'M401 (TraceMill: start a new results file)' : 'M40 (open digitize file)')
-  // Mach3 G-code variables: lift, touch again slowly, read the height through G92 into #v
+  // Mach3 G-code variables: lift, touch again slowly, read the height through G92 into #v, clear G92
   const retouch = (v: number): void => {
     L.push('G91')
     L.push(`G0 Z${n(MACH3_RETOUCH_LIFT)}`)
     L.push('G90')
     L.push(`${probe} Z${n(depth)} F${fmtNum(Math.min(feed, MACH3_RETOUCH_FEED), 1)}`)
     L.push('G92 Z0')
-    L.push(`#${v}=[#5213-#${VAR_G92}]`)
-    L.push(`G92 Z#${v}`)
+    L.push(`#${v}=#5213`)
+    L.push('G92.1')
   }
   pts.forEach((p, i) => {
     L.push(`G0 X${n(p.x)} Y${n(p.y)}${i === 0 ? ' (first point = height reference)' : ''}`)
