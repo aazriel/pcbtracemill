@@ -65,8 +65,22 @@ export function mach3ProbeMacros(file = MACH3_PROBE_FILE): { name: string; text:
  * at the first probe point before running it, and TraceMill makes the height map relative to
  * that first point. Output is always metric (G21) regardless of the machine's output units.
  */
-export function generateProbeProgram(cfg: ProbeGridConfig, machine: MachineProfile): string {
+export interface ProbeProgramOptions {
+  /**
+   * How Mach3 records the points: its built-in digitize file (M40 / M41 macros that ship with most
+   * Mach3 installs, default) or the TraceMill macros M401 / M402 – only for setups where the digitize
+   * file records wrong numbers.
+   */
+  mach3Recorder?: 'digitize' | 'macros'
+}
+
+export function generateProbeProgram(
+  cfg: ProbeGridConfig,
+  machine: MachineProfile,
+  opts: ProbeProgramOptions = {}
+): string {
   const dialect: ProbeDialect = machine.postProcessor
+  const macros = dialect === 'mach3' && opts.mach3Recorder === 'macros'
   const probe = dialect === 'mach3' ? 'G31' : dialect === 'generic' ? machine.probeCommand : 'G38.2'
   const d = Math.max(3, Math.min(6, machine.decimals))
   const n = (v: number): string => fmtNum(v, d)
@@ -109,11 +123,17 @@ export function generateProbeProgram(cfg: ProbeGridConfig, machine: MachineProfi
       c(`RESULTS: written to ${LINUXCNC_PROBE_FILE} in the LinuxCNC config directory. Import that file.`)
     )
   } else if (dialect === 'mach3') {
-    L.push(c('RESULTS: needs the TraceMill macros M401.m1s and M402.m1s in C:/Mach3/macros/<profile>/'))
-    L.push(c('Save them from the TraceMill probe dialog. M401 starts the file, M402 after every G31'))
-    L.push(c(`waits for the machine to stop and writes the DRO X,Y,Z to ${MACH3_PROBE_FILE}`))
-    L.push(c('Import that file. The Mach3 digitize file M40/M41 is not used: with many motion'))
-    L.push(c('controllers it records the target Z and old X/Y instead of where the probe stopped.'))
+    if (macros) {
+      L.push(c('RESULTS: needs the TraceMill macros M401.m1s and M402.m1s in C:/Mach3/macros/<profile>/'))
+      L.push(c('Save them from the TraceMill probe dialog. M401 starts the file, M402 after every G31'))
+      L.push(c(`waits for the machine to stop and writes the DRO X,Y,Z to ${MACH3_PROBE_FILE}`))
+      L.push(c('Import that file.'))
+    } else {
+      L.push(
+        c('RESULTS: M40 / M41 must exist as macros: M40.m1s containing OpenDigFile and M41.m1s CloseDigFile.')
+      )
+      L.push(c('M40 asks for a file name, each G31 then appends X,Y,Z to it. Import that file.'))
+    }
     L.push(
       c('WARNING: Mach3 G31 does not stop with an error when nothing is touched - watch the first point.')
     )
@@ -127,14 +147,16 @@ export function generateProbeProgram(cfg: ProbeGridConfig, machine: MachineProfi
   if (dialect === 'mach3') L.push('G91.1')
   L.push(`G0 Z${n(clear)}`)
   if (dialect === 'linuxcnc') L.push(`(PROBEOPEN ${LINUXCNC_PROBE_FILE})`)
-  if (dialect === 'mach3') L.push('M401 (TraceMill: start a new results file)')
+  if (dialect === 'mach3')
+    L.push(macros ? 'M401 (TraceMill: start a new results file)' : 'M40 (open digitize file)')
   pts.forEach((p, i) => {
     L.push(`G0 X${n(p.x)} Y${n(p.y)}${i === 0 ? ' (first point = height reference)' : ''}`)
     L.push(`${probe} Z${n(depth)} F${fmtNum(feed, 1)}`)
-    if (dialect === 'mach3') L.push('M402 (TraceMill: write where the probe stopped)')
+    if (macros) L.push('M402 (TraceMill: write where the probe stopped)')
     L.push(`G0 Z${n(clear)}`)
   })
   if (dialect === 'linuxcnc') L.push('(PROBECLOSE)')
+  if (dialect === 'mach3' && !macros) L.push('M41 (close digitize file)')
   L.push(`G0 X${n(pts[0].x)} Y${n(pts[0].y)}`)
   L.push(c('Probing finished. Remove the probe clip before milling.'))
   L.push(dialect === 'linuxcnc' ? 'M2' : 'M30')

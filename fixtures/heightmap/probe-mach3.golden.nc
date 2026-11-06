@@ -9,41 +9,33 @@
 (This program does not change work offsets. Heights are relative to the first probed point.)
 (After a bit change Z0 must be at the copper of the first point again.)
 (TraceMill corrected files can find it with the probe - set Z only roughly then.)
-(RESULTS: needs the TraceMill macros M401.m1s and M402.m1s in C:/Mach3/macros/<profile>/)
-(Save them from the TraceMill probe dialog. M401 starts the file, M402 after every G31)
-(waits for the machine to stop and writes the DRO X,Y,Z to C:/Mach3/TraceMill-probe.txt)
-(Import that file. The Mach3 digitize file M40/M41 is not used: with many motion)
-(controllers it records the target Z and old X/Y instead of where the probe stopped.)
+(RESULTS: M40 / M41 must exist as macros: M40.m1s containing OpenDigFile and M41.m1s CloseDigFile.)
+(M40 asks for a file name, each G31 then appends X,Y,Z to it. Import that file.)
 (WARNING: Mach3 G31 does not stop with an error when nothing is touched - watch the first point.)
 G21
 G90 G94 G17
 G91.1
 G0 Z2
-M401 (TraceMill: start a new results file)
+M40 (open digitize file)
 G0 X0 Y0 (first point = height reference)
 G31 Z-2 F50
-M402 (TraceMill: write where the probe stopped)
 G0 Z2
 G0 X10 Y0
 G31 Z-2 F50
-M402 (TraceMill: write where the probe stopped)
 G0 Z2
 G0 X20 Y0
 G31 Z-2 F50
-M402 (TraceMill: write where the probe stopped)
 G0 Z2
 G0 X20 Y10
 G31 Z-2 F50
-M402 (TraceMill: write where the probe stopped)
 G0 Z2
 G0 X10 Y10
 G31 Z-2 F50
-M402 (TraceMill: write where the probe stopped)
 G0 Z2
 G0 X0 Y10
 G31 Z-2 F50
-M402 (TraceMill: write where the probe stopped)
 G0 Z2
+M41 (close digitize file)
 G0 X0 Y0
 (Probing finished. Remove the probe clip before milling.)
 M30

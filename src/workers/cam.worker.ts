@@ -8,6 +8,7 @@ import {
   applyHeightMap,
   importProbeLog,
   generateProbeProgram,
+  type ProbeProgramOptions,
   type TouchOffOptions
 } from '@core/heightmap'
 import { narrowestGap } from '@core/toolpath'
@@ -20,7 +21,8 @@ const api = {
   interpret: (text: string) => interpretGcode(text),
   narrowestGap: (copper: PolygonSet, limit: number, ignoreBelow: number) =>
     narrowestGap(copper, limit, ignoreBelow),
-  probeProgram: (cfg: ProbeGridConfig, machine: MachineProfile) => generateProbeProgram(cfg, machine),
+  probeProgram: (cfg: ProbeGridConfig, machine: MachineProfile, opts?: ProbeProgramOptions) =>
+    generateProbeProgram(cfg, machine, opts),
   importProbe: (text: string, cfg?: ProbeGridConfig) => importProbeLog(text, cfg),
   level: (gcode: string, map: HeightMap, touchOff?: TouchOffOptions) => {
     const out = applyHeightMap(gcode, map)

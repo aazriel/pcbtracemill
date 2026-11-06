@@ -80,7 +80,7 @@ const RESULT_INFO: Record<string, { title: string; body: string }> = {
   },
   mach3: {
     title: 'Mach3 / Mach4',
-    body: `The program uses two small TraceMill macros: M401 starts a results file and M402, after every touch, waits until the machine has stopped and writes the real X,Y,Z. Save them with "Mach3 macros…" (bottom of the next page) into Mach3/macros/<your profile, e.g. Mach3Mill>/ and restart Mach3 once. The results go to ${MACH3_PROBE_FILE} – import that file. (Mach3's own digitize file M40/M41 is not used: with many motion controllers it records wrong numbers.)`
+    body: 'The program opens Mach3’s "digitize" file (M40) and Mach3 writes X,Y,Z of every touch into it (M40/M41 = OpenDigFile / CloseDigFile macros, included with most Mach3 installs). Import the file Mach3 asked you to name. If that file holds wrong numbers (the same Z everywhere), choose “TraceMill macros” on the next page.'
   },
   generic: {
     title: 'Other controllers',
@@ -249,6 +249,7 @@ export function ProbeDialog({
   /** Custom area drawn as a circle or polygon (null: the plain rectangle of the edges). */
   const [customShape, setCustomShape] = useState<Path | null>(null)
   const [saving, setSaving] = useState(false)
+  const [mach3Recorder, setMach3Recorder] = useState<'digitize' | 'macros'>('digitize')
 
   // Initialise the grid when the dialog opens (last saved grid, else the board shape).
   useEffect(() => {
@@ -365,7 +366,7 @@ export function ProbeDialog({
     setSaving(true)
     try {
       if (!live) return
-      const text = await camWorker().probeProgram(live, machine)
+      const text = await camWorker().probeProgram(live, machine, { mach3Recorder })
       const ext = (machine.fileExtension || 'nc').replace(/^\.+/, '')
       const ok = await saveOne(`${safeName(projectName)}_probe.${ext}`, text)
       if (!ok) return
@@ -375,11 +376,11 @@ export function ProbeDialog({
         .catch(() => undefined)
       toast(
         'success',
-        machine.postProcessor === 'mach3'
+        machine.postProcessor === 'mach3' && mach3Recorder === 'macros'
           ? 'Probe program saved. It needs the TraceMill Mach3 macros M401 / M402 – save them with "Mach3 macros…" if you have not yet.'
           : 'Probe program saved. Run it on your machine, then import the results (step 2).'
       )
-      if (machine.postProcessor !== 'mach3') onOpenChange(false)
+      if (machine.postProcessor !== 'mach3' || mach3Recorder !== 'macros') onOpenChange(false)
     } catch (e) {
       toast('error', `Could not create the probe program: ${e instanceof Error ? e.message : String(e)}`)
     } finally {
@@ -408,7 +409,7 @@ export function ProbeDialog({
             <b className="text-slate-200">{formatDuration(stats.seconds)}</b> of probing
           </span>
         )}
-        {machine?.postProcessor === 'mach3' && (
+        {machine?.postProcessor === 'mach3' && mach3Recorder === 'macros' && (
           <Button
             variant="secondary"
             data-testid="probe-save-macros"
@@ -716,6 +717,36 @@ export function ProbeDialog({
                 description="How high the bit rises while moving to the next point."
                 {...fig(HELP['autolevel.clearanceZ']?.body, <ProbeLiftFigure lift={cfg.clearanceZ} />)}
               />
+              {machine?.postProcessor === 'mach3' && (
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-slate-300">
+                    Mach3 records the points with
+                    <HelpTip title="How Mach3 records the points">
+                      <b>Digitize file</b> (normal): Mach3’s own M40 / M41 write every touch into a file –
+                      nothing to install. <br />
+                      With some motion controllers Mach3 writes that file too early and it holds wrong numbers
+                      (every Z the same, X/Y repeating) although the machine probed correctly. Only then
+                      choose <b>TraceMill macros</b>: two small macro files (M401 / M402) that you copy into
+                      Mach3 once; they wait until the machine has stopped and write the real position.
+                    </HelpTip>
+                  </div>
+                  <Segmented
+                    stretch
+                    value={mach3Recorder}
+                    onChange={setMach3Recorder}
+                    options={[
+                      { value: 'digitize', label: 'Digitize file (built in)' },
+                      { value: 'macros', label: 'TraceMill macros' }
+                    ]}
+                  />
+                  {mach3Recorder === 'macros' && (
+                    <p className="text-[11px] leading-snug text-slate-400">
+                      Save the macros with <b>Mach3 macros…</b> below, copy them into Mach3/macros/&lt;your
+                      profile&gt;/ and restart Mach3 once. Results go to {MACH3_PROBE_FILE}.
+                    </p>
+                  )}
+                </div>
+              )}
               {warnings.length > 0 && (
                 <div className="flex flex-col gap-1 rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-[11px] text-amber-200">
                   {warnings.map((w) => (
