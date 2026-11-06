@@ -2,6 +2,7 @@ export {
   defaultProbeGrid,
   buildHeightMap,
   sampleHeight,
+  heightWeights,
   heightMapStats,
   probePoints,
   cellsNearShape,
@@ -11,9 +12,19 @@ export {
   DEFAULT_CLEARANCE_Z
 } from './grid'
 export type { ProbePoint, ProbeArea } from './grid'
-export { generateProbeProgram, LINUXCNC_PROBE_FILE, MACH3_PROBE_FILE, mach3ProbeMacros } from './probeProgram'
+export {
+  generateProbeProgram,
+  LINUXCNC_PROBE_FILE,
+  MACH3_PROBE_FILE,
+  mach3ProbeMacros,
+  mach3VariablesHeightMap,
+  MACH3_VAR_BASE,
+  MACH3_VAR_MAX_CELLS,
+  MACH3_RETOUCH_LIFT,
+  MACH3_SLOW_FEED
+} from './probeProgram'
 export { parseProbeResults } from './parse'
-export type { ProbeProgramOptions } from './probeProgram'
+export type { ProbeProgramOptions, Mach3Recorder } from './probeProgram'
 export type { ParsedProbeResults, ProbeLogFormat } from './parse'
 export { applyHeightMap } from './apply'
 export type { ApplyHeightMapOptions } from './apply'

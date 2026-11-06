@@ -1,6 +1,10 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import {
+  addZTouchOff,
+  MACH3_SLOW_FEED,
+  MACH3_VAR_BASE,
+  mach3VariablesHeightMap,
   applyHeightMap,
   buildHeightMap,
   defaultProbeGrid,
@@ -54,24 +58,26 @@ describe('probe programs (golden)', () => {
       }
       expect(text).toBe(readFileSync(path, 'utf8'))
       const sim = interpretGcode(text)
-      expect(sim.warnings).toEqual([])
+      // the Mach3 program reads each height through a G92 offset that it puts back right away
+      expect(sim.warnings.filter((x) => !/G92/.test(x))).toEqual([])
       // never moves XY below the clearance height
       for (const mv of sim.moves) {
         if (Math.hypot(mv.to[0] - mv.from[0], mv.to[1] - mv.from[1]) > 1e-9)
           expect(mv.from[2]).toBeGreaterThanOrEqual(2)
       }
       const probes = text.split('\n').filter((l) => /^G(38\.2|31) /.test(l))
-      expect(probes.length).toBe(6)
-      expect(text).not.toMatch(/G92|G10/)
+      // Mach3 (G-code variables, the default) touches every point twice: fast, then slowly
+      expect(probes.length).toBe(d === 'mach3' ? 12 : 6)
+      if (d !== 'mach3') expect(text).not.toMatch(/G92|G10/)
     })
   }
   it('dialect specifics', () => {
     expect(generateProbeProgram(cfg, machine({ postProcessor: 'linuxcnc' }))).toMatch(
       /\(PROBEOPEN probe-results.txt\)[\s\S]*\(PROBECLOSE\)/
     )
-    expect(generateProbeProgram(cfg, machine({ postProcessor: 'mach3' }))).toMatch(
-      /^M40 [\s\S]*^G31 Z-2 F50$[\s\S]*^M41 /m
-    )
+    expect(
+      generateProbeProgram(cfg, machine({ postProcessor: 'mach3' }), { mach3Recorder: 'digitize' })
+    ).toMatch(/^M40 [\s\S]*^G31 Z-2 F50$[\s\S]*^M41 /m)
     expect(generateProbeProgram(cfg, machine({ postProcessor: 'grbl' }))).toMatch(/^G38.2 Z-2 F50$/m)
   })
 })
@@ -200,6 +206,61 @@ describe('applyHeightMap', () => {
     // rapid back up is untouched
     expect(sim.moves[sim.moves.length - 1].to[2]).toBe(5)
     expect(lines[lines.length - 1]).toBe('%')
+  })
+
+  it('Mach3 variables: formulas give the same cut as the numeric map once the probe set the heights', () => {
+    const num = planeMap()
+    const vars = mach3VariablesHeightMap(num.config)
+    // what the probe program leaves in Mach3: #500+k = height of cell k relative to point 1
+    const preset = num.z.map((z, k) => `#${MACH3_VAR_BASE + k}=${z.toFixed(6)}`).join('\n')
+    const progs = [
+      'G21 G90\nG0 Z5\nG0 X3 Y7\nG1 Z-0.1 F100\nG1 X37 Y22\nG2 X30 Y15 I-3.5 J-3.5\nG0 Z5\nM30',
+      'G20 G90\nG0 X0 Y0 Z0.2\nG1 Z-0.004 F4\nG1 X1.0 Y0.5\nG0 Z0.2\nM30',
+      'G90 G0 X0 Y10 Z1\nG91\nG1 Z-1.1 F100\nG1 X10\nG1 X7 Y3\nG0 Z5\nG90 G0 X0\nM30'
+    ]
+    for (const prog of progs) {
+      const a = interpretGcode(applyHeightMap(prog, num, { maxSegmentLength: 2 }))
+      const text = applyHeightMap(prog, vars, { maxSegmentLength: 2 })
+      expect(text).toMatch(/Z\[-?[\d.]+\+\[[\d.]+\*#5\d\d\]/)
+      expect(text).not.toMatch(/\*#500\b/) // point 1 is the reference, always 0
+      const b = interpretGcode(`${preset}\n${text}`)
+      // no expression / parameter errors (line numbers differ by the preset lines)
+      const plain = (ws: string[]): string[] => ws.map((x) => x.replace(/^Line \d+: /, ''))
+      expect(plain(b.warnings)).toEqual(plain(a.warnings))
+      expect(b.moves.length).toBe(a.moves.length)
+      b.moves.forEach((m, i) => {
+        for (let k = 0; k < 3; k++) expect(m.to[k]).toBeCloseTo(a.moves[i].to[k], 3)
+      })
+    }
+  })
+
+  it('Mach3 variables probe program and touch-off touch twice, fast then slow', () => {
+    const cfg = { ...defaultProbeGrid({ minX: 0, minY: 0, maxX: 30, maxY: 20 }, 10), cells: [0, 1, 2, 5, 6] }
+    const text = generateProbeProgram(cfg, machine({ postProcessor: 'mach3' }))
+    // every probed point: fast, up, slow, read through G92 and put the offset back
+    expect(text).toMatch(
+      /^G31 Z-2 F50\nG91\nG0 Z0\.2\nG90\nG31 Z-2 F10\nG92 Z0\n#501=\[#5213-#498\]\nG92 Z#501$/m
+    )
+    expect(text).toMatch(/^#501=\[#501-#500\]$/m)
+    expect(text).toMatch(/^#500=0$/m)
+    // cells 3, 4, 7 were not probed: filled from the nearest probed ones
+    expect(text).toMatch(/^#503=\[\[[\d.]+\*#5\d\d\]/m)
+    expect(text).not.toMatch(/^#505=\[\[/m)
+    expect(() =>
+      generateProbeProgram(
+        { ...defaultProbeGrid({ minX: 0, minY: 0, maxX: 300, maxY: 200 }, 5) },
+        machine({ postProcessor: 'mach3' })
+      )
+    ).toThrow(/at most 500 heights/)
+    const t = addZTouchOff('G21 G90\nM3 S10000\nG1 Z-0.1 F100\nM30', {
+      x: 0,
+      y: 0,
+      feed: 50,
+      safeZ: 5,
+      dialect: 'mach3',
+      slowFeed: MACH3_SLOW_FEED
+    })
+    expect(t).toMatch(/^G31 Z-1 F50\nG91\nG0 Z0\.2\nG90\nG31 Z-1 F10\nG92 Z0 /m)
   })
 
   it('linearises arcs, handles inches and relative mode', () => {

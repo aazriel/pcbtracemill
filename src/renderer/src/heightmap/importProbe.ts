@@ -92,7 +92,7 @@ export async function importProbeResults(): Promise<void> {
 // automation hook for the e2e / scripted checks
 declare global {
   interface Window {
-    __tmProbe?: { importProbeText: typeof importProbeText }
+    __tmProbe?: { importProbeText: typeof importProbeText; autoLevel: typeof useAutoLevel }
   }
 }
-window.__tmProbe = { importProbeText }
+window.__tmProbe = { importProbeText, autoLevel: useAutoLevel }

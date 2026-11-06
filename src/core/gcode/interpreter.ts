@@ -110,9 +110,13 @@ export function interpretGcode(text: string, opts: InterpretOptions = {}): Inter
     if (!spindleOn) warnOnce('spindle', `Line ${line + 1}: cutting move while the spindle is off`)
   }
 
+  // G-code parameters (#500 = ...). Values the program reads but never sets (probe results such as
+  // #5213, heights left by a probe program) count as 0, so moves land on the nominal Z.
+  const params = new Map<number, number>()
   for (let li = 0; li < lines.length; li++) {
-    const tok = tokenizeLine(lines[li])
+    const tok = tokenizeLine(lines[li], params)
     for (const e of tok.errors) warnings.push(`Line ${li + 1}: ${e}`)
+    for (const a of tok.assigns) params.set(a.param, a.value)
     if (tok.words.length === 0) {
       if (tok.comments.length) lastCommentOnlyText = tok.comments.join(' ')
       continue

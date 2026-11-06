@@ -546,6 +546,12 @@ export interface HeightMap {
   z: number[]
   /** When imported from a probe log. */
   source: string
+  /**
+   * The heights are not known to TraceMill: they stay in Mach3 G-code variables, cell k in
+   * `#(mach3Vars + k)` relative to point 1, written by the TraceMill probe program (D-025).
+   * Corrected files then use formulas such as Z[-0.1+0.25*#512] and `z` is all zeros.
+   */
+  mach3Vars?: number
 }
 
 // ─────────────────────────────────────────────────────────────── Project

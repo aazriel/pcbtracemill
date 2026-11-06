@@ -4,7 +4,7 @@
  */
 import { useEffect, useMemo, useState } from 'react'
 import type { GcodeFile, MachineProfile } from '@core/model/types'
-import { probePoints, type TouchOffOptions } from '@core/heightmap'
+import { MACH3_SLOW_FEED, probePoints, type TouchOffOptions } from '@core/heightmap'
 import { camWorker } from '@workers/index'
 import { useProject } from '@renderer/store/project'
 import { useUi } from '@renderer/store/ui'
@@ -76,7 +76,9 @@ export function useExportFiles(): { files: ExportFile[]; levelling: boolean; lev
       feed: map.config.probeFeed > 0 ? map.config.probeFeed : 50,
       safeZ: machine.safeZ,
       dialect: machine.postProcessor,
-      probeCommand: machine.probeCommand
+      probeCommand: machine.probeCommand,
+      // the Mach3 G-code-only heights were found with a fast + slow touch: find Z0 the same way
+      slowFeed: map.mach3Vars !== undefined ? MACH3_SLOW_FEED : undefined
     }
   }, [touchOffOn, map, machine])
   const key = useMemo(() => [base, map, touch], [base, map, touch])

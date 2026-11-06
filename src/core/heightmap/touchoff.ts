@@ -1,6 +1,7 @@
 import type { PostProcessorId } from '../model/types'
 import { tokenizeLine } from '../gcode/tokenize'
 import { fmtNum } from '../post/format'
+import { MACH3_RETOUCH_LIFT } from './probeProgram'
 
 export interface TouchOffOptions {
   /** The height-map reference point (point 1 of the probe grid), work coordinates mm. */
@@ -13,6 +14,11 @@ export interface TouchOffOptions {
   dialect: PostProcessorId
   /** Probe command for the generic dialect. */
   probeCommand?: string
+  /**
+   * Touch twice like the Mach3 G-code-only probe program: fast at `feed`, up 0.2 mm, then slowly
+   * at this feed – the height map was measured that way, so Z0 must be found that way too.
+   */
+  slowFeed?: number
 }
 
 /** The probe starts this far above the rough zero and searches this far below it (mm). */
@@ -72,6 +78,12 @@ export function addZTouchOff(gcode: string, o: TouchOffOptions): string {
           c('If nothing is touched Mach3 signals an error - watch the bit anyway, stop if it does not trip')
         )
       out.push(`${probe} Z${n(-TOUCH_OFF_REACH)} F${fmtNum(o.feed * s, 1)}`)
+      if (o.slowFeed) {
+        out.push('G91')
+        out.push(`G0 Z${n(MACH3_RETOUCH_LIFT)}`)
+        out.push('G90')
+        out.push(`${probe} Z${n(-TOUCH_OFF_REACH)} F${fmtNum(Math.min(o.feed, o.slowFeed) * s, 1)}`)
+      }
       out.push(`${setZero} ${c('Z0 = copper at point 1')}`)
       out.push(`G0 Z${n(o.safeZ)}`)
       out.push(`M0 ${c('Remove the probe clip from the bit, then press Cycle Start to mill')}`)

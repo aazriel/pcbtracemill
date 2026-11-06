@@ -9,7 +9,19 @@ describe('tokenizeLine', () => {
     expect(t.comments).toEqual(['cut', 'tail'])
     expect(tokenizeLine('G38.2 Z-2 F50').words[0].value).toBeCloseTo(38.2)
     expect(tokenizeLine('%').percent).toBe(true)
-    expect(tokenizeLine('G1 X#1').errors.length).toBe(1)
+    expect(tokenizeLine('G1 X#1').errors.length).toBe(0)
+    expect(tokenizeLine('G1 X#1', new Map([[1, 2.5]])).words[1].value).toBe(2.5)
+    expect(tokenizeLine('G1 Z[-0.1+[0.25*#512]]', new Map([[512, 0.4]])).words[1].value).toBeCloseTo(0)
+    expect(
+      tokenizeLine(
+        '#500=[#5213-#498]',
+        new Map([
+          [5213, 3],
+          [498, 1]
+        ])
+      ).assigns
+    ).toEqual([{ param: 500, value: 2 }])
+    expect(tokenizeLine('G1 X[1+').errors.length).toBe(1)
   })
 })
 

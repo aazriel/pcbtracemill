@@ -12,7 +12,7 @@ import {
   XCircle
 } from 'lucide-react'
 import { HELP } from '@core/help'
-import { PROBE_FAILURE_TIPS } from '@core/heightmap'
+import { mach3VariablesHeightMap, PROBE_FAILURE_TIPS } from '@core/heightmap'
 import { PanelSection } from '@renderer/components/ui/section'
 import { Button } from '@renderer/components/ui/button'
 import { Segmented, Switch } from '@renderer/components/ui/fields'
@@ -81,6 +81,7 @@ export function AutoLevelSection({
   onGenerate: () => void
 }): React.JSX.Element {
   const map = useProject((s) => s.heightMap)
+  const machine = useProject((s) => s.machine)
   const setHeightMap = useProject((s) => s.setHeightMap)
   const material = useProject((s) => s.material)
   const toast = useUi((s) => s.toast)
@@ -93,6 +94,9 @@ export function AutoLevelSection({
   const corrected = files.filter((f) => f.levelled)
   const skipped = files.filter((f) => f.levelSkip)
   const on = al.apply && !!map
+  // Mach3 G-code-only probing: the heights stay in Mach3, there is nothing to load
+  const varsMode = machine?.postProcessor === 'mach3' && al.probeRecorder === 'variables' && !!al.probeCfg
+  const isVarsMap = map?.mach3Vars !== undefined
 
   const saveCorrected = async (): Promise<void> => {
     setSaving(true)
@@ -170,18 +174,60 @@ export function AutoLevelSection({
             </p>
           </Step>
 
-          <Step n={2} title="Run it, then load the results" done={!!map} failed={failed && !map}>
-            <p className="text-[11px] text-slate-500">
-              Load the file your controller wrote while probing (.txt, .csv, .log…).
-            </p>
-            <Button
-              size="sm"
-              variant="secondary"
-              data-testid="probe-import"
-              onClick={() => void importProbeResults()}
-            >
-              <Upload /> {map || failed ? 'Load other results…' : 'Load probe results…'}
-            </Button>
+          <Step
+            n={2}
+            title={varsMode || isVarsMap ? 'Run it in Mach3' : 'Run it, then load the results'}
+            done={!!map}
+            failed={failed && !map}
+          >
+            {varsMode && !isVarsMap ? (
+              <>
+                <p className="text-[11px] text-slate-500">
+                  Mach3 keeps every height in its variables – there is no file to load. When the probe program
+                  has finished, press:
+                </p>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  data-testid="probe-vars-done"
+                  onClick={() => al.probeCfg && setHeightMap(mach3VariablesHeightMap(al.probeCfg))}
+                >
+                  <CheckCircle2 /> Probing done
+                </Button>
+              </>
+            ) : (
+              !isVarsMap && (
+                <>
+                  <p className="text-[11px] text-slate-500">
+                    Load the file your controller wrote while probing (.txt, .csv, .log…).
+                  </p>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    data-testid="probe-import"
+                    onClick={() => void importProbeResults()}
+                  >
+                    <Upload /> {map || failed ? 'Load other results…' : 'Load probe results…'}
+                  </Button>
+                </>
+              )
+            )}
+            {isVarsMap && map && (
+              <div
+                className="flex flex-col gap-1 rounded-md border border-emerald-600/40 bg-emerald-500/10 p-2 text-[11px] text-emerald-100"
+                data-testid="probe-vars-info"
+              >
+                <div className="flex items-center gap-1 font-semibold text-emerald-200">
+                  <CheckCircle2 className="size-3.5 shrink-0" />
+                  {map.config.countX} × {map.config.countY} heights kept in Mach3 (
+                  {map.source.replace(/^Mach3 variables /, '')})
+                </div>
+                <span className="leading-snug text-emerald-100/80">
+                  The corrected files read them. Mill in the same Mach3 session – if Mach3 was closed, run the
+                  probe program again first.
+                </span>
+              </div>
+            )}
             {failed && info && (
               <div
                 className="flex flex-col gap-1.5 rounded-md border border-rose-500/50 bg-rose-500/10 p-2 text-[11px] text-rose-100"
@@ -203,7 +249,7 @@ export function AutoLevelSection({
                 </ul>
               </div>
             )}
-            {map && r && (
+            {map && r && !isVarsMap && (
               <div className="flex flex-col gap-1.5 rounded-md border border-emerald-600/40 bg-emerald-500/10 p-2 text-[11px] text-emerald-100">
                 <div className="flex items-center gap-1 font-semibold text-emerald-200">
                   <CheckCircle2 className="size-3.5 shrink-0" />
