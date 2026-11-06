@@ -70,7 +70,7 @@ describe('probe programs (golden)', () => {
       /\(PROBEOPEN probe-results.txt\)[\s\S]*\(PROBECLOSE\)/
     )
     expect(generateProbeProgram(cfg, machine({ postProcessor: 'mach3' }))).toMatch(
-      /^M40[\s\S]*^G31 Z-2 F50$[\s\S]*^M41/m
+      /^M401[\s\S]*^G31 Z-2 F50\nM402 /m
     )
     expect(generateProbeProgram(cfg, machine({ postProcessor: 'grbl' }))).toMatch(/^G38.2 Z-2 F50$/m)
   })

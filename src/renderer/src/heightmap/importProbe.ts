@@ -9,7 +9,7 @@ const ACCEPT = '.txt,.csv,.log,.nc,.tap,.ngc,.gcode,.xyz,.dig,.dat,.tsv'
 export const FORMAT_LABELS: Record<string, string> = {
   grbl: 'GRBL console log ([PRB:…] lines)',
   linuxcnc: 'LinuxCNC probe file (x y z)',
-  mach3: 'Mach3 digitize file (x,y,z)',
+  mach3: 'Mach3 results file (x,y,z)',
   csv: 'Table with x / y / z columns',
   unknown: 'Unknown format'
 }

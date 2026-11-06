@@ -7,6 +7,57 @@ type ProbeDialect = 'grbl' | 'linuxcnc' | 'mach3' | 'generic'
 /** File name LinuxCNC writes probe results to (relative to the LinuxCNC config directory). */
 export const LINUXCNC_PROBE_FILE = 'probe-results.txt'
 
+/** Where the TraceMill Mach3 macros write the probe results (editable at the top of the macros). */
+export const MACH3_PROBE_FILE = 'C:/Mach3/TraceMill-probe.txt'
+
+/**
+ * Mach3 macros used by the probe program instead of the built-in digitize file (M40/M41). The
+ * digitize file is written when the G31 is *interpreted*, which with many motion-controller plugins
+ * (UC100, ESS, …) happens before the move is finished: it then holds the target Z and stale X/Y
+ * although the machine probed correctly. M402 waits until the machine has stopped and writes the
+ * DRO position, which is where the probe really stopped.
+ */
+const CRLF = String.fromCharCode(13, 10)
+
+export function mach3ProbeMacros(file = MACH3_PROBE_FILE): { name: string; text: string }[] {
+  const head = (what: string): string[] => [
+    `' TraceMill - ${what}`,
+    "' Copy into the folder Mach3/macros/<your profile, e.g. Mach3Mill>/ and restart Mach3.",
+    `Const ResultFile = "${file}"`
+  ]
+  return [
+    {
+      name: 'M401.m1s',
+      text:
+        [
+          ...head('M401: start a new probe results file (used by the TraceMill probe program).'),
+          'Open ResultFile For Output As #1',
+          'Close #1',
+          'Message "TraceMill probing: results go to " & ResultFile'
+        ].join(CRLF) + CRLF
+    },
+    {
+      name: 'M402.m1s',
+      text:
+        [
+          ...head('M402: write where the probe stopped (call right after every G31).'),
+          "' Wait until the machine has really stopped, then read the position (DROs, work coordinates).",
+          'While IsMoving()',
+          '  Sleep 20',
+          'Wend',
+          'Sleep 50',
+          'x = GetDRO(0)',
+          'y = GetDRO(1)',
+          'z = GetDRO(2)',
+          "' Str() always writes a decimal point, whatever the Windows language settings are.",
+          'Open ResultFile For Append As #1',
+          'Print #1, Trim(Str(x)) & "," & Trim(Str(y)) & "," & Trim(Str(z))',
+          'Close #1'
+        ].join(CRLF) + CRLF
+    }
+  ]
+}
+
 /**
  * Generate a serpentine grid probing program for auto-levelling.
  *
@@ -58,11 +109,11 @@ export function generateProbeProgram(cfg: ProbeGridConfig, machine: MachineProfi
       c(`RESULTS: written to ${LINUXCNC_PROBE_FILE} in the LinuxCNC config directory. Import that file.`)
     )
   } else if (dialect === 'mach3') {
-    L.push(
-      c('RESULTS: M40 / M41 must exist as macros: M40.m1s containing OpenDigFile and M41.m1s CloseDigFile.')
-    )
-    L.push(c('M40 asks for a file name, each G31 then appends X,Y,Z to it. Import that file.'))
-    L.push(c('Without the macros, remove M40/M41 and note #2000-#2002 X,Y,Z after every G31 manually.'))
+    L.push(c('RESULTS: needs the TraceMill macros M401.m1s and M402.m1s in C:/Mach3/macros/<profile>/'))
+    L.push(c('Save them from the TraceMill probe dialog. M401 starts the file, M402 after every G31'))
+    L.push(c(`waits for the machine to stop and writes the DRO X,Y,Z to ${MACH3_PROBE_FILE}`))
+    L.push(c('Import that file. The Mach3 digitize file M40/M41 is not used: with many motion'))
+    L.push(c('controllers it records the target Z and old X/Y instead of where the probe stopped.'))
     L.push(
       c('WARNING: Mach3 G31 does not stop with an error when nothing is touched - watch the first point.')
     )
@@ -76,14 +127,14 @@ export function generateProbeProgram(cfg: ProbeGridConfig, machine: MachineProfi
   if (dialect === 'mach3') L.push('G91.1')
   L.push(`G0 Z${n(clear)}`)
   if (dialect === 'linuxcnc') L.push(`(PROBEOPEN ${LINUXCNC_PROBE_FILE})`)
-  if (dialect === 'mach3') L.push('M40 (open digitize file)')
+  if (dialect === 'mach3') L.push('M401 (TraceMill: start a new results file)')
   pts.forEach((p, i) => {
     L.push(`G0 X${n(p.x)} Y${n(p.y)}${i === 0 ? ' (first point = height reference)' : ''}`)
     L.push(`${probe} Z${n(depth)} F${fmtNum(feed, 1)}`)
+    if (dialect === 'mach3') L.push('M402 (TraceMill: write where the probe stopped)')
     L.push(`G0 Z${n(clear)}`)
   })
   if (dialect === 'linuxcnc') L.push('(PROBECLOSE)')
-  if (dialect === 'mach3') L.push('M41 (close digitize file)')
   L.push(`G0 X${n(pts[0].x)} Y${n(pts[0].y)}`)
   L.push(c('Probing finished. Remove the probe clip before milling.'))
   L.push(dialect === 'linuxcnc' ? 'M2' : 'M30')

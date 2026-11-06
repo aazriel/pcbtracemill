@@ -11,7 +11,7 @@ export {
   DEFAULT_CLEARANCE_Z
 } from './grid'
 export type { ProbePoint, ProbeArea } from './grid'
-export { generateProbeProgram, LINUXCNC_PROBE_FILE } from './probeProgram'
+export { generateProbeProgram, LINUXCNC_PROBE_FILE, MACH3_PROBE_FILE, mach3ProbeMacros } from './probeProgram'
 export { parseProbeResults } from './parse'
 export type { ParsedProbeResults, ProbeLogFormat } from './parse'
 export { applyHeightMap } from './apply'
