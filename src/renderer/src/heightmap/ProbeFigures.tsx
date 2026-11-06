@@ -326,3 +326,245 @@ export function ProbeAreaFigure(): ReactNode {
     </Scene>
   )
 }
+
+/** Tiny picture for each "Area to measure" choice: which points get measured. */
+export function AreaChoiceArt({ kind }: { kind: 'board' | 'stock' | 'custom' }): ReactNode {
+  const dots: ReactNode[] = []
+  for (let j = 0; j < 4; j++)
+    for (let i = 0; i < 6; i++) {
+      const x = 12 + i * 8
+      const y = 9 + j * 8
+      const inBoard = Math.hypot(x - 32, y - 21) <= 16
+      const inCustom = x >= 20 && x <= 44 && y >= 9 && y <= 25
+      const on = kind === 'stock' || (kind === 'board' ? inBoard : inCustom)
+      dots.push(
+        <circle key={`${i}-${j}`} cx={x} cy={y} r={on ? 1.5 : 0.9} fill={on ? '#e2e8f0' : '#475569'} />
+      )
+    }
+  return (
+    <svg viewBox="0 0 64 42" className="h-9 w-14" aria-hidden>
+      <rect
+        x={3}
+        y={2}
+        width={58}
+        height={38}
+        rx={2}
+        fill="#d08a4a"
+        opacity={0.18}
+        stroke="#d99554"
+        strokeDasharray="2 1.5"
+        strokeWidth={0.6}
+      />
+      <circle cx={32} cy={21} r={15} fill="none" stroke="#34d399" strokeWidth={0.9} />
+      {kind === 'custom' && (
+        <rect
+          x={17}
+          y={6}
+          width={30}
+          height={22}
+          fill="rgba(56,189,248,0.12)"
+          stroke={AREA}
+          strokeDasharray="2 1.5"
+          strokeWidth={0.8}
+        >
+          <animate
+            attributeName="width"
+            values="0;30;30"
+            keyTimes="0;0.6;1"
+            dur="2.4s"
+            repeatCount="indefinite"
+          />
+          <animate
+            attributeName="height"
+            values="0;22;22"
+            keyTimes="0;0.6;1"
+            dur="2.4s"
+            repeatCount="indefinite"
+          />
+        </rect>
+      )}
+      {dots}
+    </svg>
+  )
+}
+
+/** The mouse pointer of the hints (tip at 0,0). */
+function Pointer(): ReactNode {
+  return (
+    <path d="M0 0 L0 22 L6 16 L10 26 L14 24 L10 14 L18 14 Z" fill="#fff" stroke="#0f172a" strokeWidth={1.5} />
+  )
+}
+
+const HINT_TEXT: Record<'rect' | 'circle' | 'polygon', string> = {
+  rect: 'Drag on the picture to draw a rectangle',
+  circle: 'Drag from the centre outwards to draw a circle',
+  polygon: 'Click the corners; click the first point (or double-click) to finish'
+}
+
+/**
+ * Shown over the probe preview in "Custom" until the user drew an area once, so it is obvious the
+ * picture can be drawn on: a pointer drags a rectangle open, drags a circle out from its centre, or
+ * clicks the corners of a polygon, depending on the chosen shape.
+ */
+export function DrawAreaHint({ tool = 'rect' }: { tool?: 'rect' | 'circle' | 'polygon' }): ReactNode {
+  return (
+    <div
+      className="pointer-events-none absolute inset-0 flex flex-col items-center"
+      data-testid="probe-draw-hint"
+    >
+      <div className="z-[1] mt-3 rounded-full bg-sky-500/90 px-3 py-1 text-xs font-semibold text-white shadow-lg">
+        {HINT_TEXT[tool]}
+      </div>
+      <svg
+        viewBox="0 0 400 300"
+        className="absolute inset-0 size-full"
+        preserveAspectRatio="xMidYMid meet"
+        aria-hidden
+      >
+        {tool === 'rect' && <RectHint />}
+        {tool === 'circle' && <CircleHint />}
+        {tool === 'polygon' && <PolygonHint />}
+      </svg>
+    </div>
+  )
+}
+
+const HINT_STROKE = {
+  fill: 'rgba(56,189,248,0.15)',
+  stroke: '#7dd3fc',
+  strokeWidth: 2,
+  strokeDasharray: '6 4'
+}
+
+function RectHint(): ReactNode {
+  const dur = '2.6s'
+  const k = '0;0.15;0.7;1'
+  return (
+    <>
+      <rect x={130} y={95} width={0} height={0} {...HINT_STROKE}>
+        <animate attributeName="width" values="0;0;140;140" keyTimes={k} dur={dur} repeatCount="indefinite" />
+        <animate
+          attributeName="height"
+          values="0;0;110;110"
+          keyTimes={k}
+          dur={dur}
+          repeatCount="indefinite"
+        />
+      </rect>
+      <g>
+        <animateTransform
+          attributeName="transform"
+          type="translate"
+          values="130 95;130 95;270 205;270 205"
+          keyTimes={k}
+          dur={dur}
+          repeatCount="indefinite"
+        />
+        <Pointer />
+      </g>
+    </>
+  )
+}
+
+function CircleHint(): ReactNode {
+  const dur = '2.6s'
+  const k = '0;0.15;0.7;1'
+  return (
+    <>
+      <circle cx={200} cy={150} r={0} {...HINT_STROKE}>
+        <animate attributeName="r" values="0;0;85;85" keyTimes={k} dur={dur} repeatCount="indefinite" />
+      </circle>
+      <circle cx={200} cy={150} r={3} fill="#facc15" />
+      <line x1={200} y1={150} x2={200} y2={150} stroke="#facc15" strokeDasharray="3 3">
+        <animate
+          attributeName="x2"
+          values="200;200;285;285"
+          keyTimes={k}
+          dur={dur}
+          repeatCount="indefinite"
+        />
+      </line>
+      <g>
+        <animateTransform
+          attributeName="transform"
+          type="translate"
+          values="200 150;200 150;285 150;285 150"
+          keyTimes={k}
+          dur={dur}
+          repeatCount="indefinite"
+        />
+        <Pointer />
+      </g>
+    </>
+  )
+}
+
+function PolygonHint(): ReactNode {
+  const P = [
+    [150, 90],
+    [270, 105],
+    [285, 205],
+    [170, 215],
+    [150, 90]
+  ]
+  const dur = 4
+  // pointer reaches corner i at time t[i]; each corner appears when it is clicked
+  const t = [0.05, 0.25, 0.45, 0.65, 0.85]
+  const keyTimes = ['0', ...t.map(String), '1'].join(';')
+  const pos = [P[0], ...P, P[4]].map(([x, y]) => `${x} ${y}`).join(';')
+  return (
+    <>
+      {P.slice(0, 4).map(([x, y], i) => {
+        const [nx, ny] = P[i + 1]
+        return (
+          <line key={i} x1={x} y1={y} x2={nx} y2={ny} stroke="#7dd3fc" strokeWidth={2} opacity={0}>
+            <animate
+              attributeName="opacity"
+              values="0;0;1;1;0"
+              keyTimes={`0;${t[i + 1]};${t[i + 1] + 0.01};0.97;1`}
+              dur={`${dur}s`}
+              repeatCount="indefinite"
+            />
+          </line>
+        )
+      })}
+      <polygon
+        points={P.slice(0, 4)
+          .map(([x, y]) => `${x},${y}`)
+          .join(' ')}
+        fill="rgba(56,189,248,0.15)"
+        opacity={0}
+      >
+        <animate
+          attributeName="opacity"
+          values="0;0;1;0"
+          keyTimes="0;0.85;0.9;1"
+          dur={`${dur}s`}
+          repeatCount="indefinite"
+        />
+      </polygon>
+      {P.slice(0, 4).map(([x, y], i) => (
+        <circle key={i} cx={x} cy={y} r={i === 0 ? 6 : 4} fill={i === 0 ? '#facc15' : '#7dd3fc'} opacity={0}>
+          <animate
+            attributeName="opacity"
+            values="0;0;1;1;0"
+            keyTimes={`0;${t[i]};${t[i] + 0.01};0.97;1`}
+            dur={`${dur}s`}
+            repeatCount="indefinite"
+          />
+        </circle>
+      ))}
+      <g>
+        <animateTransform
+          attributeName="transform"
+          type="translate"
+          values={pos}
+          keyTimes={keyTimes}
+          dur={`${dur}s`}
+          repeatCount="indefinite"
+        />
+        <Pointer />
+      </g>
+    </>
+  )
+}

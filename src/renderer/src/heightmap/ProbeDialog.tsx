@@ -1,6 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, ArrowLeft, ArrowRight, Loader2, ShieldAlert, Save } from 'lucide-react'
-import type { ProbeGridConfig } from '@core/model/types'
+import {
+  AlertTriangle,
+  ArrowLeft,
+  ArrowRight,
+  Circle,
+  Loader2,
+  Pentagon,
+  ShieldAlert,
+  Save,
+  Square
+} from 'lucide-react'
+import type { Path, ProbeGridConfig } from '@core/model/types'
 import { HELP } from '@core/help'
 import { cellsNearShape, defaultProbeGrid, gridStep, probePoints } from '@core/heightmap'
 import { camWorker } from '@workers/index'
@@ -13,7 +23,7 @@ import { useProject } from '@renderer/store/project'
 import { useUi } from '@renderer/store/ui'
 import { saveOne } from '@renderer/export/exportFiles'
 import { boardProbeArea, estimateProbeSeconds, stockProbeArea, useWorkScene } from './geometry'
-import { ProbePreview } from './ProbePreview'
+import { ProbePreview, type DrawTool } from './ProbePreview'
 import {
   ConnectIllustration,
   ContinuityIllustration,
@@ -23,6 +33,8 @@ import {
 } from './ProbeIllustrations'
 import { PROBE_CFG_SETTINGS_KEY, useAutoLevel } from './state'
 import {
+  AreaChoiceArt,
+  DrawAreaHint,
   ProbeAreaFigure,
   ProbeDepthFigure,
   ProbeLiftFigure,
@@ -191,6 +203,12 @@ function IntroPage({
 type GridMode = 'spacing' | 'count'
 type AreaMode = 'board' | 'stock' | 'custom'
 
+const AREA_CHOICES: { value: AreaMode; label: string; text: string }[] = [
+  { value: 'board', label: 'Board shape', text: 'Around the board outline + 2 mm' },
+  { value: 'stock', label: 'Whole material', text: 'The full sheet, 3 mm in from its edges' },
+  { value: 'custom', label: 'Custom', text: 'Drag on the picture or type the edges' }
+]
+
 export function ProbeDialog({
   open,
   onOpenChange
@@ -210,6 +228,11 @@ export function ProbeDialog({
   const [spacing, setSpacing] = useState(10)
   const [cfg, setCfg] = useState<ProbeGridConfig | null>(null)
   const [areaMode, setAreaMode] = useState<AreaMode>('board')
+  /** The user drew an area on the picture once: the "drag here" hint is no longer needed. */
+  const [drewOnce, setDrewOnce] = useState(false)
+  const [drawTool, setDrawTool] = useState<DrawTool>('rect')
+  /** Custom area drawn as a circle or polygon (null: the plain rectangle of the edges). */
+  const [customShape, setCustomShape] = useState<Path | null>(null)
   const [saving, setSaving] = useState(false)
 
   // Initialise the grid when the dialog opens (last saved grid, else the board shape).
@@ -245,10 +268,14 @@ export function ProbeDialog({
   const live = useMemo<ProbeGridConfig | null>(() => {
     if (!cfg) return null
     const { cells: _old, ...base } = cfg
+    if (areaMode === 'custom' && customShape) {
+      const cells = cellsNearShape(base, [{ outer: customShape, holes: [] }], 0, false)
+      return cells ? { ...base, cells } : base
+    }
     if (areaMode !== 'board' || !scene) return base
     const cells = cellsNearShape(base, scene.shape, 2)
     return cells ? { ...base, cells } : base
-  }, [cfg, areaMode, scene])
+  }, [cfg, areaMode, scene, customShape])
 
   const withSpacing = (c: ProbeGridConfig, sp: number): ProbeGridConfig => {
     const g = defaultProbeGrid(c, sp)
@@ -397,6 +424,7 @@ export function ProbeDialog({
                     value={al.measuredSide}
                     onChange={(v) => {
                       al.set({ measuredSide: v })
+                      setCustomShape(null)
                       if (areaMode !== 'custom') setCfg(null)
                     }}
                     options={[
@@ -417,40 +445,70 @@ export function ProbeDialog({
                     </div>
                   </HelpTip>
                 </div>
-                <Segmented
-                  stretch
-                  value={areaMode}
-                  onChange={(v) => {
-                    setAreaMode(v)
-                    if (v === 'board' && boardArea) setArea(boardArea)
-                    else if (v === 'stock' && stockArea) setArea(stockArea)
-                  }}
-                  options={[
-                    { value: 'board', label: 'Board shape' },
-                    { value: 'stock', label: 'Whole material' },
-                    { value: 'custom', label: 'Custom' }
-                  ]}
-                />
-                <p className="text-[11px] leading-snug text-slate-400" data-testid="probe-area-note">
-                  {areaMode === 'board' ? (
-                    followsShape && stats ? (
-                      <>
-                        Follows the board outline + 2 mm: <b className="text-slate-200">{stats.n}</b> of the{' '}
-                        {stats.all} grid points are measured. Points far from the board are skipped (shown
-                        faint) and filled in from their neighbours.
-                      </>
-                    ) : (
-                      'The board plus 2 mm all around.'
-                    )
-                  ) : areaMode === 'stock' ? (
-                    'The whole sheet, 3 mm in from its edges (clear of clamps).'
-                  ) : (
-                    <>
-                      <b className="text-sky-300">Drag on the picture</b> to draw the area, or type its edges
-                      below.
-                    </>
-                  )}
-                </p>
+                <div className="grid grid-cols-3 gap-1.5" role="radiogroup" aria-label="Area to measure">
+                  {AREA_CHOICES.map((c) => (
+                    <button
+                      key={c.value}
+                      type="button"
+                      role="radio"
+                      aria-checked={areaMode === c.value}
+                      onClick={() => {
+                        setAreaMode(c.value)
+                        setCustomShape(null)
+                        if (c.value === 'board' && boardArea) setArea(boardArea)
+                        else if (c.value === 'stock' && stockArea) setArea(stockArea)
+                      }}
+                      className={cn(
+                        'flex flex-col items-center gap-1 rounded-lg border px-1.5 pb-1.5 pt-1 text-center transition-colors',
+                        areaMode === c.value
+                          ? 'border-sky-500 bg-sky-500/10 ring-1 ring-sky-500/50'
+                          : 'border-slate-700 bg-slate-900 hover:border-slate-500'
+                      )}
+                      data-testid={`probe-area-${c.value}`}
+                    >
+                      <AreaChoiceArt kind={c.value} />
+                      <span
+                        className={cn(
+                          'text-xs font-semibold',
+                          areaMode === c.value ? 'text-sky-200' : 'text-slate-200'
+                        )}
+                      >
+                        {c.label}
+                      </span>
+                      <span className="text-[10.5px] leading-tight text-slate-400">{c.text}</span>
+                    </button>
+                  ))}
+                </div>
+                {areaMode === 'custom' && (
+                  <div className="flex items-center gap-1.5" data-testid="probe-draw-tools">
+                    <span className="text-[11px] text-slate-400">Draw a</span>
+                    <Segmented
+                      size="sm"
+                      value={drawTool}
+                      onChange={(t) => {
+                        setDrawTool(t)
+                        setDrewOnce(false)
+                      }}
+                      options={[
+                        { value: 'rect', label: <ToolLabel icon={<Square />} text="Rectangle" /> },
+                        { value: 'circle', label: <ToolLabel icon={<Circle />} text="Circle" /> },
+                        { value: 'polygon', label: <ToolLabel icon={<Pentagon />} text="Polygon" /> }
+                      ]}
+                    />
+                  </div>
+                )}
+                {areaMode === 'custom' && customShape && stats && (
+                  <p className="text-[11px] leading-snug text-slate-400">
+                    <b className="text-slate-200">{stats.n}</b> of {stats.all} grid points are inside your
+                    shape.
+                  </p>
+                )}
+                {areaMode === 'board' && followsShape && stats && (
+                  <p className="text-[11px] leading-snug text-slate-400" data-testid="probe-area-note">
+                    <b className="text-slate-200">{stats.n}</b> of {stats.all} grid points are near your
+                    board; the others (faint) are skipped and filled in from their neighbours.
+                  </p>
+                )}
                 {areasAlike && (
                   <p className="text-[11px] leading-snug text-slate-500">
                     Your material is only a little larger than the board, so these two are almost the same.
@@ -463,6 +521,7 @@ export function ProbeDialog({
                     value={round(cfg.minX)}
                     onChange={(v) => {
                       setAreaMode('custom')
+                      setCustomShape(null)
                       setArea({ ...cfg, minX: v })
                     }}
                     {...fig('Distance from X0 to the left side of the area.', <ProbeAreaFigure />)}
@@ -473,6 +532,7 @@ export function ProbeDialog({
                     value={round(cfg.maxX)}
                     onChange={(v) => {
                       setAreaMode('custom')
+                      setCustomShape(null)
                       setArea({ ...cfg, maxX: v })
                     }}
                     {...fig('Distance from X0 to the right side of the area.', <ProbeAreaFigure />)}
@@ -483,6 +543,7 @@ export function ProbeDialog({
                     value={round(cfg.minY)}
                     onChange={(v) => {
                       setAreaMode('custom')
+                      setCustomShape(null)
                       setArea({ ...cfg, minY: v })
                     }}
                     {...fig(
@@ -496,6 +557,7 @@ export function ProbeDialog({
                     value={round(cfg.maxY)}
                     onChange={(v) => {
                       setAreaMode('custom')
+                      setCustomShape(null)
                       setArea({ ...cfg, maxY: v })
                     }}
                     {...fig('Distance from Y0 to the back side of the area.', <ProbeAreaFigure />)}
@@ -616,21 +678,34 @@ export function ProbeDialog({
               )}
             </div>
             <div className="flex min-w-0 flex-1 flex-col gap-2">
-              <div className="rounded-lg border border-slate-800 bg-slate-950 p-2">
+              <div className="relative rounded-lg border border-slate-800 bg-slate-950 p-2">
+                {areaMode === 'custom' && !drewOnce && <DrawAreaHint tool={drawTool} />}
                 <ProbePreview
                   scene={scene}
                   cfg={live ?? cfg}
+                  tool={drawTool}
+                  areaShape={areaMode === 'custom' ? customShape : null}
                   className="h-[470px] w-full"
                   onDraw={
                     areaMode === 'custom'
-                      ? (a) => {
+                      ? (shape) => {
+                          setDrewOnce(true)
+                          // keep the drawing on the material
                           const s = scene.stock
+                          const inside = shape.map((q) => ({
+                            x: Math.min(s.maxX, Math.max(s.minX, q.x)),
+                            y: Math.min(s.maxY, Math.max(s.minY, q.y))
+                          }))
+                          const xs = inside.map((q) => q.x)
+                          const ys = inside.map((q) => q.y)
                           setArea({
-                            minX: Math.max(s.minX, a.minX),
-                            minY: Math.max(s.minY, a.minY),
-                            maxX: Math.min(s.maxX, a.maxX),
-                            maxY: Math.min(s.maxY, a.maxY)
+                            minX: Math.min(...xs),
+                            minY: Math.min(...ys),
+                            maxX: Math.max(...xs),
+                            maxY: Math.max(...ys)
                           })
+                          // a rectangle is just the edges; a circle / polygon also limits the points
+                          setCustomShape(drawTool === 'rect' ? null : inside)
                         }
                       : undefined
                   }
@@ -652,6 +727,15 @@ export function ProbeDialog({
 }
 
 const round = (v: number): number => Math.round(v * 100) / 100
+
+function ToolLabel({ icon, text }: { icon: React.ReactNode; text: string }): React.JSX.Element {
+  return (
+    <span className="flex items-center gap-1 [&_svg]:size-3">
+      {icon}
+      {text}
+    </span>
+  )
+}
 const fmt1 = (v: number): string => String(Math.round(v * 10) / 10)
 
 function Legend({

@@ -39,3 +39,11 @@ describe('probe grid that follows the board shape', () => {
     expect(map.z[c]).toBeCloseTo(plane(50, 50) - plane(first.x, first.y), 6)
   })
 })
+
+describe('probe grid inside a drawn shape', () => {
+  it('keeps only the points inside, with no extra ring outside', () => {
+    const cells = cellsNearShape(grid, disc, 0, false)!
+    for (const p of probePoints({ ...grid, cells }))
+      expect(Math.hypot(p.x - 50, p.y - 50)).toBeLessThanOrEqual(50.01)
+  })
+})
