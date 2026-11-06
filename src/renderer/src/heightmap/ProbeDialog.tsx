@@ -685,6 +685,7 @@ export function ProbeDialog({
                   cfg={live ?? cfg}
                   tool={drawTool}
                   areaShape={areaMode === 'custom' ? customShape : null}
+                  onDrawStart={() => setDrewOnce(true)}
                   className="h-[470px] w-full"
                   onDraw={
                     areaMode === 'custom'
