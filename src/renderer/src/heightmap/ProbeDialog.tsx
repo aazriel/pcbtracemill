@@ -391,6 +391,14 @@ export function ProbeDialog({
       if (!ok) return
       const isMach3 = machine.postProcessor === 'mach3'
       al.set({ probeSaved: true, probeCfg: live, probeRecorder: isMach3 ? mach3Recorder : null })
+      // A Mach3 variables map belongs to one grid: corrected files made for another grid would read
+      // the wrong variables, so a new grid drops it until "Probing done" is pressed again.
+      const cur = useProject.getState().heightMap
+      const dropped = cur?.mach3Vars !== undefined && JSON.stringify(cur.config) !== JSON.stringify(live)
+      if (dropped) {
+        useProject.getState().setHeightMap(null)
+        al.set({ apply: false, importInfo: null })
+      }
       void window.tracemill
         ?.settingsSet(PROBE_CFG_SETTINGS_KEY, { cfg: live, side: al.measuredSide })
         .catch(() => undefined)
@@ -399,7 +407,7 @@ export function ProbeDialog({
         isMach3 && mach3Recorder === 'macros'
           ? 'Probe program saved. It needs the TraceMill Mach3 macros M401 / M402 – save them with "Mach3 macros…" if you have not yet.'
           : isMach3 && mach3Recorder === 'variables'
-            ? 'Probe program saved. Run it in Mach3 – the heights stay in Mach3, there is no file to load. Then press “Probing done” (step 2).'
+            ? `Probe program saved. Run it in Mach3 – the heights stay in Mach3, there is no file to load. Then press “Probing done” (step 2)${dropped ? ' and save the corrected files again: the grid changed, so the old height map was removed' : ''}.`
             : 'Probe program saved. Run it on your machine, then import the results (step 2).'
       )
       if (machine.postProcessor !== 'mach3' || mach3Recorder !== 'macros') onOpenChange(false)
