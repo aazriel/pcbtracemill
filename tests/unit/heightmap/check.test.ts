@@ -97,7 +97,7 @@ describe('Mach3 recorder option', () => {
     const machine = { postProcessor: 'mach3', decimals: 4, probeCommand: 'G31' } as never
     const def = generateProbeProgram(grid, machine)
     expect(def).not.toMatch(/^M40 |M402/m)
-    expect(def).toMatch(/^#500=\[#5213-#498\]$/m)
+    expect(def).toMatch(/^#500=#5213$/m)
     const dig = generateProbeProgram(grid, machine, { mach3Recorder: 'digitize' })
     expect(dig).toMatch(/^M40 /m)
     expect(dig).not.toMatch(/M402|#5213/)

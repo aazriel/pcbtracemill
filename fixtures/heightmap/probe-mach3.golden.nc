@@ -6,7 +6,7 @@
 (SAFETY: start with the bit ABOVE the board, spindle OFF)
 (SAFETY: probe with a sturdy bit - flat end mill or steel pin - not a V-bit, a thin tip breaks)
 (SETUP: zero X/Y as for milling and zero Z on the copper at the first point X0 Y0)
-(Work offsets stay as they are - G92 is used for a moment at each point and put back. Heights are relative to point 1.)
+(Zero Z with the Zero Z button G54. Any G92 offset is cleared G92.1 - G92 is used only to read each height. Heights are relative to point 1.)
 (After a bit change Z0 must be at the copper of the first point again.)
 (TraceMill corrected files can find it with the probe - set Z only roughly then.)
 (RESULTS: no file. Every height is kept in Mach3 variables)
@@ -18,9 +18,10 @@
 G21
 G90 G94 G17
 G91.1
+G92.1 (clear any G92 offset)
+M0 (Check the Z DRO: if it changed, zero Z on the copper at point 1 again with Zero Z, then press Cycle Start)
 G0 Z2
 #499=0 (heights not complete yet)
-#498=#5213 (keep the G92 Z offset that is active now)
 G0 X0 Y0 (first point = height reference)
 G31 Z-2 F50
 G91
@@ -28,8 +29,8 @@ G0 Z0.25
 G90
 G31 Z-2 F10
 G92 Z0
-#500=[#5213-#498]
-G92 Z#500
+#500=#5213
+G92.1
 G0 Z2
 G0 X10 Y0
 G31 Z-2 F50
@@ -38,8 +39,8 @@ G0 Z0.25
 G90
 G31 Z-2 F10
 G92 Z0
-#501=[#5213-#498]
-G92 Z#501
+#501=#5213
+G92.1
 G0 Z2
 G0 X20 Y0
 G31 Z-2 F50
@@ -48,8 +49,8 @@ G0 Z0.25
 G90
 G31 Z-2 F10
 G92 Z0
-#502=[#5213-#498]
-G92 Z#502
+#502=#5213
+G92.1
 G0 Z2
 G0 X20 Y10
 G31 Z-2 F50
@@ -58,8 +59,8 @@ G0 Z0.25
 G90
 G31 Z-2 F10
 G92 Z0
-#505=[#5213-#498]
-G92 Z#505
+#505=#5213
+G92.1
 G0 Z2
 G0 X10 Y10
 G31 Z-2 F50
@@ -68,8 +69,8 @@ G0 Z0.25
 G90
 G31 Z-2 F10
 G92 Z0
-#504=[#5213-#498]
-G92 Z#504
+#504=#5213
+G92.1
 G0 Z2
 G0 X0 Y10
 G31 Z-2 F50
@@ -78,8 +79,8 @@ G0 Z0.25
 G90
 G31 Z-2 F10
 G92 Z0
-#503=[#5213-#498]
-G92 Z#503
+#503=#5213
+G92.1
 G0 Z2
 (Point 1 again - the height reference, measured last)
 G0 X0 Y0
@@ -89,8 +90,8 @@ G0 Z0.25
 G90
 G31 Z-2 F10
 G92 Z0
-#497=[#5213-#498]
-G92 Z#497
+#497=#5213
+G92.1
 G0 Z2
 (Make every height relative to point 1)
 #501=[#501-#497]

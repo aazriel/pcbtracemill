@@ -67,6 +67,8 @@ export function addZTouchOff(gcode: string, o: TouchOffOptions): string {
         c(`==== Z TOUCH-OFF ${count}: find the copper at point 1 X${n(o.x)} Y${n(o.y)} and set Z0 there ====`)
       )
       out.push('M5')
+      // Mach3 / generic: start from no G92 offset, so the G92 Z0 below is the plain, tested case
+      if (setZero === 'G92 Z0') out.push(`G92.1 ${c('clear old G92 offsets - the Z DRO may change')}`)
       out.push(
         `M0 ${c('Z TOUCH-OFF: set Z zero ROUGHLY on the copper - a sheet of paper is enough - then clip the probe to the bit and press Cycle Start')}`
       )
