@@ -63,14 +63,19 @@ export function probePoints(cfg: ProbeGridConfig): { x: number; y: number; ix: n
 
 /**
  * The grid cells worth probing for a board of this shape (work coordinates): every point within
- * `margin` of the board, plus the ring just outside so the board edge lies between measured points.
- * Returns undefined when that is every point anyway.
+ * `margin` of the board, plus (with `edgeRing`) the ring just outside so the board edge lies
+ * between measured points. Returns undefined when that is every point anyway.
  */
-export function cellsNearShape(cfg: ProbeGridConfig, shape: PolygonSet, margin = 2): number[] | undefined {
+export function cellsNearShape(
+  cfg: ProbeGridConfig,
+  shape: PolygonSet,
+  margin = 2,
+  edgeRing = true
+): number[] | undefined {
   if (!shape.length) return undefined
   const { dx, dy } = gridStep(cfg)
   // half a cell diagonal: a board point is never further than that from a probed point
-  const reach = margin + 0.5 * Math.hypot(dx, dy)
+  const reach = margin + (edgeRing ? 0.5 * Math.hypot(dx, dy) : 0)
   const region = offset(shape, reach)
   const cells: number[] = []
   for (let iy = 0; iy < cfg.countY; iy++)

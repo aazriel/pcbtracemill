@@ -1,27 +1,34 @@
 import { useMemo, useRef, useState } from 'react'
-import type { ProbeGridConfig } from '@core/model/types'
+import type { Path, ProbeGridConfig, Vec2 } from '@core/model/types'
 import { probePoints, gridStep } from '@core/heightmap'
+import { circlePath } from '@core/geometry'
 import type { WorkScene } from './geometry'
 import { cn } from '@renderer/lib/utils'
 
-type Area = { minX: number; minY: number; maxX: number; maxY: number }
+export type DrawTool = 'rect' | 'circle' | 'polygon'
 
 /**
  * To-scale top view (work coordinates) of the stock, the board and the probe grid. The serpentine
  * order the machine follows is drawn as a path with a dot travelling along it; grid points that are
- * skipped (away from a round board, say) are drawn faint. With `onDraw` the user drags a rectangle
- * to set the probe area.
+ * skipped are drawn faint. With `onDraw` the user draws the probe area: drag a rectangle, drag a
+ * circle from its centre, or click the corners of a polygon (click the first point or double-click
+ * to close it, Esc to start over).
  */
 export function ProbePreview({
   scene,
   cfg,
   className,
+  tool = 'rect',
+  areaShape,
   onDraw
 }: {
   scene: WorkScene
   cfg: ProbeGridConfig
   className?: string
-  onDraw?: (a: Area) => void
+  tool?: DrawTool
+  /** A drawn area (work coordinates) to outline instead of the plain rectangle. */
+  areaShape?: Path | null
+  onDraw?: (shape: Path) => void
 }): React.JSX.Element {
   const pts = useMemo(() => probePoints(cfg), [cfg])
   const skipped = useMemo(() => {
@@ -31,21 +38,32 @@ export function ProbePreview({
   }, [cfg])
   const svgRef = useRef<SVGSVGElement>(null)
   const [drag, setDrag] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null)
-  const toWork = (e: React.PointerEvent): { x: number; y: number } | null => {
+  const [poly, setPoly] = useState<Vec2[]>([])
+  const [hover, setHover] = useState<Vec2 | null>(null)
+  const toWork = (e: React.PointerEvent | React.MouseEvent): Vec2 | null => {
     const svg = svgRef.current
     const m = svg?.getScreenCTM()
     if (!svg || !m) return null
     const q = new DOMPoint(e.clientX, e.clientY).matrixTransform(m.inverse())
     return { x: q.x, y: -q.y }
   }
-  const dragArea = drag
-    ? {
-        minX: Math.min(drag.x0, drag.x1),
-        maxX: Math.max(drag.x0, drag.x1),
-        minY: Math.min(drag.y0, drag.y1),
-        maxY: Math.max(drag.y0, drag.y1)
-      }
+  const r1 = (v: number): number => Math.round(v * 10) / 10
+  const rounded = (p: Path): Path => p.map((q) => ({ x: r1(q.x), y: r1(q.y) }))
+  /** The shape being dragged (rectangle or circle). */
+  const dragShape: Path | null = drag
+    ? tool === 'circle'
+      ? circlePath(drag.x0, drag.y0, Math.max(0.01, Math.hypot(drag.x1 - drag.x0, drag.y1 - drag.y0)), 64)
+      : [
+          { x: Math.min(drag.x0, drag.x1), y: Math.min(drag.y0, drag.y1) },
+          { x: Math.max(drag.x0, drag.x1), y: Math.min(drag.y0, drag.y1) },
+          { x: Math.max(drag.x0, drag.x1), y: Math.max(drag.y0, drag.y1) },
+          { x: Math.min(drag.x0, drag.x1), y: Math.max(drag.y0, drag.y1) }
+        ]
     : null
+  const finishPoly = (list: Vec2[]): void => {
+    if (list.length >= 3 && onDraw) onDraw(rounded(list))
+    setPoly([])
+  }
   const { stock } = scene
   const minX = Math.min(stock.minX, cfg.minX, 0)
   const minY = Math.min(stock.minY, cfg.minY, 0)
@@ -64,43 +82,58 @@ export function ProbePreview({
     .join(' ')
   const axisLen = span * 0.09
   const tooMany = pts.length > 600
+  const closeDist = span * 0.025
+  const d = (p: Path, close = true): string =>
+    p.map((q, i) => `${i ? 'L' : 'M'}${q.x.toFixed(3)} ${(-q.y).toFixed(3)}`).join(' ') + (close ? ' Z' : '')
 
   return (
     <svg
       ref={svgRef}
       viewBox={vb.join(' ')}
-      className={cn('select-none', className)}
+      className={cn('select-none outline-none', className)}
       style={onDraw ? { cursor: 'crosshair', touchAction: 'none' } : undefined}
+      tabIndex={onDraw ? 0 : undefined}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape' && (poly.length || drag)) {
+          e.stopPropagation()
+          setPoly([])
+          setDrag(null)
+        }
+      }}
       onPointerDown={
         onDraw
           ? (e) => {
               const q = toWork(e)
               if (!q) return
+              if (tool === 'polygon') {
+                if (poly.length >= 3 && Math.hypot(q.x - poly[0].x, q.y - poly[0].y) < closeDist)
+                  finishPoly(poly)
+                else setPoly([...poly, q])
+                return
+              }
               e.currentTarget.setPointerCapture(e.pointerId)
               setDrag({ x0: q.x, y0: q.y, x1: q.x, y1: q.y })
             }
           : undefined
       }
+      onDoubleClick={onDraw && tool === 'polygon' ? () => finishPoly(poly) : undefined}
       onPointerMove={
-        onDraw && drag
+        onDraw
           ? (e) => {
               const q = toWork(e)
-              if (q) setDrag({ ...drag, x1: q.x, y1: q.y })
+              if (!q) return
+              if (tool === 'polygon') setHover(q)
+              else if (drag) setDrag({ ...drag, x1: q.x, y1: q.y })
             }
           : undefined
       }
       onPointerUp={
         onDraw && drag
           ? () => {
-              if (dragArea && dragArea.maxX - dragArea.minX > 2 && dragArea.maxY - dragArea.minY > 2) {
-                const r1 = (v: number): number => Math.round(v * 10) / 10
-                onDraw({
-                  minX: r1(dragArea.minX),
-                  minY: r1(dragArea.minY),
-                  maxX: r1(dragArea.maxX),
-                  maxY: r1(dragArea.maxY)
-                })
-              }
+              const w = Math.abs(drag.x1 - drag.x0)
+              const h = Math.abs(drag.y1 - drag.y0)
+              const ok = tool === 'circle' ? Math.hypot(w, h) > 2 : w > 2 && h > 2
+              if (ok && dragShape) onDraw(rounded(dragShape))
               setDrag(null)
             }
           : undefined
@@ -148,16 +181,27 @@ export function ProbePreview({
         board
       </text>
       {/* probe area */}
-      <rect
-        x={cfg.minX}
-        y={-cfg.maxY}
-        width={Math.max(0, cfg.maxX - cfg.minX)}
-        height={Math.max(0, cfg.maxY - cfg.minY)}
-        fill="rgba(56,189,248,0.06)"
-        stroke="#38bdf8"
-        strokeDasharray="2 2"
-        vectorEffect="non-scaling-stroke"
-      />
+      {areaShape && areaShape.length >= 3 ? (
+        <path
+          d={d(areaShape)}
+          fill="rgba(56,189,248,0.08)"
+          stroke="#38bdf8"
+          strokeWidth={1.5}
+          strokeDasharray="2 2"
+          vectorEffect="non-scaling-stroke"
+        />
+      ) : (
+        <rect
+          x={cfg.minX}
+          y={-cfg.maxY}
+          width={Math.max(0, cfg.maxX - cfg.minX)}
+          height={Math.max(0, cfg.maxY - cfg.minY)}
+          fill="rgba(56,189,248,0.06)"
+          stroke="#38bdf8"
+          strokeDasharray="2 2"
+          vectorEffect="non-scaling-stroke"
+        />
+      )}
       {/* serpentine path */}
       {!tooMany && (
         <path
@@ -187,17 +231,35 @@ export function ProbePreview({
       <circle r={r * 1.5} fill="#38bdf8" stroke="#0c4a6e" strokeWidth={r * 0.3}>
         <animateMotion dur={`${dur}s`} repeatCount="indefinite" path={path} />
       </circle>
-      {dragArea && (
-        <rect
-          x={dragArea.minX}
-          y={-dragArea.maxY}
-          width={dragArea.maxX - dragArea.minX}
-          height={dragArea.maxY - dragArea.minY}
+      {dragShape && (
+        <path
+          d={d(dragShape)}
           fill="rgba(56,189,248,0.15)"
           stroke="#7dd3fc"
           strokeWidth={1.5}
           vectorEffect="non-scaling-stroke"
         />
+      )}
+      {poly.length > 0 && (
+        <g>
+          <path
+            d={d(hover ? [...poly, hover] : poly, false)}
+            fill="rgba(56,189,248,0.12)"
+            stroke="#7dd3fc"
+            strokeWidth={1.5}
+            vectorEffect="non-scaling-stroke"
+          />
+          {poly.map((q, i) => (
+            <circle
+              key={i}
+              cx={q.x}
+              cy={-q.y}
+              r={i === 0 && poly.length >= 3 ? closeDist * 0.6 : r * 1.2}
+              fill={i === 0 ? '#facc15' : '#7dd3fc'}
+              opacity={i === 0 && poly.length >= 3 ? 0.8 : 1}
+            />
+          ))}
+        </g>
       )}
       {/* work origin */}
       <g stroke="none">
