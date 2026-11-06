@@ -25,6 +25,8 @@ export const MACH3_RETOUCH_FEED = 10
 export const MACH3_SLOW_FEED = 10
 /** Variables used for bookkeeping by the Mach3 G-code-only probe program. */
 const VAR_G92 = 498
+/** Point 1 measured again at the end of the run: the reference all heights are relative to. */
+const VAR_REF = 497
 const VAR_DONE = 499
 
 /**
@@ -214,29 +216,37 @@ export function generateProbeProgram(
     L.push(`#${VAR_G92}=#5213 (keep the G92 Z offset that is active now)`)
   } else if (dialect === 'mach3')
     L.push(macros ? 'M401 (TraceMill: start a new results file)' : 'M40 (open digitize file)')
+  // Mach3 G-code variables: lift, touch again slowly, read the height through G92 into #v
+  const retouch = (v: number): void => {
+    L.push('G91')
+    L.push(`G0 Z${n(MACH3_RETOUCH_LIFT)}`)
+    L.push('G90')
+    L.push(`${probe} Z${n(depth)} F${fmtNum(Math.min(feed, MACH3_RETOUCH_FEED), 1)}`)
+    L.push('G92 Z0')
+    L.push(`#${v}=[#5213-#${VAR_G92}]`)
+    L.push(`G92 Z#${v}`)
+  }
   pts.forEach((p, i) => {
     L.push(`G0 X${n(p.x)} Y${n(p.y)}${i === 0 ? ' (first point = height reference)' : ''}`)
     L.push(`${probe} Z${n(depth)} F${fmtNum(feed, 1)}`)
     if (macros) L.push('M402 (TraceMill: write where the probe stopped)')
-    if (vars) {
-      const v = MACH3_VAR_BASE + p.iy * cfg.countX + p.ix
-      L.push('G91')
-      L.push(`G0 Z${n(MACH3_RETOUCH_LIFT)}`)
-      L.push('G90')
-      L.push(`${probe} Z${n(depth)} F${fmtNum(Math.min(feed, MACH3_RETOUCH_FEED), 1)}`)
-      L.push('G92 Z0')
-      L.push(`#${v}=[#5213-#${VAR_G92}]`)
-      L.push(`G92 Z#${v}`)
-    }
+    if (vars) retouch(MACH3_VAR_BASE + p.iy * cfg.countX + p.ix)
     L.push(`G0 Z${n(clear)}`)
   })
   if (vars) {
-    // heights relative to point 1, then fill cells that were not probed from their neighbours
+    // Point 1 is measured once more at the end and that value is the reference: a wrong first
+    // touch (Mach3 is not always settled at the very start of a program) would shift every height.
     const ref = MACH3_VAR_BASE + pts[0].iy * cfg.countX + pts[0].ix
+    L.push(c('Point 1 again - the height reference, measured last'))
+    L.push(`G0 X${n(pts[0].x)} Y${n(pts[0].y)}`)
+    L.push(`${probe} Z${n(depth)} F${fmtNum(feed, 1)}`)
+    retouch(VAR_REF)
+    L.push(`G0 Z${n(clear)}`)
+    // heights relative to point 1, then fill cells that were not probed from their neighbours
     const probed = new Set(pts.map((p) => p.iy * cfg.countX + p.ix))
     L.push(c('Make every height relative to point 1'))
     for (const k of [...probed].sort((a, b) => a - b))
-      if (MACH3_VAR_BASE + k !== ref) L.push(`#${MACH3_VAR_BASE + k}=[#${MACH3_VAR_BASE + k}-#${ref}]`)
+      if (MACH3_VAR_BASE + k !== ref) L.push(`#${MACH3_VAR_BASE + k}=[#${MACH3_VAR_BASE + k}-#${VAR_REF}]`)
     const fills: string[] = []
     for (let k = 0; k < cfg.countX * cfg.countY; k++) {
       if (probed.has(k)) continue
