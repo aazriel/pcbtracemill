@@ -215,9 +215,11 @@ export async function changeEda(eda: EdaTool): Promise<void> {
 async function runImport(files: DroppedFile[], eda: EdaTool): Promise<void> {
   const ui = useUi.getState()
   ui.set({ importing: true })
+  const myEpoch = epoch
   try {
     const p = useProject.getState()
     const res = await camWorker().importFiles(files, eda, p.layers.length, uid('L'))
+    if (myEpoch !== epoch) return // "New project" was chosen meanwhile
     const parsed: Record<string, ParsedLayer> = {}
     for (const l of res.layers) if (l.parsed) parsed[l.id] = l.parsed
     const loaded = new Set(p.layers.map((l) => l.fileName.toLowerCase()))
@@ -496,9 +498,14 @@ export async function measureNarrowestGap(layerIds: string[], ignoreBelow = 0): 
   const s = useProject.getState()
   const key = `${[...layerIds].sort().join(',')}|${s.parsedVersion}|${ignoreBelow}`
   if (gapCache.has(key)) return gapCache.get(key)!
-  const copper = layerIds.flatMap((id) => parsedCache.get(id)?.geometry ?? [])
-  if (!copper.length) return null
-  const gap = await camWorker().narrowestGap(copper, 1, ignoreBelow)
+  // Each layer on its own: top and bottom copper overlap when drawn together, which is no gap at all.
+  let gap: number | null = null
+  for (const id of layerIds) {
+    const copper = parsedCache.get(id)?.geometry
+    if (!copper?.length) continue
+    const g = await camWorker().narrowestGap(copper, 1, ignoreBelow)
+    if (g !== null && (gap === null || g < gap)) gap = g
+  }
   gapCache.set(key, gap)
   return gap
 }
@@ -563,11 +570,43 @@ useProject.subscribe((s) => {
 
 // ───────────────────────────────────────── project files
 
+/** Bumped by "New project": imports and generations started before it are dropped when they finish. */
+let epoch = 0
+
+/** "New project": asks first when there are unsaved changes (in-app dialog), then starts empty. */
 export function newProject(): void {
-  if (useProject.getState().dirty && !confirm('Discard unsaved changes and start a new project?')) return
+  if (useProject.getState().dirty) useUi.getState().set({ confirmNew: true })
+  else startNewProject()
+}
+
+/** Empties the project and every piece of UI state that belongs to it. */
+export function startNewProject(): void {
+  epoch++
+  requestId++ // a generation still running belongs to the old project
+  if (timer) clearTimeout(timer)
+  timer = null
+  gapCache.clear()
   useProject.getState().reset()
   useProject.temporal.getState().clear()
-  useUi.getState().set({ stage: 'board', cam: null, camStale: true, skippedFiles: [], boardSide: 'top' })
+  useUi.getState().set({
+    confirmNew: false,
+    stage: 'board',
+    viewSide: 'top',
+    boardSide: 'top',
+    cam: null,
+    camStale: true,
+    camError: null,
+    generating: false,
+    generatingStepId: null,
+    pendingImport: null,
+    pendingBrowse: null,
+    pendingDuplicates: null,
+    importing: false,
+    skippedFiles: [],
+    selectedStepId: null,
+    problemStepId: null,
+    problemFocus: null
+  })
 }
 
 export async function saveProject(saveAs = false): Promise<void> {

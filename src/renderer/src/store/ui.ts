@@ -57,6 +57,8 @@ export interface UiState {
   problemStepId: string | null
   /** Problem place the Manufacture view is zoomed to. */
   problemFocus: string | null
+  /** "New project" asked while there are unsaved changes. */
+  confirmNew: boolean
   set(patch: Partial<UiState>): void
   toast(level: Toast['level'], message: string): void
   dismissToast(id: number): void
@@ -86,6 +88,7 @@ export const useUi = create<UiState>()((set) => ({
   selectedStepId: null,
   problemStepId: null,
   problemFocus: null,
+  confirmNew: false,
   set: (patch) => set(patch),
   toast: (level, message) => {
     const id = ++toastId

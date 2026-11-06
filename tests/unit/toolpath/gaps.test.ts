@@ -22,4 +22,10 @@ describe('narrowestGap', () => {
     const gap = narrowestGap(pads(0, 1.1, 2.6), 1, 0.15)
     expect(gap!).toBeCloseTo(0.5, 2)
   })
+
+  it('ignores slivers between copper that practically touches (a trace ending on a pad)', () => {
+    // 0.005 mm apart: not a gap any bit could cut; the next real gap is 0.4 mm
+    const gap = narrowestGap(pads(0, 1.005, 2.405), 1)
+    expect(gap!).toBeCloseTo(0.4, 2)
+  })
 })

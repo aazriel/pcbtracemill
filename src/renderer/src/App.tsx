@@ -10,6 +10,7 @@ import { EdaDialog } from '@renderer/layers/EdaDialog'
 import { DuplicateDialog } from '@renderer/layers/DuplicateDialog'
 import { FolderBrowserDialog } from '@renderer/layers/FolderBrowserDialog'
 import { RestoreDialog } from '@renderer/layers/RestoreDialog'
+import { NewProjectDialog } from '@renderer/layers/NewProjectDialog'
 import { checkLastSession } from '@renderer/store/session'
 import { setAdvancedSkip } from '@renderer/steps/SkipSection'
 import { Tour, maybeShowTour, openTour } from '@renderer/components/Tour'
@@ -236,6 +237,7 @@ export function App(): React.JSX.Element {
         <DuplicateDialog pending={duplicates} onResolve={resolveDuplicates} />
         <FolderBrowserDialog />
         <RestoreDialog />
+        <NewProjectDialog />
         <Tour />
         <HelpDialog
           open={helpOpen}
