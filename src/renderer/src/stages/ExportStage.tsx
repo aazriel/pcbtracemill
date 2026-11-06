@@ -12,7 +12,7 @@ import { GroupingCards } from '@renderer/export/GroupingCards'
 import { FilesTable } from '@renderer/export/FilesTable'
 import { useExportFiles } from '@renderer/export/exportFiles'
 import { AutoLevelSection } from '@renderer/heightmap/AutoLevelSection'
-import { HeightMapPanel } from '@renderer/heightmap/HeightMapPanel'
+import { HeightMapDialog } from '@renderer/heightmap/HeightMapDialog'
 import { ProbeDialog } from '@renderer/heightmap/ProbeDialog'
 import { PROBE_CFG_SETTINGS_KEY, useAutoLevel } from '@renderer/heightmap/state'
 
@@ -127,16 +127,16 @@ export function ExportStage(): React.JSX.Element {
               <MachineSummary />
             </div>
           </PanelSection>
-          <AutoLevelSection files={files} onGenerate={() => setProbeOpen(true)} />
+          <AutoLevelSection files={files} levelling={levelling} onGenerate={() => setProbeOpen(true)} />
         </div>
       </aside>
       <section className="min-w-0 flex-1 overflow-y-auto">
         <div className="mx-auto flex max-w-6xl flex-col gap-6 p-5">
           <FilesTable files={files} levelling={levelling} levelError={levelError} />
-          <HeightMapPanel onGenerate={() => setProbeOpen(true)} />
         </div>
       </section>
       <ProbeDialog open={probeOpen} onOpenChange={setProbeOpen} />
+      <HeightMapDialog />
     </div>
   )
 }

@@ -38,13 +38,15 @@ export function generateProbeProgram(cfg: ProbeGridConfig, machine: MachineProfi
   L.push(c('SAFETY: clip the probe wire to the bit and the ground clip to the copper board'))
   L.push(c('SAFETY: test continuity first - touch clip to bit and check the controller sees the probe'))
   L.push(c('SAFETY: start with the bit ABOVE the board, spindle OFF'))
+  L.push(c('SAFETY: probe with a sturdy bit - flat end mill or steel pin - not a V-bit, a thin tip breaks'))
   L.push(
     c(
       `SETUP: zero X/Y as for milling and zero Z on the copper at the first point X${n(pts[0].x)} Y${n(pts[0].y)}`
     )
   )
   L.push(c('This program does not change work offsets. Heights are relative to the first probed point.'))
-  L.push(c('Do NOT re-zero Z between probing and milling.'))
+  L.push(c('After a bit change Z0 must be at the copper of the first point again.'))
+  L.push(c('TraceMill corrected files can find it with the probe - set Z only roughly then.'))
   if (dialect === 'grbl') {
     L.push(
       c('RESULTS: GRBL prints [PRB:x,y,z:1] for every point. Save the sender console log and import it.')

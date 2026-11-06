@@ -22,6 +22,7 @@ import { cn, formatDuration } from '@renderer/lib/utils'
 import { useProject } from '@renderer/store/project'
 import { useUi } from '@renderer/store/ui'
 import { saveOne } from '@renderer/export/exportFiles'
+import { originLabel } from '@renderer/material/OriginPicker'
 import { boardProbeArea, estimateProbeSeconds, stockProbeArea, useWorkScene } from './geometry'
 import { ProbePreview, type DrawTool } from './ProbePreview'
 import {
@@ -141,6 +142,11 @@ function IntroPage({
             Test the wiring first (step 2). If the probe never “feels” the copper, the bit will press into the
             board until the maximum depth.
           </li>
+          <li>
+            Probe with a <b>sturdy bit</b>: a 1–3 mm flat end mill or a smooth steel pin – not the V-bit.
+            Where the copper doesn’t conduct (oxide, lacquer), the bit is pushed into the board and a thin V
+            tip breaks. Afterwards TraceMill finds Z zero again for the real bit at point 1.
+          </li>
           <li>Remove the clip from the bit before you start milling.</li>
           {machine && !machine.supportsProbing && (
             <li className="font-semibold text-rose-300">
@@ -153,21 +159,23 @@ function IntroPage({
       <p className="text-sm text-slate-300">{HELP['autolevel.probing']?.body} Here is the whole process:</p>
       <ol className="flex flex-col gap-2">
         <IntroStep n={1} title="Connect the probe" art={<ConnectIllustration />}>
-          Clip the probe wire onto the bit (the metal shank) and connect the second wire to the copper of the
-          board, for example with a crocodile clip on the edge. Both go to the probe input of your controller.
+          Put a sturdy bit in the spindle (not the V-bit). Clip the probe wire onto the bit (the metal shank)
+          and connect the second wire to the copper of the board, for example with a crocodile clip on the
+          edge. Both go to the probe input of your controller.
         </IntroStep>
         <IntroStep n={2} title="Test the connection" art={<ContinuityIllustration />}>
           Touch the board clip to the bit by hand: your control software should show the probe as “triggered”
           (a light or status). Let go and it must switch off again.
         </IntroStep>
         <IntroStep n={3} title="Go to point 1 and set zero" art={<ZeroIllustration />}>
-          Set X0 Y0 exactly as you will for milling. Move to the first probe point (shown in red on the next
-          page), just above the copper, and set Z = 0 on the copper surface. All heights are measured relative
-          to this point.
+          Set X0 Y0 exactly as you will for milling – the next page shows where X0 Y0 is and which way X+ and
+          Y+ point. Move to the first probe point (shown in red, with its distance from X0 Y0), just above the
+          copper, and set Z = 0 on the copper surface. All heights are measured relative to this point.
         </IntroStep>
         <IntroStep n={4} title="Run the probe program" art={<RunIllustration />}>
           The machine visits every grid point, lowers the bit slowly until it touches the copper and remembers
-          the height. Don’t move X/Y zero afterwards. If you change bits later, set Z zero again at point 1.
+          the height. Don’t move X/Y zero afterwards. When you change bits later, the corrected G-code can
+          find Z zero at point 1 by itself (you only set it roughly).
         </IntroStep>
         <IntroStep n={5} title="Save the results" art={<SaveLogIllustration />}>
           <span className="mb-1 block">Your controller creates a list of measured points:</span>
@@ -288,6 +296,15 @@ export function ProbeDialog({
   }
   const patch = (p: Partial<ProbeGridConfig>): void => setCfg((c) => (c ? { ...c, ...p } : c))
 
+  const first = useMemo(() => (live ? (probePoints(live)[0] ?? null) : null), [live])
+  const originText = useMemo(() => {
+    if (!material) return undefined
+    const on = material.originOn ?? 'stock'
+    const t =
+      originLabel(material.origin, on) +
+      (on === 'stock' && material.origin !== 'center' ? ' of the material' : '')
+    return t.charAt(0).toLowerCase() + t.slice(1)
+  }, [material])
   const stats = useMemo(() => {
     if (!live || !machine) return null
     const { dx, dy } = gridStep(live)
@@ -712,11 +729,31 @@ export function ProbeDialog({
                   }
                 />
               </div>
+              {first && (
+                <div
+                  className="flex items-start gap-2 rounded-lg border border-rose-400/30 bg-rose-500/5 p-2 text-[11px] leading-snug text-slate-300"
+                  data-testid="probe-setup-note"
+                >
+                  <span className="mt-0.5 size-2.5 shrink-0 rounded-full bg-rose-400" />
+                  <span>
+                    <b className="text-slate-100">Before running:</b> X0 Y0 is the{' '}
+                    <b className="text-slate-100">{originText}</b> (white dot). Move to point 1:{' '}
+                    <b className="text-rose-200">{dirText(first.x, 'X', 'right', 'left')}</b> and{' '}
+                    <b className="text-rose-200">
+                      {dirText(first.y, 'Y', 'away from you (back)', 'towards you (front)')}
+                    </b>{' '}
+                    of X0 Y0 – that is X{fmt1(first.x)} Y{fmt1(first.y)} on your controller – and set Z zero
+                    on the copper there.
+                  </span>
+                </div>
+              )}
               <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-400">
                 <Legend color="rgba(217,149,84,0.9)" dashed label="material (stock)" />
                 <Legend color="#34d399" label="board outline" />
                 <Legend color="#38bdf8" dashed label="probe area" />
                 <Legend color="#fb7185" dot label="point 1 – zero Z here" />
+                <Legend color="#f87171" label="X+ direction" />
+                <Legend color="#4ade80" label="Y+ direction" />
                 <Legend color="#38bdf8" dot label="order the machine follows" />
               </div>
             </div>
@@ -738,6 +775,12 @@ function ToolLabel({ icon, text }: { icon: React.ReactNode; text: string }): Rea
   )
 }
 const fmt1 = (v: number): string => String(Math.round(v * 10) / 10)
+
+/** "111 mm to the right (X+)" */
+function dirText(v: number, axis: string, plus: string, minus: string): string {
+  if (Math.abs(v) < 0.05) return `0 mm in ${axis}`
+  return `${fmt1(Math.abs(v))} mm ${v > 0 ? plus : minus} (${axis}${v > 0 ? '+' : '−'})`
+}
 
 function Legend({
   color,

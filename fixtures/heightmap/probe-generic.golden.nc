@@ -4,9 +4,11 @@
 (SAFETY: clip the probe wire to the bit and the ground clip to the copper board)
 (SAFETY: test continuity first - touch clip to bit and check the controller sees the probe)
 (SAFETY: start with the bit ABOVE the board, spindle OFF)
+(SAFETY: probe with a sturdy bit - flat end mill or steel pin - not a V-bit, a thin tip breaks)
 (SETUP: zero X/Y as for milling and zero Z on the copper at the first point X0 Y0)
 (This program does not change work offsets. Heights are relative to the first probed point.)
-(Do NOT re-zero Z between probing and milling.)
+(After a bit change Z0 must be at the copper of the first point again.)
+(TraceMill corrected files can find it with the probe - set Z only roughly then.)
 (RESULTS: collect the probed X Y Z of every G31 from your controller and import them as CSV.)
 G21
 G90 G94 G17

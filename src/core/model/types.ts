@@ -558,6 +558,8 @@ export interface ProjectSettings {
   highlightOnHover: boolean
   /** Apply the height-map Z correction to exported files. */
   autoLevelApply?: boolean
+  /** Corrected files find Z0 with the probe at point 1 before each bit (D-024). */
+  autoLevelTouchOff?: boolean
   /** Which side was facing up while the board was probed (the map only fits that side). */
   autoLevelSide?: 'top' | 'bottom'
   /** Units shown and typed in the app (everything is stored in mm). Missing = mm. */

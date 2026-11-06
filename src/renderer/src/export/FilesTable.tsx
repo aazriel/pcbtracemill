@@ -87,6 +87,7 @@ function Contents({
       {f.levelled && (
         <div className="flex items-center gap-1 text-[11px] text-emerald-300">
           <Mountain className="size-3.5" /> Z adjusted to the measured height map
+          {f.touchOff && ' · finds Z0 with the probe at point 1 before each bit'}
         </div>
       )}
       {f.levelSkip && (
@@ -183,6 +184,7 @@ export function FilesTable({
         >
           {busy ? <Loader2 className="animate-spin" /> : <Save />}
           Save {files.length} G-code file{files.length === 1 ? '' : 's'}
+          {files.some((f) => f.levelled) && ' (height-corrected)'}
         </Button>
       </div>
 

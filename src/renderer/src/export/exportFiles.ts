@@ -4,6 +4,7 @@
  */
 import { useEffect, useMemo, useState } from 'react'
 import type { GcodeFile, MachineProfile } from '@core/model/types'
+import { probePoints, type TouchOffOptions } from '@core/heightmap'
 import { camWorker } from '@workers/index'
 import { useProject } from '@renderer/store/project'
 import { useUi } from '@renderer/store/ui'
@@ -20,6 +21,8 @@ export interface ExportFile {
   sides: Side[]
   /** Z correction from the height map was applied to this file. */
   levelled: boolean
+  /** The corrected file finds Z0 with the probe at point 1 before each bit. */
+  touchOff: boolean
   /** Why the correction is NOT applied although it is switched on. */
   levelSkip: string | null
 }
@@ -49,6 +52,8 @@ export function useExportFiles(): { files: ExportFile[]; levelling: boolean; lev
   const map = useProject((s) => s.heightMap)
   const apply = useAutoLevel((s) => s.apply)
   const measured = useAutoLevel((s) => s.measuredSide)
+  const touchOffOn = useAutoLevel((s) => s.touchOff)
+  const machine = useProject((s) => s.machine)
   const [levelled, setLevelled] = useState<{ key: unknown[]; texts: Map<string, string> } | null>(null)
   const [levelError, setLevelError] = useState<string | null>(null)
 
@@ -62,7 +67,19 @@ export function useExportFiles(): { files: ExportFile[]; levelling: boolean; lev
   }, [cam, measured])
 
   const active = apply && !!map
-  const key = useMemo(() => [base, map], [base, map])
+  const touch = useMemo<TouchOffOptions | undefined>(() => {
+    if (!touchOffOn || !map || !machine) return undefined
+    const p1 = probePoints(map.config)[0]
+    return {
+      x: p1.x,
+      y: p1.y,
+      feed: map.config.probeFeed > 0 ? map.config.probeFeed : 50,
+      safeZ: machine.safeZ,
+      dialect: machine.postProcessor,
+      probeCommand: machine.probeCommand
+    }
+  }, [touchOffOn, map, machine])
+  const key = useMemo(() => [base, map, touch], [base, map, touch])
 
   useEffect(() => {
     if (!active || !map) return
@@ -72,7 +89,7 @@ export function useExportFiles(): { files: ExportFile[]; levelling: boolean; lev
       try {
         for (const b of base) {
           if (b.skip) continue
-          texts.set(b.file.name, await camWorker().level(b.file.text, map))
+          texts.set(b.file.name, await camWorker().level(b.file.text, map, touch))
           if (cancelled) return
         }
         setLevelError(null)
@@ -85,7 +102,7 @@ export function useExportFiles(): { files: ExportFile[]; levelling: boolean; lev
     return () => {
       cancelled = true
     }
-  }, [active, base, map, key])
+  }, [active, base, map, touch, key])
 
   const ready = !!levelled && levelled.key === key
   const files = useMemo<ExportFile[]>(
@@ -99,10 +116,11 @@ export function useExportFiles(): { files: ExportFile[]; levelling: boolean; lev
           sizeBytes: lv ? encoder.encode(lv).length : b.file.sizeBytes,
           sides: b.sides,
           levelled: !!lv,
+          touchOff: !!lv && !!touch,
           levelSkip: active ? b.skip : null
         }
       }),
-    [base, active, ready, levelled]
+    [base, active, ready, levelled, touch]
   )
   return { files, levelling: active && !ready, levelError: active ? levelError : null }
 }

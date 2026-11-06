@@ -568,3 +568,70 @@ function PolygonHint(): ReactNode {
     </>
   )
 }
+
+/**
+ * Z touch-off at point 1 after a bit change: Z zero is first set roughly (paper), then the program
+ * lowers the bit slowly until it touches the copper and makes that the exact Z0.
+ */
+export function TouchOffFigure(): ReactNode {
+  const rough = COPPER_Y - 9
+  const top = COPPER_Y - 34
+  const dur = 5
+  const k = kt([0, 0.15, 0.5, 0.62, 0.85, 1])
+  return (
+    <Scene
+      height={160}
+      caption="1. Set Z zero roughly – a sheet of paper under the bit is enough. 2. The program lowers the bit slowly at point 1 until it touches the copper and makes that the exact Z0 – the same spot the height map is measured from."
+    >
+      <BoardSide y={COPPER_Y} thick={34} />
+      <line x1={20} x2={W - 20} y1={rough} y2={rough} stroke="#fbbf24" strokeDasharray="4 3" strokeWidth={1}>
+        <animate
+          attributeName="opacity"
+          values="1;1;1;0.25;0.25;1"
+          keyTimes={k}
+          dur={`${dur}s`}
+          repeatCount="indefinite"
+        />
+      </line>
+      <Label x={W - 22} y={rough - 4} anchor="end" color="#fbbf24" size={9.5}>
+        your rough Z0 (paper)
+      </Label>
+      <g opacity={0}>
+        <animate
+          attributeName="opacity"
+          values="0;0;0;1;1;0"
+          keyTimes={k}
+          dur={`${dur}s`}
+          repeatCount="indefinite"
+        />
+        <line x1={20} x2={W - 20} y1={COPPER_Y} y2={COPPER_Y} stroke={TOUCH} strokeWidth={1.6} />
+        <Label x={W - 22} y={COPPER_Y + 14} anchor="end" color={TOUCH} size={10}>
+          exact Z0 = copper
+        </Label>
+      </g>
+      <g>
+        <animateTransform
+          attributeName="transform"
+          type="translate"
+          values={`120 ${top};120 ${top};120 ${COPPER_Y};120 ${COPPER_Y};120 ${top};120 ${top}`}
+          keyTimes={k}
+          dur={`${dur}s`}
+          repeatCount="indefinite"
+        />
+        <Bit kind="vbit" r={6} len={28} />
+      </g>
+      <circle cx={120} cy={COPPER_Y} r={0} fill="none" stroke={TOUCH} strokeWidth={2}>
+        <animate
+          attributeName="r"
+          values="0;0;0;12;0;0"
+          keyTimes={k}
+          dur={`${dur}s`}
+          repeatCount="indefinite"
+        />
+      </circle>
+      <Label x={120} y={18} anchor="middle" color="#cbd5e1" size={10}>
+        point 1 – probe clip on the bit, spindle off
+      </Label>
+    </Scene>
+  )
+}
