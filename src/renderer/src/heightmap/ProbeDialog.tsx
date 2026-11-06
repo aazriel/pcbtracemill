@@ -12,7 +12,14 @@ import {
 } from 'lucide-react'
 import type { Path, ProbeGridConfig } from '@core/model/types'
 import { HELP } from '@core/help'
-import { cellsNearShape, defaultProbeGrid, gridStep, probePoints } from '@core/heightmap'
+import {
+  cellsNearShape,
+  defaultProbeGrid,
+  gridStep,
+  MACH3_PROBE_FILE,
+  mach3ProbeMacros,
+  probePoints
+} from '@core/heightmap'
 import { camWorker } from '@workers/index'
 import { Dialog } from '@renderer/components/ui/dialog'
 import { Button } from '@renderer/components/ui/button'
@@ -21,7 +28,7 @@ import { HelpTip } from '@renderer/components/ui/help'
 import { cn, formatDuration } from '@renderer/lib/utils'
 import { useProject } from '@renderer/store/project'
 import { useUi } from '@renderer/store/ui'
-import { saveOne } from '@renderer/export/exportFiles'
+import { saveMany, saveOne } from '@renderer/export/exportFiles'
 import { originLabel } from '@renderer/material/OriginPicker'
 import { boardProbeArea, estimateProbeSeconds, stockProbeArea, useWorkScene } from './geometry'
 import { ProbePreview, type DrawTool } from './ProbePreview'
@@ -73,7 +80,7 @@ const RESULT_INFO: Record<string, { title: string; body: string }> = {
   },
   mach3: {
     title: 'Mach3 / Mach4',
-    body: 'The program opens a "digitize" file (M40) and Mach writes X,Y,Z of every touch into it. You need the M40/M41 macros (OpenDigFile / CloseDigFile) – see the comments at the top of the program. Import the file Mach asked you to name.'
+    body: `The program uses two small TraceMill macros: M401 starts a results file and M402, after every touch, waits until the machine has stopped and writes the real X,Y,Z. Save them with "Mach3 macros…" (bottom of the next page) into Mach3/macros/<your profile, e.g. Mach3Mill>/ and restart Mach3 once. The results go to ${MACH3_PROBE_FILE} – import that file. (Mach3's own digitize file M40/M41 is not used: with many motion controllers it records wrong numbers.)`
   },
   generic: {
     title: 'Other controllers',
@@ -366,8 +373,13 @@ export function ProbeDialog({
       void window.tracemill
         ?.settingsSet(PROBE_CFG_SETTINGS_KEY, { cfg: live, side: al.measuredSide })
         .catch(() => undefined)
-      toast('success', 'Probe program saved. Run it on your machine, then import the results (step 2).')
-      onOpenChange(false)
+      toast(
+        'success',
+        machine.postProcessor === 'mach3'
+          ? 'Probe program saved. It needs the TraceMill Mach3 macros M401 / M402 – save them with "Mach3 macros…" if you have not yet.'
+          : 'Probe program saved. Run it on your machine, then import the results (step 2).'
+      )
+      if (machine.postProcessor !== 'mach3') onOpenChange(false)
     } catch (e) {
       toast('error', `Could not create the probe program: ${e instanceof Error ? e.message : String(e)}`)
     } finally {
@@ -395,6 +407,26 @@ export function ProbeDialog({
             <b className="text-slate-200">{stats.n}</b> points · about{' '}
             <b className="text-slate-200">{formatDuration(stats.seconds)}</b> of probing
           </span>
+        )}
+        {machine?.postProcessor === 'mach3' && (
+          <Button
+            variant="secondary"
+            data-testid="probe-save-macros"
+            title="M401.m1s and M402.m1s – put them in Mach3/macros/<your profile>/"
+            onClick={() =>
+              void saveMany(mach3ProbeMacros().map((m) => ({ name: m.name, text: m.text }))).then((r) => {
+                if (r !== null)
+                  toast(
+                    'success',
+                    typeof r === 'string'
+                      ? `Saved M401.m1s and M402.m1s to ${r}. They must be in Mach3/macros/<your profile>/ – restart Mach3 once.`
+                      : 'Downloading M401.m1s and M402.m1s…'
+                  )
+              })
+            }
+          >
+            <Save /> Mach3 macros…
+          </Button>
         )}
         <Button data-testid="probe-save" disabled={!cfg || !machine || saving} onClick={() => void save()}>
           {saving ? <Loader2 className="animate-spin" /> : <Save />} Save probe program

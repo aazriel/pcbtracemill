@@ -44,3 +44,16 @@ describe('Z touch-off at point 1', () => {
     expect(out).not.toMatch(/^\(==== Z TOUCH/m)
   })
 })
+
+describe('Mach3 probe macros', () => {
+  it('M402 waits for the machine to stop and writes the DRO position with CRLF line ends', async () => {
+    const { mach3ProbeMacros, MACH3_PROBE_FILE } = await import('@core/heightmap')
+    const [m401, m402] = mach3ProbeMacros()
+    expect(m401.name).toBe('M401.m1s')
+    expect(m401.text).toContain(`Const ResultFile = "${MACH3_PROBE_FILE}"`)
+    expect(m401.text).toContain('For Output')
+    expect(m402.text).toMatch(/While IsMoving\(\)\r\n {2}Sleep 20\r\nWend/)
+    expect(m402.text).toContain('GetDRO(2)')
+    expect(m402.text).toContain('For Append')
+  })
+})

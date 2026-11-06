@@ -75,3 +75,18 @@ describe('probe result checks', () => {
     expect(r.map).not.toBeNull()
   })
 })
+
+describe('Mach3 digitize-file failures', () => {
+  it('rejects a file where every line is the same point and points at the TraceMill macros', () => {
+    const line = '53.57500,238.41500,11.36000 '
+    const r = importProbeLog(new Array(90).fill(line).join('\n'))
+    expect(r.map).toBeNull()
+    expect(r.errors[0]).toMatch(/same point \(X53\.575 Y238\.415 Z11\.36\), 90 times/)
+    expect(r.errors[1]).toMatch(/M401 \/ M402/)
+  })
+
+  it('adds the Mach3 hint to the max-depth error of a digitize file', () => {
+    const r = importProbeLog(fixture('mach3-no-contact.txt'))
+    expect(r.errors.join(' ')).toMatch(/digitize file/)
+  })
+})

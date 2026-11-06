@@ -66,7 +66,9 @@ export const gcodeLanguageKeywords: GcodeLanguageKeywords = {
     { code: 'M9', description: 'Coolant off' },
     { code: 'M30', description: 'Program end and rewind' },
     { code: 'M40', description: 'Mach3 (custom macro): open digitize file' },
-    { code: 'M41', description: 'Mach3 (custom macro): close digitize file' }
+    { code: 'M41', description: 'Mach3 (custom macro): close digitize file' },
+    { code: 'M401', description: 'TraceMill Mach3 macro: start a new probe results file' },
+    { code: 'M402', description: 'TraceMill Mach3 macro: wait until stopped, write the probed X,Y,Z' }
   ],
   words: [
     { code: 'X', description: 'X axis coordinate' },

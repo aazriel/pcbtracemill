@@ -34,6 +34,22 @@ export function checkProbePoints(
   if (!points.length) return { errors, warnings, points }
   const n = points.length
 
+  // ── 0. The same point on every line: nothing was measured at all.
+  const p0 = points[0]
+  if (
+    n >= 4 &&
+    points.every(
+      (p) => Math.abs(p.x - p0.x) < 1e-6 && Math.abs(p.y - p0.y) < 1e-6 && Math.abs(p.z - p0.z) < 1e-6
+    )
+  ) {
+    errors.push(
+      `Every line of the file is the same point (X${fmt(p0.x, 3)} Y${fmt(p0.y, 3)} Z${fmt(p0.z, 3)}), ${n} times. ` +
+        'The controller wrote one position over and over instead of where each touch happened.'
+    )
+    if (format === 'mach3') errors.push(MACH3_DIGITIZE_HINT)
+    return { errors, warnings, points }
+  }
+
   // ── 1. Never touched: Z at the maximum probe depth (GRBL never reports those points).
   let missed: boolean[] = new Array<boolean>(n).fill(false)
   let limit: number | null = null
@@ -116,9 +132,18 @@ export function checkProbePoints(
     }
   }
 
+  if (errors.length && format === 'mach3') errors.push(MACH3_DIGITIZE_HINT)
   const keep = points.filter((_, i) => !missed[i])
   return { errors, warnings, points: errors.length ? points : keep }
 }
+
+/** Mach3's digitize file (M40/M41) is unreliable with many motion controllers. */
+export const MACH3_DIGITIZE_HINT =
+  'Mach3: if you saw the bit stop on the copper at different heights, the probing itself worked but the ' +
+  'numbers were recorded wrongly. Mach3’s digitize file (M40 / M41) does this with many motion controllers ' +
+  '(UC100, ESS…): it writes too early, so it holds the target Z and old positions. Make a new probe program ' +
+  'and save TraceMill’s Mach3 macros (M401 / M402) with it – they wait until the machine has stopped and ' +
+  'write the real position.'
 
 /** What to check when the results are rejected – shown under the errors. */
 export const PROBE_FAILURE_TIPS: string[] = [
