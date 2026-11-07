@@ -30,8 +30,8 @@ export const MACHINE_PRESETS: MachineProfile[] = [
     probeCommand: 'G31',
     outputUnits: 'mm',
     decimals: 4,
-    safeZ: 5,
-    travelZ: 2,
+    safeZ: 2,
+    travelZ: 1,
     toolChangeZ: 30,
     fileExtension: 'tap',
     lineNumbers: false,
@@ -60,8 +60,8 @@ export const MACHINE_PRESETS: MachineProfile[] = [
     probeCommand: 'G38.2',
     outputUnits: 'mm',
     decimals: 3,
-    safeZ: 5,
-    travelZ: 1.5,
+    safeZ: 2,
+    travelZ: 1,
     toolChangeZ: 30,
     fileExtension: 'nc',
     lineNumbers: false,
@@ -90,8 +90,8 @@ export const MACHINE_PRESETS: MachineProfile[] = [
     probeCommand: 'G38.2',
     outputUnits: 'mm',
     decimals: 3,
-    safeZ: 5,
-    travelZ: 1.5,
+    safeZ: 2,
+    travelZ: 1,
     toolChangeZ: 30,
     fileExtension: 'nc',
     lineNumbers: false,
@@ -120,8 +120,8 @@ export const MACHINE_PRESETS: MachineProfile[] = [
     probeCommand: 'G38.2',
     outputUnits: 'mm',
     decimals: 3,
-    safeZ: 5,
-    travelZ: 2,
+    safeZ: 2,
+    travelZ: 1,
     toolChangeZ: 40,
     fileExtension: 'gcode',
     lineNumbers: false,
@@ -150,8 +150,8 @@ export const MACHINE_PRESETS: MachineProfile[] = [
     probeCommand: 'G38.2',
     outputUnits: 'mm',
     decimals: 3,
-    safeZ: 5,
-    travelZ: 2,
+    safeZ: 2,
+    travelZ: 1,
     toolChangeZ: 40,
     fileExtension: 'nc',
     lineNumbers: false,
@@ -180,7 +180,7 @@ export const MACHINE_PRESETS: MachineProfile[] = [
     probeCommand: 'G38.2',
     outputUnits: 'mm',
     decimals: 4,
-    safeZ: 3,
+    safeZ: 2,
     travelZ: 1,
     toolChangeZ: 25,
     fileExtension: 'nc',
@@ -210,8 +210,8 @@ export const MACHINE_PRESETS: MachineProfile[] = [
     probeCommand: 'G38.2',
     outputUnits: 'mm',
     decimals: 4,
-    safeZ: 5,
-    travelZ: 2,
+    safeZ: 2,
+    travelZ: 1,
     toolChangeZ: 40,
     fileExtension: 'ngc',
     lineNumbers: false,
@@ -240,8 +240,8 @@ export const MACHINE_PRESETS: MachineProfile[] = [
     probeCommand: 'G38.2',
     outputUnits: 'mm',
     decimals: 4,
-    safeZ: 5,
-    travelZ: 2,
+    safeZ: 2,
+    travelZ: 1,
     toolChangeZ: 30,
     fileExtension: 'nc',
     lineNumbers: false,
@@ -270,8 +270,8 @@ export const MACHINE_PRESETS: MachineProfile[] = [
     probeCommand: 'G38.2',
     outputUnits: 'mm',
     decimals: 4,
-    safeZ: 5,
-    travelZ: 2,
+    safeZ: 2,
+    travelZ: 1,
     toolChangeZ: 30,
     fileExtension: 'nc',
     lineNumbers: false,
@@ -297,6 +297,23 @@ export function createCustomMachine(base?: MachineProfile): MachineProfile {
     name: base ? `${src.name} (custom)` : 'My machine',
     builtIn: false
   }
+}
+
+/** Safe / travel Z of the built-in machines before D-030 (5 mm is far more than a flat PCB needs). */
+const OLD_PRESET_HEIGHTS: [number, number][] = [
+  [5, 2],
+  [5, 1.5],
+  [3, 1]
+]
+
+/**
+ * A built-in machine still on the old 5 mm safe Z gets the current 2 mm / 1 mm (D-030); a machine
+ * whose heights were changed is returned unchanged.
+ */
+export function refreshPresetHeights(m: MachineProfile): MachineProfile {
+  if (!m.builtIn) return m
+  if (!OLD_PRESET_HEIGHTS.some(([s, t]) => m.safeZ === s && m.travelZ === t)) return m
+  return { ...m, safeZ: 2, travelZ: 1 }
 }
 
 const finite = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v)

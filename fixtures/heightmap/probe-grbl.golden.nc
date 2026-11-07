@@ -1,6 +1,6 @@
 (TraceMill auto-level probe program - grbl - G38.2)
 (Grid 3 x 2 = 6 points, X0..20 Y0..10, spacing 10 x 10 mm)
-(Probe feed 50 mm/min, max depth Z-2, lift 0.5 mm above each touch)
+(Probe feed 20 mm/min, max depth Z-2, lift 0.5 mm above each touch)
 (The bit lifts only a little above each touch - if a point does NOT touch, stop the machine.)
 (SAFETY: clip the probe wire to the bit and the ground clip to the copper board)
 (SAFETY: test continuity first - touch clip to bit and check the controller sees the probe)
@@ -17,32 +17,32 @@ G21
 G90 G94 G17
 G0 Z2
 G0 X0 Y0 (first point = height reference)
-G38.2 Z-2 F50
+G38.2 Z-2 F20
 G91
 G0 Z0.5
 G90
 G0 X10 Y0
-G38.2 Z-2 F50
+G38.2 Z-2 F20
 G91
 G0 Z0.5
 G90
 G0 X20 Y0
-G38.2 Z-2 F50
+G38.2 Z-2 F20
 G91
 G0 Z0.5
 G90
 G0 X20 Y10
-G38.2 Z-2 F50
+G38.2 Z-2 F20
 G91
 G0 Z0.5
 G90
 G0 X10 Y10
-G38.2 Z-2 F50
+G38.2 Z-2 F20
 G91
 G0 Z0.5
 G90
 G0 X0 Y10
-G38.2 Z-2 F50
+G38.2 Z-2 F20
 G0 Z2
 G0 X0 Y0
 (Probing finished. Remove the probe clip before milling.)

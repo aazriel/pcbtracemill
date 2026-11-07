@@ -728,17 +728,6 @@ export function ProbeDialog({
                 )}
               </div>
               <NumberField
-                label="Probe speed"
-                unit="mm/min"
-                min={1}
-                max={1000}
-                step={5}
-                value={cfg.probeFeed}
-                onChange={(v) => patch({ probeFeed: v })}
-                description="How fast the bit goes down looking for the copper. Slow is more accurate."
-                {...fig(HELP['autolevel.probeFeed']?.body, <ProbeSpeedFigure feed={cfg.probeFeed} />)}
-              />
-              <NumberField
                 label="Maximum probe depth"
                 unit="mm"
                 min={0.1}
@@ -763,7 +752,7 @@ export function ProbeDialog({
                   )}
                   Advanced
                   <span className="ml-1 font-normal text-slate-500">
-                    lift {cfg.clearanceZ} mm
+                    speed {cfg.probeFeed} mm/min · lift {cfg.clearanceZ} mm
                     {machine?.postProcessor === 'mach3' && mach3Recorder === 'variables'
                       ? ` · re-touch ${cfg.retouchLift ?? MACH3_RETOUCH_LIFT} mm`
                       : ''}
@@ -771,6 +760,17 @@ export function ProbeDialog({
                 </button>
                 {advancedOpen && (
                   <div className="flex flex-col gap-2" data-testid="probe-advanced-body">
+                    <NumberField
+                      label="Probe speed (fast touch)"
+                      unit="mm/min"
+                      min={1}
+                      max={1000}
+                      step={5}
+                      value={cfg.probeFeed}
+                      onChange={(v) => patch({ probeFeed: v })}
+                      description="How fast the bit goes down looking for the copper at each point. 20 mm/min does not bend the board; slower is more accurate."
+                      {...fig(HELP['autolevel.probeFeed']?.body, <ProbeSpeedFigure feed={cfg.probeFeed} />)}
+                    />
                     <Switch
                       label="Automatic lift between points"
                       checked={liftAuto}

@@ -11,7 +11,7 @@ import type {
 } from '@core/model/types'
 import { applyAffine, bboxIsEmpty, rings, transformPolygonSet } from '@core/geometry'
 import { boardToWorkTransform, buildOutline, stockRectInWork } from '@core/toolpath'
-import { heightMapStats, probePoints } from '@core/heightmap'
+import { DEFAULT_PROBE_FEED, heightMapStats, probePoints } from '@core/heightmap'
 import { interpolateTurbo } from 'd3-scale-chromatic'
 import { useProject } from '@renderer/store/project'
 import { useBoardBBox, useLayersWithParsed } from '@renderer/store/controller'
@@ -120,7 +120,7 @@ export function estimateProbeSeconds(
   let travel = 0
   for (let i = 1; i < pts.length; i++) travel += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y)
   const clear = Math.max(cfg.clearanceZ, 0.2)
-  const feed = cfg.probeFeed > 0 ? cfg.probeFeed : 50
+  const feed = cfg.probeFeed > 0 ? cfg.probeFeed : DEFAULT_PROBE_FEED
   // Down at probe speed (from clearance to the copper), back up at rapid, plus settle overhead.
   const again = retouch ? (retouch.lift / Math.min(feed, retouch.feed)) * 60 + 0.3 : 0
   const perPoint = (clear / feed) * 60 + (clear / Math.max(rapidZ, 1)) * 60 + 0.4 + again

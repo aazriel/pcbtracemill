@@ -14,7 +14,8 @@ export interface ProbeArea {
   maxY: number
 }
 
-export const DEFAULT_PROBE_FEED = 50
+/** Fast touch of each probe point, mm/min (slow enough not to bend a thin board, see D-025). */
+export const DEFAULT_PROBE_FEED = 20
 export const DEFAULT_PROBE_DEPTH = -2
 export const DEFAULT_CLEARANCE_Z = 2
 

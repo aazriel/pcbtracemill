@@ -1,6 +1,6 @@
 import type { HeightMap, MachineProfile, ProbeGridConfig } from '../model/types'
 import { fmtNum } from '../post/format'
-import { gridStep, probePoints } from './grid'
+import { DEFAULT_PROBE_FEED, gridStep, probePoints } from './grid'
 
 type ProbeDialect = 'grbl' | 'linuxcnc' | 'mach3' | 'generic'
 
@@ -143,7 +143,7 @@ export function generateProbeProgram(
     Math.ceil(Math.max(lift, (lift * dist) / spacing) / 0.05 - 1e-9) * 0.05
   const reLift = cfg.retouchLift && cfg.retouchLift > 0 ? cfg.retouchLift : MACH3_RETOUCH_LIFT
   const depth = cfg.probeDepth < 0 ? cfg.probeDepth : -Math.abs(cfg.probeDepth || 2)
-  const feed = cfg.probeFeed > 0 ? cfg.probeFeed : 50
+  const feed = cfg.probeFeed > 0 ? cfg.probeFeed : DEFAULT_PROBE_FEED
   const L: string[] = []
 
   if (dialect === 'linuxcnc') L.push('%')
