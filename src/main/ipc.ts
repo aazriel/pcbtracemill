@@ -168,7 +168,9 @@ export function registerIpc(): void {
   )
   ipcMain.handle('files:save', async (e, req: SaveFileRequest) => {
     const win = BrowserWindow.fromWebContents(e.sender)
-    const res = await dialog.showSaveDialog(win!, { defaultPath: req.defaultName, filters: req.filters })
+    const res = req.path
+      ? { canceled: false, filePath: req.path }
+      : await dialog.showSaveDialog(win!, { defaultPath: req.defaultName, filters: req.filters })
     if (res.canceled || !res.filePath) return null
     try {
       await fs.writeFile(res.filePath, req.content, 'utf8')

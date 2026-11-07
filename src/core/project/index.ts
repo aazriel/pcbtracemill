@@ -16,6 +16,27 @@ export function newProjectName(date: Date = new Date()): string {
   return `board-${date.getFullYear()}${p(date.getMonth() + 1)}${p(date.getDate())}-${p(date.getHours())}${p(date.getMinutes())}`
 }
 
+/** The default name of a project nobody has named yet. */
+export const UNNAMED_PROJECT = 'Untitled board'
+
+/** "my_pcb 2" -> "my_pcb" */
+export function projectNameBase(name: string): string {
+  return name.trim().replace(/\s+\d+$/, '')
+}
+
+/**
+ * A project name not used before: `wanted` (default: the base of the last used name, else
+ * "my_pcb") when it is free, otherwise the same name with the next free number ("my_pcb 1").
+ */
+export function nextProjectName(used: string[], wanted?: string): string {
+  const taken = new Set(used.map((n) => n.trim().toLowerCase()))
+  const last = used.length ? projectNameBase(used[used.length - 1]) : ''
+  const name = (wanted ?? '').trim() || last || 'my_pcb'
+  if (!taken.has(name.toLowerCase())) return name
+  const base = projectNameBase(name)
+  for (let i = 1; ; i++) if (!taken.has(`${base} ${i}`.toLowerCase())) return `${base} ${i}`
+}
+
 /** Pretty JSON for a .tmill file. Parsed layer caches are stripped; raw file text is kept. */
 export function serializeProject(p: Project): string {
   const layers = p.layers.map((l) => {

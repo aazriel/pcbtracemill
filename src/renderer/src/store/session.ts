@@ -3,7 +3,7 @@
  * when the window closes). On the next start the user is asked whether to pick up where they left off.
  */
 import { create } from 'zustand'
-import { serializeProject } from '@core/project'
+import { serializeProject, UNNAMED_PROJECT } from '@core/project'
 import { toProject, useProject } from './project'
 import { useUi, type Stage } from './ui'
 import { loadProjectText } from './controller'
@@ -77,7 +77,7 @@ export async function checkLastSession(): Promise<void> {
     if (!p.layers?.length) return startAutosave()
     useRestore.setState({
       offer: {
-        name: p.name ?? 'Untitled board',
+        name: p.name ?? UNNAMED_PROJECT,
         savedAt: new Date(file.savedAt),
         layers: p.layers.length,
         steps: p.steps?.length ?? 0,

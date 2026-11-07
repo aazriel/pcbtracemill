@@ -1,5 +1,7 @@
+import { useEffect, useState } from 'react'
 import { Check } from 'lucide-react'
 import type { EdaTool } from '@core/model/types'
+import { suggestProjectName, usedProjectNames } from '@renderer/store/projectNames'
 import { Dialog } from '@renderer/components/ui/dialog'
 import { cn } from '@renderer/lib/utils'
 import { EDA_INFO } from './eda'
@@ -8,6 +10,7 @@ export function EdaDialog({
   open,
   current,
   beforeBrowse,
+  askName = false,
   onPick,
   onClose
 }: {
@@ -16,9 +19,17 @@ export function EdaDialog({
   current: EdaTool | null
   /** True when a file / folder picker opens right after the choice. */
   beforeBrowse: boolean
-  onPick: (e: EdaTool) => void
+  /** A new project: ask for its name too (used in the G-code and the file names). */
+  askName?: boolean
+  onPick: (e: EdaTool, name?: string) => void
   onClose: () => void
 }): React.JSX.Element {
+  const [name, setName] = useState('')
+  useEffect(() => {
+    if (open && askName) setName(suggestProjectName())
+  }, [open, askName])
+  const trimmed = name.trim()
+  const usedBefore = !!trimmed && usedProjectNames().some((n) => n.toLowerCase() === trimmed.toLowerCase())
   return (
     <Dialog
       open={open}
@@ -30,6 +41,34 @@ export function EdaDialog({
           : 'Every PCB design program names its fabrication files differently. Telling us which one you used lets TraceMill pick the right files and ignore reports, BOMs and other files that are not needed for milling.'
       }
     >
+      {askName && (
+        <label className="mb-4 flex flex-col gap-1 text-sm" data-testid="project-name-field">
+          <span className="font-medium text-slate-200">Project name</span>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="rounded-md border border-slate-700 bg-slate-950 px-2 py-1.5 text-slate-100 outline-none focus:border-sky-500"
+            data-testid="project-name"
+            aria-label="Project name"
+          />
+          <span className="text-[11px] text-slate-500">
+            {usedBefore ? (
+              <>
+                You used this name before.{' '}
+                <button
+                  type="button"
+                  className="text-sky-400 hover:underline"
+                  onClick={() => setName(suggestProjectName(trimmed))}
+                >
+                  Use "{suggestProjectName(trimmed)}"
+                </button>
+              </>
+            ) : (
+              'Shown in the G-code and used for the file names. Save with Ctrl+S (Cmd+S on a Mac).'
+            )}
+          </span>
+        </label>
+      )}
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2" data-testid="eda-options">
         {EDA_INFO.map((e) => {
           const last = e.id === current
@@ -37,7 +76,7 @@ export function EdaDialog({
             <button
               key={e.id}
               type="button"
-              onClick={() => onPick(e.id)}
+              onClick={() => onPick(e.id, askName && trimmed ? trimmed : undefined)}
               className={cn(
                 'relative rounded-lg border bg-slate-950 p-3 text-left transition-colors hover:border-sky-500 hover:bg-slate-800',
                 last ? 'border-sky-600/70' : 'border-slate-700'

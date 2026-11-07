@@ -10,6 +10,8 @@ export interface SaveFileRequest {
   defaultName: string
   content: string
   filters: { name: string; extensions: string[] }[]
+  /** Write straight to this file, without a dialog (Save of a project that has a file). */
+  path?: string
 }
 
 /** One folder as the in-app folder browser shows it. */
