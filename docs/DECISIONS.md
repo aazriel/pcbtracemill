@@ -129,3 +129,6 @@ The step editor shows the reasoning, the time extra passes add (from the live pr
 
 ## D-032 Copper clearing without isolation
 A Clear copper step with no enabled Isolate step before it on the same side (sharing a copper layer) is what separates the copper: every place its bit cannot pass between two copper features is reported as a narrow-gap problem with a warning that the board will be shorted there. After an isolation step, leftover copper is cosmetic and is no longer reported.
+
+## D-033 One touch per probe point
+The Mach3 variables probe program touches each point once at the probe feed (20 mm/min) and records that touch. The slow re-touch (lift 0.25 mm, touch again at F10) is an Advanced option (`ProbeGridConfig.retouch`, default off): on a user's machine the two touches agreed within ±10 µm (mean −2 µm over 19 points), and when the probe input stayed active after the first touch the re-touch did not move at all and stored a height nobody measured.

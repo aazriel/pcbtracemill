@@ -15,9 +15,9 @@ export const MACH3_VAR_BASE = 500
 /** Mach3 variables #500-#999 are used, so at most this many grid cells. */
 export const MACH3_VAR_MAX_CELLS = 500
 /**
- * Mach3 G-code-only probing: after the first (fast) touch lift this far – far enough for a board
- * pressed down by the overshoot to spring back – and touch again slowly at MACH3_RETOUCH_FEED
- * (0.25 mm in 1.5 s). The slow touch is the height that is recorded.
+ * Mach3 G-code-only probing with the optional re-touch (`ProbeGridConfig.retouch`, default off):
+ * after the first touch lift this far and touch again slowly at MACH3_RETOUCH_FEED (0.25 mm in
+ * 1.5 s); the slow touch is the height that is recorded. Without it the first touch is recorded.
  */
 export const MACH3_RETOUCH_LIFT = 0.25
 export const MACH3_RETOUCH_FEED = 10
@@ -195,7 +195,9 @@ export function generateProbeProgram(
       L.push(c('Do not close Mach3 between probing and milling, or probe again.'))
       L.push(
         c(
-          `Each point: fast touch, up ${fmtNum(reLift, 2)} mm, slow touch at F${MACH3_RETOUCH_FEED}, height read with G92 / #5213.`
+          cfg.retouch
+            ? `Each point: touch, up ${fmtNum(reLift, 2)} mm, slow touch at F${MACH3_RETOUCH_FEED}, height read with G92 / #5213.`
+            : `Each point: one touch at F${fmtNum(feed, 1)}, height read with G92 / #5213.`
         )
       )
     } else if (macros) {
@@ -234,12 +236,15 @@ export function generateProbeProgram(
     L.push(`#${VAR_DONE}=0 (heights not complete yet)`)
   } else if (dialect === 'mach3')
     L.push(macros ? 'M401 (TraceMill: start a new results file)' : 'M40 (open digitize file)')
-  // Mach3 G-code variables: lift, touch again slowly, read the height through G92 into #v, clear G92
+  // Mach3 G-code variables: (optionally lift and touch again slowly,) read the height through G92
+  // into #v, clear G92
   const retouch = (v: number): void => {
-    L.push('G91')
-    L.push(`G0 Z${n(reLift)}`)
-    L.push('G90')
-    L.push(`${probe} Z${n(depth)} F${fmtNum(Math.min(feed, MACH3_RETOUCH_FEED), 1)}`)
+    if (cfg.retouch) {
+      L.push('G91')
+      L.push(`G0 Z${n(reLift)}`)
+      L.push('G90')
+      L.push(`${probe} Z${n(depth)} F${fmtNum(Math.min(feed, MACH3_RETOUCH_FEED), 1)}`)
+    }
     L.push('G92 Z0')
     L.push(`#${v}=#5213`)
     L.push('G92.1')

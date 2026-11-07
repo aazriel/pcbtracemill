@@ -74,8 +74,8 @@ describe('probe programs (golden)', () => {
         expect(rel || (!!abs && Number(abs[1]) >= 2), `line ${i + 1}: ${l}`).toBe(true)
       })
       const probes = text.split('\n').filter((l) => /^G(38\.2|31) /.test(l))
-      // Mach3 (G-code variables, the default) touches every point twice (fast, then slowly) and point 1 again at the end
-      expect(probes.length).toBe(d === 'mach3' ? 14 : 6)
+      // Mach3 (G-code variables, the default) touches every point once and point 1 again at the end (D-033)
+      expect(probes.length).toBe(d === 'mach3' ? 7 : 6)
       if (d !== 'mach3') expect(text).not.toMatch(/G92|G10/)
     })
   }
@@ -242,11 +242,15 @@ describe('applyHeightMap', () => {
     }
   })
 
-  it('Mach3 variables probe program and probe program touches twice, the touch-off once slowly', () => {
+  it('Mach3 variables probe program touches once (re-touch optional), the touch-off once slowly', () => {
     const cfg = { ...defaultProbeGrid({ minX: 0, minY: 0, maxX: 30, maxY: 20 }, 10), cells: [0, 1, 2, 5, 6] }
     const text = generateProbeProgram(cfg, machine({ postProcessor: 'mach3' }))
-    // every probed point: fast, up, slow, read through G92, clear G92 again
-    expect(text).toMatch(/^G31 Z-2 F20\nG91\nG0 Z0\.25\nG90\nG31 Z-2 F10\nG92 Z0\n#501=#5213\nG92\.1$/m)
+    // every probed point: one touch, read through G92, clear G92 again (D-033)
+    expect(text).toMatch(/^G31 Z-2 F20\nG92 Z0\n#501=#5213\nG92\.1$/m)
+    expect(text).not.toMatch(/F10$/m)
+    // with the re-touch: touch, up, slow touch
+    const twice = generateProbeProgram({ ...cfg, retouch: true }, machine({ postProcessor: 'mach3' }))
+    expect(twice).toMatch(/^G31 Z-2 F20\nG91\nG0 Z0\.25\nG90\nG31 Z-2 F10\nG92 Z0\n#501=#5213\nG92\.1$/m)
     // point 1 is touched again at the end and is the reference
     expect(text).toMatch(/^#497=#5213$/m)
     expect(text).toMatch(/^#501=\[#501-#497\]$/m)
