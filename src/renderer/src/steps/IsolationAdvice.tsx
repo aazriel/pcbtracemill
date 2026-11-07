@@ -170,3 +170,17 @@ export function IsolationAdvice({
     </div>
   )
 }
+
+/**
+ * The narrowest copper gap the job has to isolate: the copper layers of the enabled isolation
+ * steps (all copper layers when there is none). undefined while measuring, null = all wide.
+ */
+export function useJobClearance(): ClearanceInfo | null | undefined {
+  const steps = useProject((s) => s.steps)
+  const layers = useProject((s) => s.layers)
+  const ids = useMemo(() => {
+    const iso = steps.filter((s) => s.enabled && s.kind === 'isolate').flatMap((s) => s.layerIds)
+    return iso.length ? [...new Set(iso)] : layers.filter((l) => l.type === 'copper').map((l) => l.id)
+  }, [steps, layers])
+  return useStepClearance(ids)
+}
