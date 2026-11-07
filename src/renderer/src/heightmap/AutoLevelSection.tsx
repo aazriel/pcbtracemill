@@ -74,11 +74,19 @@ function Step({
 export function AutoLevelSection({
   files,
   levelling,
-  onGenerate
+  onGenerate,
+  title = 'Auto-level (optional)',
+  wide = false,
+  children
 }: {
   files: ExportFile[]
   levelling: boolean
   onGenerate: () => void
+  title?: string
+  /** In the main area: the three steps side by side. */
+  wide?: boolean
+  /** Shown above the steps (e.g. the "probe first" advice). */
+  children?: React.ReactNode
 }): React.JSX.Element {
   const map = useProject((s) => s.heightMap)
   const machine = useProject((s) => s.machine)
@@ -117,7 +125,8 @@ export function AutoLevelSection({
 
   return (
     <PanelSection
-      title="Auto-level (optional)"
+      title={title}
+      className={wide ? 'rounded-xl border border-slate-800 bg-slate-900/40' : undefined}
       status={
         <StatusCircle
           level={map ? 'ok' : failed ? 'error' : 'pending'}
@@ -128,12 +137,15 @@ export function AutoLevelSection({
       actions={<HelpTip title={HELP['autolevel.what']?.title}>{HELP['autolevel.what']?.body}</HelpTip>}
     >
       <div className="flex flex-col gap-3" data-testid="autolevel">
-        <p className="text-[11px] leading-snug text-slate-400">
-          Copper is only 0.035 mm thick and no board is perfectly flat. Measure the real surface once, and
-          TraceMill bends the G-code to follow it.
-        </p>
-        <div className="rounded-md bg-slate-950/70 p-1.5">
-          <WarpIllustration />
+        {children}
+        <div className={cn('flex gap-3', wide ? 'items-center' : 'flex-col')}>
+          <p className={cn('leading-snug text-slate-400', wide ? 'flex-1 text-xs' : 'text-[11px]')}>
+            Copper is only 0.035 mm thick and no board is perfectly flat. Measure the real surface once, and
+            TraceMill bends the G-code to follow it. Do this <b>before</b> saving the G-code files below.
+          </p>
+          <div className={cn('rounded-md bg-slate-950/70 p-1.5', wide && 'w-72 shrink-0')}>
+            <WarpIllustration />
+          </div>
         </div>
 
         {material?.doubleSided && (
@@ -157,7 +169,7 @@ export function AutoLevelSection({
           </div>
         )}
 
-        <ol className="flex flex-col gap-2">
+        <ol className={wide ? 'grid items-start gap-2 lg:grid-cols-3' : 'flex flex-col gap-2'}>
           <Step n={1} title="Make the probe program" done={step1}>
             <p className="text-[11px] text-slate-500">
               The machine touches the board at many points and writes down each height.

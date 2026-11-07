@@ -117,7 +117,7 @@ function ProbeAdvice({ onGenerate }: { onGenerate: () => void }): React.JSX.Elem
   if (map || c === null || c >= PROBE_RECOMMENDED_BELOW) return null
   return (
     <div
-      className="mx-3 mb-3 flex gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-[11px] leading-snug text-amber-100"
+      className="flex gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-[11px] leading-snug text-amber-100"
       data-testid="probe-advice"
     >
       <AlertTriangle className="mt-px size-3.5 shrink-0 text-amber-300" />
@@ -184,12 +184,19 @@ export function ExportStage(): React.JSX.Element {
               <ProbeZeroSwitch />
             </div>
           </PanelSection>
-          <ProbeAdvice onGenerate={() => setProbeOpen(true)} />
-          <AutoLevelSection files={files} levelling={levelling} onGenerate={() => setProbeOpen(true)} />
         </div>
       </aside>
       <section className="min-w-0 flex-1 overflow-y-auto">
         <div className="mx-auto flex max-w-6xl flex-col gap-6 p-5">
+          <AutoLevelSection
+            wide
+            title="1. Probe the board (auto-level)"
+            files={files}
+            levelling={levelling}
+            onGenerate={() => setProbeOpen(true)}
+          >
+            <ProbeAdvice onGenerate={() => setProbeOpen(true)} />
+          </AutoLevelSection>
           <FilesTable files={files} levelling={levelling} levelError={levelError} />
         </div>
       </section>
