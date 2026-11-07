@@ -25,29 +25,24 @@ export const EXTRA_PASS_LIMIT_S = 30 * 60
 /** Warn when the passes the user chose add at least this much time (s). */
 export const EXTRA_PASS_NOTICE_S = 30 * 60
 
-/** Deepest isolation cut for a design clearance: [clearance mm, max depth mm], interpolated. */
-const DEPTH_CAPS: [number, number][] = [
-  [0.2, 0.05],
-  [0.3, 0.06],
-  [0.4, 0.07],
-  [0.5, 0.08],
-  [0.6, 0.1]
+/**
+ * Deepest isolation cut for a design clearance (user's rule, D-031 update): gaps under 0.5 mm
+ * 0.035 mm (just through 1 oz copper - the V-bit groove stays narrow), 0.5-1 mm 0.05 mm, wider
+ * 0.1 mm.
+ */
+const DEPTH_STEPS: [number, number][] = [
+  [TIGHT_CLEARANCE, 0.035],
+  [SMART_MAX_GAP, 0.05]
 ]
+const WIDE_DEPTH = 0.1
 
 const r3 = (v: number): number => Math.round(v * 1000) / 1000
 
 /** The deepest isolation cut that is safe for this clearance (null = wide gaps: 0.1 mm). */
 export function maxIsolationDepth(clearance: number | null): number {
-  if (clearance === null) return DEPTH_CAPS[DEPTH_CAPS.length - 1][1]
-  if (clearance <= DEPTH_CAPS[0][0]) return DEPTH_CAPS[0][1]
-  for (let i = 1; i < DEPTH_CAPS.length; i++) {
-    const [c1, d1] = DEPTH_CAPS[i]
-    if (clearance <= c1) {
-      const [c0, d0] = DEPTH_CAPS[i - 1]
-      return r3(d0 + ((clearance - c0) / (c1 - c0)) * (d1 - d0))
-    }
-  }
-  return DEPTH_CAPS[DEPTH_CAPS.length - 1][1]
+  if (clearance === null) return WIDE_DEPTH
+  for (const [below, depth] of DEPTH_STEPS) if (clearance < below - 1e-9) return depth
+  return WIDE_DEPTH
 }
 
 /**
@@ -132,8 +127,8 @@ export function planIsolation(
 ): IsolationPlan {
   const c = info?.clearance ?? null
   const base = defaultCopperDepth(material.copperThickness)
-  // never so shallow that the cut does not get through the copper
-  const through = r3(material.copperThickness + 0.015)
+  // never shallower than the copper is thick
+  const through = r3(material.copperThickness)
   const cutDepth = r3(Math.min(base, Math.max(maxIsolationDepth(c), through)))
   const width = effectiveCutWidth(tool, cutDepth)
   const overlap = defaultOverlap(tool)
@@ -155,7 +150,7 @@ export function planIsolation(
       `The ${mm(width)} groove of this bit is wider than the ${mm(c ?? 0)} gaps, so they will not be isolated - choose a finer V-bit.`
     )
   notes.push(
-    `Smart clearance: every gap up to ${mm(SMART_MAX_GAP)} is cut ONCE, along its middle - as far from both traces as it can be, so a groove that comes out a bit wide does not eat the traces. Where the copper is further apart, ${passes} pass${passes > 1 ? 'es' : ''} follow${passes > 1 ? '' : 's'} the copper, ${mm(SMART_EXTRA_CLEARANCE)} away from it. ${mm(cutDepth)} deep${c !== null && c <= TIGHT_CLEARANCE ? ' (no deeper for gaps this narrow)' : ''}.`
+    `Smart clearance: every gap up to ${mm(SMART_MAX_GAP)} is cut ONCE, along its middle - as far from both traces as it can be, so a groove that comes out a bit wide does not eat the traces. Where the copper is further apart, ${passes} pass${passes > 1 ? 'es' : ''} follow${passes > 1 ? '' : 's'} the copper, ${mm(SMART_EXTRA_CLEARANCE)} away from it. ${mm(cutDepth)} deep${c !== null && c < TIGHT_CLEARANCE ? ' (just through the copper - no deeper for gaps this narrow)' : ''}.`
   )
   if (passes === 1 && pass !== null)
     notes.push(`1 pass in the open areas: a second one would add about ${roughDuration(pass)}.`)

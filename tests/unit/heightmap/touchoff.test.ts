@@ -12,7 +12,7 @@ describe('Z touch-off at point 1', () => {
     const out = addZTouchOff(src, { ...base, dialect: 'grbl' })
     const lines = out.split('\n')
     const spindle = lines.filter((l) => /^M3\b/.test(l)).length
-    expect(lines.filter((l) => l.startsWith('G38.2 Z-1 F50')).length).toBe(spindle)
+    expect(lines.filter((l) => l.startsWith('G38.2 Z-2 F50')).length).toBe(spindle)
     expect(lines.filter((l) => l.startsWith('G10 L20 P0 Z0')).length).toBe(spindle)
     // every probe is preceded by a move to point 1 at safe height and a rapid to Z0.5 (never below)
     const i = lines.findIndex((l) => l.startsWith('G38.2'))
@@ -29,7 +29,7 @@ describe('Z touch-off at point 1', () => {
       ...base,
       dialect: 'mach3'
     })
-    expect(out).toMatch(/G31 Z-0\.0394 F2/)
+    expect(out).toMatch(/G31 Z-0\.0787 F2/)
     expect(out).toMatch(/G92 Z0/)
     expect(out).toMatch(/G0 X0\.4921 Y0\.2756/)
   })

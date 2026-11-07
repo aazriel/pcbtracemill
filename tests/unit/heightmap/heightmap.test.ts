@@ -273,10 +273,12 @@ describe('applyHeightMap', () => {
       slowFeed: MACH3_SLOW_FEED
     })
     // the cutting bit (V-bit tip) touches once, slowly - never at the 50 mm/min probe feed
-    expect(t).toMatch(/^G31 Z-1 F2 \(slow - protects the tip\)\nG92 Z0 /m)
+    expect(t).toMatch(/^G31 Z-2 F2 \(slow - protects the tip\)\nG92 Z0 /m)
     expect(t).not.toMatch(/F50/)
-    // old G92 offsets are cleared before the operator sets Z roughly
-    expect(t).toMatch(/^M5\nG92\.1 .*\nM0 /m)
+    // no G92.1: Mach3 keeps the G92 offset of the file-load preview, clearing it would move the
+    // Z zero the operator just set
+    expect(t).not.toMatch(/G92\.1/)
+    expect(t).toMatch(/^M5\nM0 /m)
   })
 
   it('linearises arcs, handles inches and relative mode', () => {

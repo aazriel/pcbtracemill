@@ -65,23 +65,22 @@ describe('copper spacing analysis (D-031)', () => {
 
 describe('isolation plan from the clearance (D-031)', () => {
   it('limits the depth for narrow gaps', () => {
-    expect(maxIsolationDepth(0.15)).toBe(0.05)
-    expect(maxIsolationDepth(0.2)).toBe(0.05)
-    expect(maxIsolationDepth(0.3)).toBe(0.06)
-    expect(maxIsolationDepth(0.4)).toBe(0.07)
-    expect(maxIsolationDepth(0.5)).toBe(0.08)
-    expect(maxIsolationDepth(0.6)).toBe(0.1)
+    expect(maxIsolationDepth(0.15)).toBe(0.035)
+    expect(maxIsolationDepth(0.3)).toBe(0.035)
+    expect(maxIsolationDepth(0.49)).toBe(0.035)
+    expect(maxIsolationDepth(0.5)).toBe(0.05)
+    expect(maxIsolationDepth(0.9)).toBe(0.05)
     expect(maxIsolationDepth(1)).toBe(0.1)
     expect(maxIsolationDepth(null)).toBe(0.1)
   })
 
-  it('0.2 mm gaps: smart clearance (one groove in the middle), 0.05 mm deep', () => {
+  it('0.2 mm gaps: smart clearance (one groove in the middle), 0.035 mm deep', () => {
     const p = planIsolation(vbit, info(0.2), cu)
     expect(p.smart).toBe(true)
     expect(p.smartMaxGap).toBe(1)
-    expect(p.cutDepth).toBe(0.05)
-    // groove 0.1 + 2*0.05*tan15deg = 0.127
-    expect(p.width).toBeCloseTo(0.1268, 3)
+    expect(p.cutDepth).toBe(0.035)
+    // groove 0.1 + 2*0.035*tan15deg = 0.119
+    expect(p.width).toBeCloseTo(0.1188, 3)
     // the passes in open areas keep 0.1 mm from the copper
     expect(p.extraClearance).toBe(0.1)
     expect(p.centred).toBe(true)
@@ -100,7 +99,7 @@ describe('isolation plan from the clearance (D-031)', () => {
   it('wide gaps: two passes unless the second one adds more than 30 min', () => {
     const quick = planIsolation(vbit, info(0.8, 1000), cu)
     expect(quick.passes).toBe(2)
-    expect(quick.cutDepth).toBe(0.1)
+    expect(quick.cutDepth).toBe(0.05) // 0.5-1 mm gaps
     expect(quick.extraClearance).toBe(0.1)
     // 10 m of copper outline at 50 mm/min ≈ 3.7 h per pass
     const slow = planIsolation(vbit, info(0.8, 10000), cu)
