@@ -13,6 +13,8 @@ import {
 import type { CamStep, ImportedLayer, Toolpath, ValidationIssue } from '@core/model/types'
 import {
   STEP_KIND_INFO,
+  defaultOverlap,
+  planIsolation,
   defaultCutDepth,
   isToolAllowed,
   layersForStep,
@@ -32,6 +34,7 @@ import { cn, formatDuration } from '@renderer/lib/utils'
 import { DepthCrossSection, Figure, SideIllustration } from './illustrations'
 import { HeightsIllustration } from '@renderer/machine/HeightsIllustration'
 import { help, layerLabel, withSide } from './stepUtils'
+import { applyIsolationPlan, useStepClearance } from './IsolationAdvice'
 
 export interface SectionProps {
   draft: CamStep
@@ -197,7 +200,18 @@ export function ToolSection({ draft, update }: SectionProps): React.JSX.Element 
       useUi.getState().toast('error', allowed.message)
       return
     }
-    update((d) => ({ ...d, toolId: id }))
+    update((d) => ({
+      ...d,
+      toolId: id,
+      // the pass overlap follows the tool type (V-bit 50 %, flat 15 %)
+      params: {
+        ...d.params,
+        isolation: { ...d.params.isolation, overlap: defaultOverlap(t) },
+        clear: { ...d.params.clear, overlap: defaultOverlap(t) }
+      }
+    }))
+    if (draft.kind === 'isolate' && id !== draft.toolId)
+      void applyIsolationPlan({ ...draft, toolId: id }, t, useProject.getState().material, update)
   }
   const fit = tool ? isToolAllowed(draft.kind, tool) : null
   const pick = usePickContext(draft)
@@ -282,7 +296,13 @@ export function GeneralSection({ draft, update, issues }: SectionProps): React.J
   const machine = useProject((s) => s.machine)
   const tools = useProject((s) => s.tools)
   const tool = tools.find((t) => t.id === draft.toolId)
-  const recommended = material ? defaultCutDepth(draft.kind, material) : null
+  const clearance = useStepClearance(draft.kind === 'isolate' ? draft.layerIds : [])
+  // isolation: the depth that suits the board's narrowest gaps (D-031)
+  const recommended = !material
+    ? null
+    : draft.kind === 'isolate' && tool && clearance !== undefined
+      ? planIsolation(tool, clearance, material).cutDepth
+      : defaultCutDepth(draft.kind, material)
   const depthErr = firstIssue(issues, /depth|thickness/i, 'error')
   const depthWarn = firstIssue(issues, /depth|deep|spoilboard/i, 'warning')
   const safeErr = firstIssue(issues, /safe z/i, 'error')
@@ -441,11 +461,17 @@ export function GeneralSection({ draft, update, issues }: SectionProps): React.J
 export function ResultsSection({
   draft,
   toolpath,
-  stale
+  stale,
+  pending = false,
+  manual = false
 }: {
   draft: CamStep
   toolpath: Toolpath | undefined
   stale: boolean
+  /** The values would change with the edits in the dialog and are not calculated yet: show "--". */
+  pending?: boolean
+  /** Auto-generate is off: the edits are calculated after Save. */
+  manual?: boolean
 }): React.JSX.Element {
   const generating = useUi((s) => s.generating)
   if (!draft.enabled)
@@ -454,7 +480,7 @@ export function ResultsSection({
         This step is disabled, so no toolpath is calculated and it is left out of the G-code.
       </p>
     )
-  if (!toolpath)
+  if (!toolpath && !pending)
     return (
       <p className="flex items-center gap-2 text-xs text-slate-400">
         <Info className="size-4 text-sky-400" />
@@ -463,30 +489,33 @@ export function ResultsSection({
           : 'The estimated time and cut length will be calculated after you save the step (steps with errors get no toolpath).'}
       </p>
     )
-  const s = toolpath.stats
+  const s = toolpath?.stats ?? { estimatedSeconds: 0, cutLength: 0, rapidLength: 0, plungeCount: 0 }
+  const dash = (v: string): string => (pending ? '--' : v)
   const tiles = [
     {
       icon: Clock,
       label: 'Estimated time',
-      value: formatDuration(s.estimatedSeconds),
+      value: dash(formatDuration(s.estimatedSeconds)),
       hint: 'Machine time for this step, including moves between cuts.'
     },
     {
       icon: RouteIcon,
       label: 'Cut length',
-      value: `${s.cutLength / 1000 >= 1 ? (s.cutLength / 1000).toFixed(2) + ' m' : s.cutLength.toFixed(0) + ' mm'}`,
+      value: dash(
+        `${s.cutLength / 1000 >= 1 ? (s.cutLength / 1000).toFixed(2) + ' m' : s.cutLength.toFixed(0) + ' mm'}`
+      ),
       hint: 'Total distance the bit travels while cutting.'
     },
     {
       icon: Ruler,
       label: 'Travel moves',
-      value: `${s.rapidLength.toFixed(0)} mm`,
+      value: dash(`${s.rapidLength.toFixed(0)} mm`),
       hint: 'Distance moved in the air between cuts.'
     },
     {
       icon: ArrowDownToLine,
       label: 'Plunges',
-      value: String(s.plungeCount),
+      value: dash(String(s.plungeCount)),
       hint: 'How many times the bit goes down into the material (each drilled hole is one).'
     }
   ]
@@ -503,10 +532,18 @@ export function ResultsSection({
           </div>
         ))}
       </div>
-      {stale && (
+      {pending ? (
         <p className="text-[11px] text-slate-500">
-          Values are from the last generation; your changes in this dialog are calculated after Save.
+          {manual
+            ? 'Your changes are calculated after Save (or turn on auto-generate to see them here).'
+            : 'Calculating with your changes…'}
         </p>
+      ) : (
+        stale && (
+          <p className="text-[11px] text-slate-500">
+            Values are from the last generation; your changes in this dialog are calculated after Save.
+          </p>
+        )
       )}
     </div>
   )

@@ -116,3 +116,16 @@ Estimated times (file header, export table, step results, simulator play-back) u
 
 ## D-030 Lower default heights, slower probe touch
 The built-in machines use safe Z 2 mm and travel Z 1 mm (was 5 / 2): a PCB is flat and clamped, and every lift costs time on Z axes limited to a few hundred mm/min. Projects whose built-in machine still has the old untouched values get the new ones on load (`refreshPresetHeights`); edited machines are kept. The fast probe touch defaults to 20 mm/min (was 50), which does not press a thin board down before the probe trips; it moved into the probe dialog's Advanced section with the lifts.
+
+## D-031 Isolation settings from the measured copper spacing
+After import every copper layer is measured in a second, background CAM worker (`analyzeClearance`, like a DRC): each place where two different copper features come closer than 1.5 mm **with nothing between them** is one measurement. Gaps under 0.1 mm (`MILLABLE_GAP`) are copper meant to touch or slivers – no bit can cut them – and are only counted. The **narrowest millable gap** is what the isolation must get through (`clearance`); the width most places share (`typical`, ≥ 2 places and 3 %) is reported too. The plan is made for the narrowest gap, not the typical one: a centred pass sized for a 0.4 mm design rule would short the few 0.2 mm places.
+
+`planIsolation` (recipe, choosing a tool in the step editor, "Use the recommended settings"):
+- depth: at most 0.05 mm for 0.2 mm gaps, 0.06 / 0.3, 0.07 / 0.4, 0.08 / 0.5, 0.1 from 0.6 mm (interpolated), never above the usual copper depth and never shallower than copper + 0.015 mm;
+- gaps ≤ 0.5 mm: **one pass**, extra clearance (gap − groove) / 2 rounded down to 0.005 mm, so the groove runs in the middle of the narrowest gap; a groove wider than the gap is reported (choose a finer V-bit);
+- wider gaps: two passes, unless the second would add more than 30 min (estimated from the copper outline length at the tool feed, or from the last generated toolpath);
+- overlap by tool type: V-bit 50 % (its full width exists only at full depth, a few hundredths of board height change make the groove barely wider than the tip), ball 40 %, flat / corn 15 %; not used with one pass.
+The step editor shows the reasoning, the time extra passes add (from the live preview against the generated step, shown from 30 min), and a button to go back to the recommendation. Probe spacing recommendation: 10 mm under 0.5 mm gaps, 15 mm under 1.2 mm, else 20 mm.
+
+## D-032 Copper clearing without isolation
+A Clear copper step with no enabled Isolate step before it on the same side (sharing a copper layer) is what separates the copper: every place its bit cannot pass between two copper features is reported as a narrow-gap problem with a warning that the board will be shorted there. After an isolation step, leftover copper is cosmetic and is no longer reported.

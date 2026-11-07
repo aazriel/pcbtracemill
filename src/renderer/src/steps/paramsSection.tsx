@@ -37,6 +37,7 @@ import {
   TabHeightFigure
 } from './stepFigures'
 import type { SectionProps } from './editorSections'
+import { IsolationAdvice } from './IsolationAdvice'
 
 const r3 = (v: number): number => Math.round(v * 1000) / 1000
 
@@ -324,66 +325,74 @@ export function ParamsSection({
         </Figure>
       )
       return (
-        <Grid
-          row
-          how={
-            <>
-              <Figure caption="Top view of one pad: each dashed line is one pass of the bit, dark bands are where copper is removed. Updates as you change the values.">
-                <IsolationDiagram
-                  passes={ip.passes}
-                  overlap={ip.overlap}
-                  cutWidth={width}
-                  extraClearance={ip.extraClearance}
-                  direction={ip.direction}
-                />
-              </Figure>
-            </>
-          }
-        >
-          <NumberField
-            label="Passes"
-            min={1}
-            max={20}
-            step={1}
-            value={ip.passes}
-            onChange={(v) => setParam(update, 'isolation', { passes: Math.round(v) })}
-            description="How many grooves are cut next to each other around every trace."
-            {...fig(help('isolation.passes'), isoFig)}
-            error={err(/passes/i)}
-            warning={warn(/passes/i)}
-          />
-          <NumberField
-            label="Overlap"
-            unit="%"
-            min={0}
-            max={90}
-            step={5}
-            value={Math.round(ip.overlap * 100)}
-            onChange={(v) => setParam(update, 'isolation', { overlap: v / 100 })}
-            description="How much each pass covers the previous one; about 40% avoids thin copper slivers."
-            {...fig(
-              `${help('isolation.overlap')} ${help('concept.overlap')}`,
-              <OverlapFigure overlap={ip.overlap} />
-            )}
-            error={err(/overlap/i)}
-          />
-          <NumberField
-            label="Extra clearance"
-            unit="mm"
-            min={0}
-            step={0.05}
-            value={ip.extraClearance}
-            onChange={(v) => setParam(update, 'isolation', { extraClearance: v })}
-            description="Moves the first pass further away from the copper, leaving a wider gap."
-            {...fig(help('isolation.extraClearance'), <ExtraClearanceFigure extra={ip.extraClearance} />)}
-            error={err(/clearance/i)}
-          />
-          <DirectionField
-            value={ip.direction}
-            onChange={(v) => setParam(update, 'isolation', { direction: v })}
-            helpKey="isolation.direction"
-          />
-        </Grid>
+        <div className="flex flex-col gap-3">
+          <IsolationAdvice draft={draft} update={update} tool={tool} />
+          <Grid
+            row
+            how={
+              <>
+                <Figure caption="Top view of one pad: each dashed line is one pass of the bit, dark bands are where copper is removed. Updates as you change the values.">
+                  <IsolationDiagram
+                    passes={ip.passes}
+                    overlap={ip.overlap}
+                    cutWidth={width}
+                    extraClearance={ip.extraClearance}
+                    direction={ip.direction}
+                  />
+                </Figure>
+              </>
+            }
+          >
+            <NumberField
+              label="Passes"
+              min={1}
+              max={20}
+              step={1}
+              value={ip.passes}
+              onChange={(v) => setParam(update, 'isolation', { passes: Math.round(v) })}
+              description="How many grooves are cut next to each other around every trace."
+              {...fig(help('isolation.passes'), isoFig)}
+              error={err(/passes/i)}
+              warning={warn(/passes/i)}
+            />
+            <NumberField
+              label="Overlap"
+              unit="%"
+              min={0}
+              max={90}
+              step={5}
+              value={Math.round(ip.overlap * 100)}
+              disabled={ip.passes <= 1}
+              onChange={(v) => setParam(update, 'isolation', { overlap: v / 100 })}
+              description={
+                ip.passes <= 1
+                  ? 'Not used with one pass.'
+                  : 'How much each pass covers the previous one: 50 % for a V-bit (it cuts its full width only at full depth), 15 % for a flat end mill.'
+              }
+              {...fig(
+                `${help('isolation.overlap')} ${help('concept.overlap')}`,
+                <OverlapFigure overlap={ip.overlap} />
+              )}
+              error={err(/overlap/i)}
+            />
+            <NumberField
+              label="Extra clearance"
+              unit="mm"
+              min={0}
+              step={0.05}
+              value={ip.extraClearance}
+              onChange={(v) => setParam(update, 'isolation', { extraClearance: v })}
+              description="Moves the first pass further away from the copper, leaving a wider gap."
+              {...fig(help('isolation.extraClearance'), <ExtraClearanceFigure extra={ip.extraClearance} />)}
+              error={err(/clearance/i)}
+            />
+            <DirectionField
+              value={ip.direction}
+              onChange={(v) => setParam(update, 'isolation', { direction: v })}
+              helpKey="isolation.direction"
+            />
+          </Grid>
+        </div>
       )
     }
     case 'clear': {

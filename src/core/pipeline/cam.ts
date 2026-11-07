@@ -43,6 +43,19 @@ export interface CamResult {
 
 const DIAM_EPS = 1e-3
 
+/** An enabled isolation step on the same side, sharing a copper layer, comes before `step`. */
+export function isolatedBefore(steps: CamStep[], step: CamStep): boolean {
+  const i = steps.findIndex((s) => s.id === step.id)
+  const before = i < 0 ? steps : steps.slice(0, i)
+  return before.some(
+    (s) =>
+      s.enabled &&
+      s.kind === 'isolate' &&
+      s.side === step.side &&
+      s.layerIds.some((id) => step.layerIds.includes(id))
+  )
+}
+
 /**
  * `onStep` is told which step is being worked on (null when the toolpaths are done), so the UI can
  * show progress.
@@ -59,7 +72,15 @@ export function runCam(req: CamRequest, onStep?: (stepId: string | null) => void
     if (step.enabled && v.level !== 'error' && !bboxIsEmpty(boardBBox)) {
       const tool = tools.find((t) => t.id === step.toolId)!
       try {
-        const tp = generateToolpath({ step, tool, layers, material, machine, boardBBox })
+        const tp = generateToolpath({
+          step,
+          tool,
+          layers,
+          material,
+          machine,
+          boardBBox,
+          isolatedBefore: step.kind === 'clear' ? isolatedBefore(steps, step) : undefined
+        })
         toolpaths.push(tp)
         v = combineValidation(v, tp.warnings)
       } catch (e) {
@@ -129,4 +150,37 @@ export function runCam(req: CamRequest, onStep?: (stepId: string | null) => void
   const files = post(req.grouping)
   const combined = req.grouping === 'combined' ? (files[0] ?? null) : (post('combined')[0] ?? null)
   return { validations, toolpaths, files, combined, notes, elapsed: (Date.now() - t0) / 1000 }
+}
+
+/**
+ * Toolpath of one (edited, unsaved) step on its own, for the live results in the step editor.
+ * `req.steps` are the project's steps (with this step in place) so the context is the same as in
+ * {@link runCam}.
+ */
+export function previewStep(
+  req: Omit<CamRequest, 'grouping' | 'projectName'>,
+  step: CamStep
+): { toolpath: Toolpath | null; error: string | null } {
+  const { layers, steps, tools, material, machine } = req
+  const boardBBox = computeBoardBBox(layers)
+  const v = validateStep(step, { layers, tools, material, machine })
+  if (!step.enabled) return { toolpath: null, error: null }
+  if (v.level === 'error')
+    return { toolpath: null, error: v.issues.find((i) => i.level === 'error')?.message ?? 'error' }
+  if (bboxIsEmpty(boardBBox)) return { toolpath: null, error: 'No board.' }
+  const tool = tools.find((t) => t.id === step.toolId)!
+  try {
+    const toolpath = generateToolpath({
+      step,
+      tool,
+      layers,
+      material,
+      machine,
+      boardBBox,
+      isolatedBefore: step.kind === 'clear' ? isolatedBefore(steps, step) : undefined
+    })
+    return { toolpath, error: null }
+  } catch (e) {
+    return { toolpath: null, error: e instanceof Error ? e.message : String(e) }
+  }
 }

@@ -15,6 +15,20 @@ export function camWorker(): Comlink.Remote<CamWorkerApi> {
   return cam
 }
 
+let analysis: Comlink.Remote<CamWorkerApi> | null = null
+
+/**
+ * A second CAM worker for slow background measurements (copper spacing after import), so they never
+ * hold up toolpath generation in the main CAM worker.
+ */
+export function analysisWorker(): Comlink.Remote<CamWorkerApi> {
+  if (!analysis)
+    analysis = Comlink.wrap<CamWorkerApi>(
+      new Worker(new URL('./cam.worker.ts', import.meta.url), { type: 'module' })
+    )
+  return analysis
+}
+
 /** The simulation worker (material removal). */
 export function simWorkerApi(): Comlink.Remote<SimWorkerApi> {
   if (!sim) {

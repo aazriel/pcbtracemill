@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import type { CamResult } from '@core/pipeline/cam'
-import type { ImportedLayer, ParsedLayer } from '@core/model/types'
+import type { ClearanceInfo, ImportedLayer, ParsedLayer } from '@core/model/types'
 import type { DroppedFile } from '@renderer/layers/ImportDropZone'
 
 export type Stage = 'board' | 'manufacture' | 'simulation' | 'export'
@@ -59,6 +59,8 @@ export interface UiState {
   problemFocus: string | null
   /** "New project" asked while there are unsaved changes. */
   confirmNew: boolean
+  /** Measured copper spacing per copper layer id, filled in the background after import (D-031). */
+  clearance: Record<string, ClearanceInfo | null>
   set(patch: Partial<UiState>): void
   toast(level: Toast['level'], message: string): void
   dismissToast(id: number): void
@@ -89,6 +91,7 @@ export const useUi = create<UiState>()((set) => ({
   problemStepId: null,
   problemFocus: null,
   confirmNew: false,
+  clearance: {},
   set: (patch) => set(patch),
   toast: (level, message) => {
     const id = ++toastId
