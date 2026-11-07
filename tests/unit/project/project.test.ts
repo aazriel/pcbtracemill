@@ -1,6 +1,12 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { PROJECT_FILE_EXT, deserializeProject, newProjectName, serializeProject } from '@core/project'
+import {
+  PROJECT_FILE_EXT,
+  deserializeProject,
+  newProjectName,
+  nextProjectName,
+  serializeProject
+} from '@core/project'
 import type { Project } from '@core/model/types'
 import { MACHINES, TOOLS } from '../post/sample'
 
@@ -142,5 +148,16 @@ describe('project files', () => {
   it('names and extension', () => {
     expect(PROJECT_FILE_EXT).toBe('tmill')
     expect(newProjectName(new Date(2026, 10, 4, 9, 5))).toBe('board-20261104-0905')
+  })
+})
+
+describe('project names', () => {
+  it('suggests the next free name', () => {
+    expect(nextProjectName([])).toBe('my_pcb')
+    expect(nextProjectName(['my_pcb'])).toBe('my_pcb 1')
+    expect(nextProjectName(['my_pcb', 'my_pcb 1'])).toBe('my_pcb 2')
+    expect(nextProjectName(['amp', 'my_pcb 1'])).toBe('my_pcb')
+    expect(nextProjectName(['Amp'], 'amp')).toBe('amp 1')
+    expect(nextProjectName(['amp'], 'filter')).toBe('filter')
   })
 })

@@ -32,7 +32,8 @@ import {
   type MaterialIssue
 } from '@core/cam'
 import { summarizeLayerStatus } from '@core/import'
-import { serializeProject, deserializeProject, newProjectName } from '@core/project'
+import { serializeProject, deserializeProject, UNNAMED_PROJECT } from '@core/project'
+import { rememberProjectName, suggestProjectName } from './projectNames'
 import { bboxIsEmpty } from '@core/geometry'
 import * as Comlink from 'comlink'
 import { analysisWorker, camWorker } from '@workers/index'
@@ -221,9 +222,13 @@ export function browseAndImport(directory = false): Promise<void> {
   return startImport(directory ? 'folder' : 'files')
 }
 
-export async function resolveEda(eda: EdaTool): Promise<void> {
+export async function resolveEda(eda: EdaTool, name?: string): Promise<void> {
   const ui = useUi.getState()
   useProject.getState().setEdaTool(eda)
+  if (name) {
+    useProject.getState().setName(name)
+    rememberProjectName(name)
+  }
   const files = ui.pendingImport
   const kind = ui.pendingBrowse
   ui.set({ pendingImport: null, pendingBrowse: null })
@@ -735,21 +740,25 @@ export async function saveProject(saveAs = false): Promise<void> {
   ensureDefaults()
   let text: string
   try {
+    if (s.name === UNNAMED_PROJECT) useProject.getState().setName(suggestProjectName())
     text = serializeProject(toProject(useProject.getState()))
   } catch (e) {
     useUi.getState().toast('error', e instanceof Error ? e.message : String(e))
     return
   }
-  const name = `${safeName(s.name === 'Untitled board' ? newProjectName() : s.name)}.tmill`
+  const projectName = useProject.getState().name
+  const name = `${safeName(projectName)}.tmill`
   if (window.tracemill) {
     const path = await window.tracemill.saveFile({
       defaultName: saveAs || !s.filePath ? name : s.filePath,
+      path: !saveAs && s.filePath ? s.filePath : undefined,
       content: text,
       filters: [{ name: 'TraceMill project', extensions: ['tmill'] }]
     })
     if (!path) return
     useProject.getState().setFilePath(path)
   } else downloadText(name, text)
+  rememberProjectName(projectName)
   useProject.getState().markClean()
   useUi.getState().toast('success', 'Project saved.')
 }

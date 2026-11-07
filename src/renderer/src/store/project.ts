@@ -5,6 +5,7 @@
 import { create, useStore } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
 import { temporal } from 'zundo'
+import { UNNAMED_PROJECT } from '@core/project'
 import type {
   CamStep,
   EdaTool,
@@ -78,7 +79,7 @@ export const DEFAULT_SETTINGS: ProjectSettings = {
 export const parsedCache = new Map<string, ParsedLayer>()
 
 const initial = (): ProjectState => ({
-  name: 'Untitled board',
+  name: UNNAMED_PROJECT,
   filePath: null,
   dirty: false,
   layers: [],

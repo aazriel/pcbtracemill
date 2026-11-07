@@ -36,6 +36,8 @@ import {
   analyzeCopperLayers
 } from '@renderer/store/controller'
 import { loadUserTools } from '@renderer/tools/toolLibrary'
+import { loadProjectNames } from '@renderer/store/projectNames'
+import { UNNAMED_PROJECT } from '@core/project'
 import { BoardStage } from '@renderer/stages/BoardStage'
 import { ManufactureStage } from '@renderer/stages/ManufactureStage'
 import { SimulationStage } from '@renderer/stages/SimulationStage'
@@ -77,6 +79,7 @@ export function App(): React.JSX.Element {
   useEffect(() => {
     ensureDefaults()
     void loadUserTools().then(addUserTools)
+    void loadProjectNames()
     // first start: the tour (there is no last session yet); afterwards: offer the last session
     void maybeShowTour()
     void checkLastSession()
@@ -244,7 +247,8 @@ export function App(): React.JSX.Element {
           open={!!pending || !!pendingBrowse}
           current={eda}
           beforeBrowse={!!pendingBrowse}
-          onPick={(e) => void resolveEda(e)}
+          askName={name === UNNAMED_PROJECT}
+          onPick={(e, n) => void resolveEda(e, n)}
           onClose={cancelEdaChoice}
         />
         <DuplicateDialog pending={duplicates} onResolve={resolveDuplicates} />
