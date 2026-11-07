@@ -5,6 +5,7 @@ import { cn } from '@renderer/lib/utils'
 export function Toasts(): React.JSX.Element {
   const toasts = useUi((s) => s.toasts)
   const dismiss = useUi((s) => s.dismissToast)
+  const hold = useUi((s) => s.holdToast)
   return (
     <div
       className="pointer-events-none fixed bottom-4 right-4 z-[200] flex w-96 flex-col gap-2"
@@ -14,6 +15,8 @@ export function Toasts(): React.JSX.Element {
       {toasts.map((t) => (
         <div
           key={t.id}
+          onMouseEnter={() => hold(t.id, true)}
+          onMouseLeave={() => hold(t.id, false)}
           className={cn(
             'pointer-events-auto flex items-start gap-2 rounded-lg border px-3 py-2 text-sm shadow-xl',
             t.level === 'success' && 'border-emerald-700 bg-emerald-950 text-emerald-100',
