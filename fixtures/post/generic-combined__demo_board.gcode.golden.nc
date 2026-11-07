@@ -4,7 +4,7 @@ N30 ; File: demo_board.gcode
 N40 ; Machine: Generic controller
 N50 ; Date: 2026-01-02
 N60 ; Units: mm
-N70 ; Estimated time: 2 min 10 s
+N70 ; Estimated time: 2 min 44 s
 N80 ; Work zero: X0 Y0 at the job origin, Z0 = top of the copper surface
 N90 ; Side: TOP then BOTTOM
 N100 ; Tools:

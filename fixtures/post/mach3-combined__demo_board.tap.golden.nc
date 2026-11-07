@@ -4,7 +4,7 @@
 (Machine: Mach3 router)
 (Date: 2026-01-02)
 (Units: mm)
-(Estimated time: 2 min 08 s)
+(Estimated time: 2 min 51 s)
 (Work zero: X0 Y0 at the job origin, Z0 = top of the copper surface)
 (Side: TOP then BOTTOM)
 (Tools:)

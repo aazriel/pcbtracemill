@@ -1,14 +1,19 @@
-import type { GcodeLineMeta, SimMove } from '../model/types'
+import type { GcodeLineMeta, MachineProfile, SimMove } from '../model/types'
 import { arcPoints } from '../geometry'
 import { tokenizeLine } from './tokenize'
+import { DEFAULT_ACCEL, moveTimes, type TimedMove } from './motionTime'
 
 export interface InterpretOptions {
   /** Per-line metadata (from a post) to tag moves with tool/step ids. */
   lineMeta?: GcodeLineMeta[]
   /** Start position in mm. Default [0,0,0]. */
   initial?: [number, number, number]
-  /** Rapid rate used for time estimation, mm/min. Default 3000. */
+  /** Rapid rate of X/Y used for time estimation, mm/min. Default 3000. */
   rapidFeed?: number
+  /** Rapid rate of Z, mm/min. Default = rapidFeed. */
+  rapidFeedZ?: number
+  /** Axis acceleration mm/s² for the time estimate. Default 0 = instant (see motionTime.ts). */
+  accel?: number
   /** Chordal tolerance for arc linearisation, mm. Default 0.01. */
   arcTolerance?: number
 }
@@ -34,6 +39,15 @@ type Motion = 0 | 1 | 2 | 3 | 38.2 | 31 | 80 | 81 | 82 | 83
 type Vec3 = [number, number, number]
 
 const DEFAULT_RAPID = 3000
+
+/** Time-estimate options for a machine: its rapid rates and acceleration (D-029). */
+export function machineTiming(m: Pick<MachineProfile, 'maxFeedXY' | 'maxFeedZ' | 'accel'>): InterpretOptions {
+  return {
+    rapidFeed: m.maxFeedXY > 0 ? m.maxFeedXY : undefined,
+    rapidFeedZ: m.maxFeedZ > 0 ? m.maxFeedZ : undefined,
+    accel: m.accel && m.accel > 0 ? m.accel : DEFAULT_ACCEL
+  }
+}
 const INCH = 25.4
 /** LinuxCNC-style clearance above the previous peck depth when re-entering a G83 hole (mm). */
 const PECK_CLEARANCE = 0.254
@@ -74,7 +88,14 @@ export function interpretGcode(text: string, opts: InterpretOptions = {}): Inter
   let spindleOn = false
   let retractToInitial = true // G98
   const cycle = { z: 0, r: 0, q: 0, p: 0 } // mm / seconds, absolute values
-  let time = 0
+  // Times are worked out after the whole program is read (acceleration needs the moves around).
+  const timed: TimedMove[] = []
+  const dwellBefore: number[] = []
+  let pendingDwell = 0
+  const dwell = (sec: number): void => {
+    if (sec > 0) pendingDwell += sec
+  }
+  let probing = false
   let lastCommentOnlyText = ''
 
   const lines = text.split(/\r?\n/)
@@ -91,7 +112,16 @@ export function interpretGcode(text: string, opts: InterpretOptions = {}): Inter
       warnOnce('nofeed', `Line ${line + 1}: feed move without a feed rate (F); estimated at rapid rate`)
       rate = rapidFeed
     }
-    time += (len / rate) * 60
+    const t: TimedMove = { kind, from, to, feed: rate }
+    if (probing) {
+      // a probe stops when it touches - expect that at the surface (Z0), not at the far end
+      t.stop = true
+      if (to[2] < 0 && from[2] > to[2])
+        t.timedLength = (len * (from[2] - Math.max(0, to[2]))) / (from[2] - to[2])
+    }
+    timed.push(t)
+    dwellBefore.push(pendingDwell)
+    pendingDwell = 0
     const meta = metaByLine.get(line)
     moves.push({
       line,
@@ -101,7 +131,7 @@ export function interpretGcode(text: string, opts: InterpretOptions = {}): Inter
       feed: kind === 'rapid' ? rapidFeed : rate,
       toolId: meta?.toolId ?? null,
       stepId: meta?.stepId ?? null,
-      tEnd: time
+      tEnd: 0
     })
     pos = to
   }
@@ -215,8 +245,7 @@ export function interpretGcode(text: string, opts: InterpretOptions = {}): Inter
 
     // 4. Non-motion G codes that consume axis words.
     if (gs.includes(4)) {
-      const sec = 'P' in w ? w.P : 0
-      if (sec > 0) time += sec
+      dwell('P' in w ? w.P : 0)
     }
     if (gs.includes(28) || gs.includes(30)) {
       warnings.push(`Line ${li + 1}: G${gs.includes(28) ? 28 : 30} (go home) ignored - home position unknown`)
@@ -247,8 +276,11 @@ export function interpretGcode(text: string, opts: InterpretOptions = {}): Inter
       else if (motion === 1) {
         checkSpindle(li)
         push(li, 'feed', target(), feed)
-      } else if (motion === 31 || motion === 38.2) push(li, 'feed', target(), feed)
-      else if (motion === 2 || motion === 3) {
+      } else if (motion === 31 || motion === 38.2) {
+        probing = true
+        push(li, 'feed', target(), feed)
+        probing = false
+      } else if (motion === 2 || motion === 3) {
         checkSpindle(li)
         const end = target()
         if (plane !== 17) {
@@ -344,7 +376,7 @@ export function interpretGcode(text: string, opts: InterpretOptions = {}): Inter
         } else {
           if (motion === 83) warnOnce('g83q', `Line ${li + 1}: G83 without Q peck; drilled in one pass`)
           push(li, 'feed', [x, y, zb], feed)
-          if (motion === 82 && cycle.p > 0) time += cycle.p
+          if (motion === 82 && cycle.p > 0) dwell(cycle.p)
           push(li, 'rapid', [x, y, r], feed)
         }
         const clearZ = retractToInitial ? Math.max(initialZ, r) : r
@@ -355,6 +387,7 @@ export function interpretGcode(text: string, opts: InterpretOptions = {}): Inter
     // 6. Program control.
     for (const m of ms) {
       if (m === 0 || m === 1) {
+        if (timed.length) timed[timed.length - 1].stop = true
         pauses.push({ line: li, comment: lineComment || lastCommentOnlyText })
       }
     }
@@ -365,6 +398,18 @@ export function interpretGcode(text: string, opts: InterpretOptions = {}): Inter
       break
     }
   }
+
+  const secs = moveTimes(timed, {
+    maxFeedXY: rapidFeed,
+    maxFeedZ: opts.rapidFeedZ && opts.rapidFeedZ > 0 ? opts.rapidFeedZ : rapidFeed,
+    accel: opts.accel
+  })
+  let time = 0
+  for (let i = 0; i < moves.length; i++) {
+    time += dwellBefore[i] + secs[i]
+    moves[i].tEnd = time
+  }
+  time += pendingDwell
 
   const bounds: InterpretBounds = {
     min: [Infinity, Infinity, Infinity],

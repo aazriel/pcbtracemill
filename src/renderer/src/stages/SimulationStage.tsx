@@ -51,6 +51,7 @@ export function SimulationStage(): React.JSX.Element {
   const setUi = useUi((s) => s.set)
   const material = useProject((s) => s.material)
   const tools = useProject((s) => s.tools)
+  const machine = useProject((s) => s.machine)
   const layers = useLayersWithParsed()
   const bbox = useBoardBBox()
   const status = useSim((s) => s.status)
@@ -80,14 +81,17 @@ export function SimulationStage(): React.JSX.Element {
         boardBBox: bbox,
         designTopParts: parts('top'),
         designBottomParts: parts('bottom'),
-        resolution: pickResolution(material.width, material.height)
+        resolution: pickResolution(material.width, material.height),
+        timing: machine
+          ? { maxFeedXY: machine.maxFeedXY, maxFeedZ: machine.maxFeedZ, accel: machine.accel }
+          : undefined
       },
       lineCount,
       stepNames,
       tools,
       origin: workOriginInStock(material, bbox)
     })
-  }, [cam, camVersion, material, tools, layers, bbox])
+  }, [cam, camVersion, material, tools, layers, bbox, machine])
 
   // Keyboard shortcuts: Space play/pause, ←/→ previous/next marker, Home restart, End final result.
   useEffect(() => {

@@ -138,3 +138,32 @@ describe('interpretGcode', () => {
     expect(gcodeLanguageKeywords.mCodes.find((k) => k.code === 'M6')).toBeTruthy()
   })
 })
+
+describe('run-time estimate with acceleration (D-029)', () => {
+  const chain = (n: number, zigzag: boolean): string => {
+    const out = ['G21 G90', 'M3 S10000', 'G1 Z0 F600']
+    for (let i = 1; i <= n; i++) out.push(`G1 X${(i * 0.2).toFixed(1)} Y${zigzag && i % 2 ? 0.2 : 0} F600`)
+    return out.join('\n')
+  }
+  const opts = { rapidFeed: 2000, rapidFeedZ: 600, accel: 50 }
+
+  it('keeps speed along a straight chain of short moves but slows down at sharp corners', () => {
+    const straight = interpretGcode(chain(100, false), opts).totalSeconds
+    const zig = interpretGcode(chain(100, true), opts).totalSeconds
+    // 20 mm at 10 mm/s = 2 s, plus 0.1 s lost in each of the two ramps (0.2 s to reach 10 mm/s)
+    expect(straight).toBeCloseTo(2.2, 6)
+    expect(zig).toBeGreaterThan(straight * 2)
+    // without acceleration both are just length / feed
+    expect(interpretGcode(chain(100, false), { rapidFeed: 2000 }).totalSeconds).toBeCloseTo(2, 6)
+  })
+
+  it('moves Z rapids at the Z rapid rate', () => {
+    const t = interpretGcode('G0 Z0\nG0 Z10', { rapidFeed: 2000, rapidFeedZ: 600 }).totalSeconds
+    expect(t).toBeCloseTo(1, 6)
+  })
+
+  it('times a probe move down to the copper (Z0), not to its search limit', () => {
+    const t = interpretGcode('G0 Z0.5\nG31 Z-1 F2', { rapidFeed: 2000 }).totalSeconds
+    expect(t).toBeCloseTo((0.5 / 2) * 60 + (0.5 / 2000) * 60, 3)
+  })
+})

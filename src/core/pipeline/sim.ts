@@ -3,10 +3,19 @@
  * Bridges the geometry Affine layout [a,b,c,d,e,f] (x' = a·x + c·y + e) and the sim module's
  * layout [a,b,c,d,e,f] (x' = a·x + b·y + c) in ONE place.
  */
-import type { BBox, GcodeLineMeta, Material, PolygonSet, SimMove, Tool, Toolpath } from '../model/types'
+import type {
+  BBox,
+  GcodeLineMeta,
+  MachineProfile,
+  Material,
+  PolygonSet,
+  SimMove,
+  Tool,
+  Toolpath
+} from '../model/types'
 import { compose as composeGeo, type Affine as GeoAffine } from '../geometry'
 import { boardToStockTransform, flipTransform, stockToWork } from '../toolpath'
-import { interpretGcode } from '../gcode'
+import { interpretGcode, machineTiming } from '../gcode'
 import {
   SimRunner,
   createStock,
@@ -31,6 +40,8 @@ export interface SimSetupRequest {
   designTop?: PolygonSet
   designBottom?: PolygonSet
   resolution?: number
+  /** Machine rapid rates and acceleration, so the play-back time matches the file estimate. */
+  timing?: Pick<MachineProfile, 'maxFeedXY' | 'maxFeedZ' | 'accel'>
 }
 
 export interface SimMarker {
@@ -53,7 +64,10 @@ export interface SimSetup {
 
 export function setupSimulation(req: SimSetupRequest): SimSetup {
   const { material: m } = req
-  const interp = interpretGcode(req.gcode, { lineMeta: req.lineMeta })
+  const interp = interpretGcode(req.gcode, {
+    lineMeta: req.lineMeta,
+    ...(req.timing ? machineTiming(req.timing) : {})
+  })
   const sides: Record<string, 'top' | 'bottom'> = {}
   for (const tp of req.toolpaths) sides[tp.stepId] = tp.side
   const usesBottom = Object.values(sides).includes('bottom')

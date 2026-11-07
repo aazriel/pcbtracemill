@@ -26,7 +26,6 @@ export {
   workOriginInStock
 } from './frame'
 export {
-  ACCEL_FACTOR,
   computeStats,
   depthLevels,
   estimateTime,

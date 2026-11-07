@@ -4,7 +4,7 @@
 (Machine: GRBL 3018)
 (Date: 2026-01-02)
 (Units: mm)
-(Estimated time: 15 s)
+(Estimated time: 25 s)
 (Work zero: X0 Y0 at the job origin, Z0 = top of the copper surface)
 (Side: TOP)
 (Tools:)

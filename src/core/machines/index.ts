@@ -311,6 +311,8 @@ export function validateMachine(m: MachineProfile): string[] {
   }
   if (!finite(m.maxFeedXY) || m.maxFeedXY <= 0) e.push('Maximum XY feed must be greater than 0 mm/min.')
   if (!finite(m.maxFeedZ) || m.maxFeedZ <= 0) e.push('Maximum Z feed must be greater than 0 mm/min.')
+  if (m.accel !== undefined && (!finite(m.accel) || m.accel <= 0))
+    e.push('Acceleration must be greater than 0 mm/s².')
   if (!finite(m.spindleMin) || m.spindleMin < 0) e.push('Minimum spindle speed cannot be negative.')
   if (!finite(m.spindleMax) || m.spindleMax <= 0) e.push('Maximum spindle speed must be greater than 0 RPM.')
   if (finite(m.spindleMin) && finite(m.spindleMax) && m.spindleMin > m.spindleMax)
@@ -371,6 +373,12 @@ export const MACHINE_FIELD_HELP: Record<keyof MachineProfile, MachineFieldHelp> 
     label: 'Max Z feed',
     description: 'The fastest up/down speed your machine moves reliably. Plunge rates above this are capped.',
     unit: 'mm/min'
+  },
+  accel: {
+    label: 'Acceleration',
+    description:
+      'How quickly the axes speed up and slow down. Only used to estimate how long a job takes - many short moves (isolation, auto-levelled files) take longer than their length suggests. Mach3: Config > Motor Tuning, "Accel". Most hobby routers: 30-100.',
+    unit: 'mm/s²'
   },
   spindleMin: {
     label: 'Minimum spindle speed',
