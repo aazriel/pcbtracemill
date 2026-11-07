@@ -14,7 +14,7 @@ import { cn } from '@renderer/lib/utils'
 import { useBoardDrawing } from './boardDrawing'
 import { MaterialCrossSection } from './MaterialCrossSection'
 import { MaterialPreview } from './MaterialPreview'
-import { OriginPicker } from './OriginPicker'
+import { JobDirectionPicker, OriginPicker } from './OriginPicker'
 import { fieldMessages, mm, overallLevel, sectionLevel, type MaterialSectionId } from './materialIssues'
 
 const help = (key: string): string | undefined => getHelp(`material.${key}`)?.body
@@ -489,6 +489,7 @@ export function MaterialDialog({
               on={draft.originOn ?? 'stock'}
               onChange={(origin) => update({ origin })}
             />
+            <JobDirectionPicker value={draft.origin} onChange={(origin) => update({ origin })} />
           </FormSection>
 
           <FormSection

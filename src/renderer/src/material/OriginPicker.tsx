@@ -1,5 +1,6 @@
 import type { OriginCorner } from '@core/model/types'
 import { cn } from '@renderer/lib/utils'
+import { Segmented } from '@renderer/components/ui/fields'
 import { ORIGIN_LABEL } from './materialIssues'
 
 const SPOTS: { id: OriginCorner; x: string; y: string }[] = [
@@ -69,6 +70,63 @@ export function OriginPicker({
         </div>
       </div>
       <div className="min-w-0 text-xs font-medium text-sky-300">{originLabel(value, on)}</div>
+    </div>
+  )
+}
+
+/** Which way the job runs from X0 Y0: the opposite side of the origin corner. */
+export function jobDirections(o: OriginCorner): { x: 'right' | 'left' | null; y: 'away' | 'toward' | null } {
+  if (o === 'center') return { x: null, y: null }
+  return { x: o.endsWith('left') ? 'right' : 'left', y: o.startsWith('bottom') ? 'away' : 'toward' }
+}
+
+function cornerFor(x: 'right' | 'left', y: 'away' | 'toward'): OriginCorner {
+  return `${y === 'away' ? 'bottom' : 'top'}-${x === 'right' ? 'left' : 'right'}` as OriginCorner
+}
+
+/**
+ * The same choice as the corner dots, said the other way round: which way the job extends from
+ * X0 Y0 along each axis (+X to the right or −X to the left, +Y away from you or −Y toward you).
+ */
+export function JobDirectionPicker({
+  value,
+  onChange
+}: {
+  value: OriginCorner
+  onChange: (o: OriginCorner) => void
+}): React.JSX.Element {
+  const d = jobDirections(value)
+  const x = d.x ?? 'right'
+  const y = d.y ?? 'away'
+  return (
+    <div className="flex flex-col gap-2" data-testid="material-directions">
+      <div className="grid grid-cols-[auto_1fr] items-center gap-x-3 gap-y-2 text-xs text-slate-300">
+        <span>Along X the job runs</span>
+        <Segmented
+          stretch
+          value={d.x ?? ''}
+          onChange={(v) => onChange(cornerFor(v as 'right' | 'left', y))}
+          options={[
+            { value: 'right', label: '→ right (+X)' },
+            { value: 'left', label: '← left (−X)' }
+          ]}
+        />
+        <span>Along Y the job runs</span>
+        <Segmented
+          stretch
+          value={d.y ?? ''}
+          onChange={(v) => onChange(cornerFor(x, v as 'away' | 'toward'))}
+          options={[
+            { value: 'away', label: '↑ away (+Y)' },
+            { value: 'toward', label: '↓ toward you (−Y)' }
+          ]}
+        />
+      </div>
+      <p className="text-[11px] leading-snug text-slate-500">
+        {value === 'center'
+          ? 'With X0 Y0 in the centre the job runs both ways; pick a direction to move the zero to a corner.'
+          : `All of the job is at ${x === 'right' ? 'positive' : 'negative'} X and ${y === 'away' ? 'positive' : 'negative'} Y. Your machine’s own axis directions do not change.`}
+      </p>
     </div>
   )
 }

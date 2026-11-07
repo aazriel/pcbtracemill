@@ -33,7 +33,7 @@ Press **Continue** when the status circle is green.
 Shows the selected machine. **Change** opens the machine picker: built-in presets (Mach3 router, GRBL 3018, Genmitsu, LongMill, Shapeoko, LinuxCNC, desktop PCB mills…) and your own machines. Each card shows the work area, spindle, heights, output format and capabilities (arcs, drilling cycles, automatic tool change, probing). Duplicate a preset to customise it, or **Add a new machine**.
 
 ### Material
-The copper-clad board you will mill: width × height × thickness and copper thickness. **Edit** opens a live preview where you set the size, where the design sits on it (offset, rotation), the **origin** (the point the machine calls X0 Y0 — shown as a dot) and whether the board is **double-sided**. For double-sided boards TraceMill drills two **alignment pins** on the flip line so the board lands in exactly the same place after you turn it over. **Set to default** = design size + 5 mm. A red ✕ means the material is too small.
+The copper-clad board you will mill: width × height × thickness and copper thickness. **Edit** opens a live preview where you set the size, where the design sits on it (offset, rotation), the **origin** (the point the machine calls X0 Y0 — shown as a dot) – either click a corner, or say which way the job runs from it (**→ right / ← left** along X, **↑ away / ↓ toward you** along Y) and whether the board is **double-sided**. For double-sided boards TraceMill drills two **alignment pins** on the flip line so the board lands in exactly the same place after you turn it over. **Set to default** = design size + 5 mm. A red ✕ means the material is too small.
 
 ### Steps
 Steps are the milling operations, run top to bottom:
