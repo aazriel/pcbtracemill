@@ -14,6 +14,8 @@ import {
 } from 'lucide-react'
 import type { Path, ProbeGridConfig } from '@core/model/types'
 import { HELP } from '@core/help'
+import { recommendedProbeSpacing } from '@core/cam'
+import { useJobClearance } from '@renderer/steps/IsolationAdvice'
 import {
   autoProbeLift,
   cellsNearShape,
@@ -247,7 +249,10 @@ export function ProbeDialog({
   const [page, setPage] = useState<'intro' | 'config'>('intro')
   const [understood, setUnderstood] = useState(false)
   const [mode, setMode] = useState<GridMode>('spacing')
-  const [spacing, setSpacing] = useState(10)
+  // the grid spacing follows the narrowest copper gap of the job (D-031)
+  const clearance = useJobClearance()
+  const recSpacing = recommendedProbeSpacing(clearance?.clearance ?? null)
+  const [spacing, setSpacing] = useState(recSpacing)
   const [cfg, setCfg] = useState<ProbeGridConfig | null>(null)
   const [areaMode, setAreaMode] = useState<AreaMode>('board')
   /** The user drew an area on the picture once: the "drag here" hint is no longer needed. */
@@ -277,7 +282,8 @@ export function ProbeDialog({
             : 'custom'
       )
     } else if (scene) {
-      setCfg(defaultProbeGrid(boardProbeArea(scene), 10))
+      setSpacing(recSpacing)
+      setCfg(defaultProbeGrid(boardProbeArea(scene), recSpacing))
       setAreaMode('board')
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -688,7 +694,11 @@ export function ProbeDialog({
                     max={100}
                     step={1}
                     value={spacing}
-                    description="About 10 mm works well. Smaller = more detail but slower."
+                    description={
+                      clearance?.clearance != null
+                        ? `${recSpacing} mm suits this board's ${clearance.clearance} mm copper gaps (10 mm under 0.5 mm gaps, 15 mm under 1.2 mm, 20 mm above). Smaller = more detail but slower.`
+                        : `${recSpacing} mm suits wide copper gaps (10 mm under 0.5 mm gaps, 15 mm under 1.2 mm). Smaller = more detail but slower.`
+                    }
                     {...fig(HELP['autolevel.grid']?.body, <ProbeSpacingFigure spacing={spacing} />)}
                     onChange={(v) => {
                       setSpacing(v)

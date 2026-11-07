@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Cpu, Info } from 'lucide-react'
+import { AlertTriangle, Cpu, Info } from 'lucide-react'
 import type { ExportGrouping, ProbeGridConfig } from '@core/model/types'
 import { HELP } from '@core/help'
+import { PROBE_RECOMMENDED_BELOW, maxIsolationDepth } from '@core/cam'
+import { Button } from '@renderer/components/ui/button'
+import { useJobClearance } from '@renderer/steps/IsolationAdvice'
 import { PanelSection } from '@renderer/components/ui/section'
 import { Switch } from '@renderer/components/ui/fields'
 import { HelpTip } from '@renderer/components/ui/help'
@@ -106,6 +109,33 @@ function ProbeZeroSwitch(): React.JSX.Element {
   )
 }
 
+/** Narrow gaps cannot be milled on an unprobed board: say so before the files are saved (D-031). */
+function ProbeAdvice({ onGenerate }: { onGenerate: () => void }): React.JSX.Element | null {
+  const map = useProject((s) => s.heightMap)
+  const info = useJobClearance()
+  const c = info?.clearance ?? null
+  if (map || c === null || c >= PROBE_RECOMMENDED_BELOW) return null
+  return (
+    <div
+      className="mx-3 mb-3 flex gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-[11px] leading-snug text-amber-100"
+      data-testid="probe-advice"
+    >
+      <AlertTriangle className="mt-px size-3.5 shrink-0 text-amber-300" />
+      <div className="flex flex-col gap-1.5">
+        <span>
+          <b>Probe the board first.</b> The narrowest copper gaps are {c} mm, so the isolation cuts only{' '}
+          {maxIsolationDepth(c)} mm deep – a board that is a few hundredths of a millimetre out of flat (they
+          all are) is cut too deep in one corner and not at all in another. Gaps of 0.2–0.8 mm cannot be
+          milled reliably without auto-levelling.
+        </span>
+        <Button size="sm" variant="secondary" className="self-start" onClick={onGenerate}>
+          Make the probe program…
+        </Button>
+      </div>
+    </div>
+  )
+}
+
 export function ExportStage(): React.JSX.Element {
   const grouping = useProject((s) => s.settings.exportGrouping)
   const setSettings = useProject((s) => s.setSettings)
@@ -154,6 +184,7 @@ export function ExportStage(): React.JSX.Element {
               <ProbeZeroSwitch />
             </div>
           </PanelSection>
+          <ProbeAdvice onGenerate={() => setProbeOpen(true)} />
           <AutoLevelSection files={files} levelling={levelling} onGenerate={() => setProbeOpen(true)} />
         </div>
       </aside>
