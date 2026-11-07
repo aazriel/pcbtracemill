@@ -163,7 +163,9 @@ export function recipe(ctx: RecipeContext): CamStep[] {
         ...s.params.isolation,
         passes: plan.passes,
         overlap: plan.overlap,
-        extraClearance: plan.extraClearance
+        extraClearance: plan.extraClearance,
+        smart: plan.smart,
+        smartMaxGap: plan.smartMaxGap
       }
     }
     return s

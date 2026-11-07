@@ -9,8 +9,10 @@ import type { ClearanceInfo, Material, Tool } from '../model/types'
 import { effectiveCutWidth } from '../tools/geometry'
 import { defaultCopperDepth } from './steps'
 
-/** Gaps up to this (mm) are cut with one centred pass; 0.5 mm and more is comfortable to mill. */
+/** Gaps up to this (mm) are narrow and hard to mill; 0.5 mm and more is comfortable. */
 export const TIGHT_CLEARANCE = 0.5
+/** Smart clearance: gaps up to this wide (mm) are cut once, along their middle (D-034). */
+export const SMART_MAX_GAP = 1
 /** Below this clearance an unprobed board almost certainly fails: recommend auto-levelling. */
 export const PROBE_RECOMMENDED_BELOW = 0.8
 /** A second pass that adds more than this (s) is left out by the automatic settings. */
@@ -74,11 +76,14 @@ export interface IsolationPlan {
   overlap: number
   extraClearance: number
   cutDepth: number
+  /** Smart clearance (D-034): gaps up to smartMaxGap get one groove in their middle. */
+  smart: boolean
+  smartMaxGap: number
   /** Groove width at that depth, mm. */
   width: number
-  /** The board's design clearance the plan is for (null = wide / unknown). */
+  /** The narrowest gap the plan is for (null = wide / unknown). */
   clearance: number | null
-  /** One pass in the middle of a narrow gap. */
+  /** The narrow gaps are cut in their middle. */
   centred: boolean
   /** The groove is wider than the gap: those places will not be isolated. */
   tooWide: boolean
@@ -129,55 +134,37 @@ export function planIsolation(
   const overlap = defaultOverlap(tool)
   const pass = passTime ?? (info ? passSeconds(info, tool) : null)
   const notes: string[] = []
-
-  if (c !== null && c <= TIGHT_CLEARANCE + 1e-9) {
-    const tooWide = width > c + 1e-6
-    const extra = tooWide ? 0 : Math.floor(((c - width) / 2 + 1e-9) / 0.005) * 0.005
-    notes.push(
-      `The narrowest copper gaps on this board are ${mm(c)}${where(info)} – that is narrow and hard to mill (0.5 mm or more is easy; set it in your PCB design rules if you can). Auto-level the board: without probing a cut this shallow cannot follow it.`
-    )
-    if (tooWide)
-      notes.push(
-        `The ${mm(width)} groove of this bit is wider than the ${mm(c)} gaps, so they will not be isolated – choose a finer V-bit.`
-      )
-    else
-      notes.push(
-        `Set for the ${mm(c)} gaps: 1 pass, ${mm(cutDepth)} deep (no deeper for gaps this narrow) and ${mm(extra)} extra clearance, so the ${mm(width)} groove runs in the middle of the gap.`
-      )
-    return {
-      passes: 1,
-      overlap,
-      extraClearance: r3(extra),
-      cutDepth,
-      width,
-      clearance: c,
-      centred: !tooWide,
-      tooWide,
-      passSeconds: pass,
-      notes
-    }
-  }
-
+  const tooWide = c !== null && width > c + 1e-6
+  // the extra passes only run where the copper is more than SMART_MAX_GAP apart
   let passes = 2
-  if (pass !== null && pass > EXTRA_PASS_LIMIT_S) {
-    passes = 1
+  if (pass !== null && pass > EXTRA_PASS_LIMIT_S) passes = 1
+
+  if (c !== null && c <= TIGHT_CLEARANCE + 1e-9)
     notes.push(
-      `1 pass: a second one would add about ${roughDuration(pass)}. Add it if you want wider gaps around the traces.`
+      `The narrowest copper gaps on this board are ${mm(c)}${where(info)} - that is narrow and hard to mill (0.5 mm or more is easy; set it in your PCB design rules if you can). Auto-level the board: without probing a cut this shallow cannot follow it.`
     )
-  }
-  if (c !== null)
+  else if (c !== null)
+    notes.push(`The narrowest copper gaps are ${mm(c)}${where(info)} - comfortable to mill.`)
+  if (tooWide)
     notes.push(
-      `The narrowest copper gaps are ${mm(c)}${where(info)} – comfortable to mill. Set: ${passes} pass${passes > 1 ? 'es' : ''}, ${mm(cutDepth)} deep${passes > 1 ? `, ${Math.round(overlap * 100)} % overlap` : ''}.`
+      `The ${mm(width)} groove of this bit is wider than the ${mm(c ?? 0)} gaps, so they will not be isolated - choose a finer V-bit.`
     )
+  notes.push(
+    `Smart clearance: every gap up to ${mm(SMART_MAX_GAP)} is cut ONCE, along its middle - as far from both traces as it can be, so a groove that comes out a bit wide does not eat the traces. Where the copper is further apart, ${passes} pass${passes > 1 ? 'es' : ''} follow${passes > 1 ? '' : 's'} the copper. ${mm(cutDepth)} deep${c !== null && c <= TIGHT_CLEARANCE ? ' (no deeper for gaps this narrow)' : ''}.`
+  )
+  if (passes === 1 && pass !== null)
+    notes.push(`1 pass in the open areas: a second one would add about ${roughDuration(pass)}.`)
   return {
     passes,
     overlap,
     extraClearance: 0,
     cutDepth,
+    smart: true,
+    smartMaxGap: SMART_MAX_GAP,
     width,
     clearance: c,
-    centred: false,
-    tooWide: false,
+    centred: !tooWide,
+    tooWide,
     passSeconds: pass,
     notes
   }

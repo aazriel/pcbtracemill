@@ -327,6 +327,28 @@ export function ParamsSection({
       return (
         <div className="flex flex-col gap-3">
           <IsolationAdvice draft={draft} update={update} tool={tool} />
+          <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-2" data-testid="smart-clearance">
+            <Switch
+              label="Smart clearance"
+              checked={!!ip.smart}
+              onChange={(v) =>
+                setParam(update, 'isolation', v ? { smart: true, extraClearance: 0 } : { smart: false })
+              }
+              description="Narrow gaps get ONE groove along their middle instead of a pass along each side, so a groove that comes out a little wide eats the gap, not your traces. Where the copper is further apart the passes follow it as usual. Less cutting, shorter jobs."
+            />
+            {ip.smart && (
+              <NumberField
+                label="One middle groove for gaps up to"
+                unit="mm"
+                min={0.2}
+                max={5}
+                step={0.1}
+                value={ip.smartMaxGap ?? 1}
+                onChange={(v) => setParam(update, 'isolation', { smartMaxGap: v })}
+                description="Gaps wider than this get the passes along the copper. 1 mm is a good start."
+              />
+            )}
+          </div>
           <Grid
             row
             how={
@@ -382,7 +404,11 @@ export function ParamsSection({
               step={0.05}
               value={ip.extraClearance}
               onChange={(v) => setParam(update, 'isolation', { extraClearance: v })}
-              description="Moves the first pass further away from the copper, leaving a wider gap."
+              description={
+                ip.smart
+                  ? 'Only where the copper is further apart than the smart-clearance limit: moves the passes there away from the copper.'
+                  : 'Moves the first pass further away from the copper, leaving a wider gap.'
+              }
               {...fig(help('isolation.extraClearance'), <ExtraClearanceFigure extra={ip.extraClearance} />)}
               error={err(/clearance/i)}
             />

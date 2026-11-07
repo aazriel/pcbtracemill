@@ -43,6 +43,7 @@ export {
   type ClearanceInfo,
   type GapReport
 } from './gaps'
+export { gapCenterlines, gapMiddles } from './centerline'
 export { placeTabs } from './cutout'
 export { drillMoves, holeMillSegment } from './holes'
 export { isolationOffsets } from './isolate'

@@ -11,16 +11,30 @@
  * Geometry is transformed to work coordinates (with transformPolygonSet re-normalising orientation)
  * BEFORE the direction is chosen, so bottom-side mirroring cannot flip climb into conventional.
  */
-import type { BBox, Path, ToolpathSegment, Vec2 } from '../model/types'
-import { applyAffine, clipLinesOutside, offset, pointInPolygonSet, polygonSetBBox, rings } from '../geometry'
+import type { BBox, Path, PolygonSet, ToolpathSegment, Vec2 } from '../model/types'
+import {
+  applyAffine,
+  clipLinesOutside,
+  countPoints,
+  offset,
+  pathArea,
+  pointInPolygonSet,
+  union,
+  polygonSetBBox,
+  rings
+} from '../geometry'
 import { effectiveCutWidth } from '../tools/geometry'
 import { fmt, selectedGeometry, selectedLayers, toWork, ToolpathError, type StepContext } from './context'
 import { stockRectInWork } from './frame'
-import { findNarrowGaps, problemId } from './gaps'
+import { findNarrowGaps, problemId, tileRegion } from './gaps'
+import { gapMiddles } from './centerline'
 import { closedLoopSegment, depthLevels, openPathSegment } from './moves'
 import { orderPaths } from './order'
 import { bboxInside, bboxOfPath, clipPolylineToRect, simplifyPath } from './pathUtils'
 import { activeSkips, skippedIslands } from './skip'
+
+/** Default widest gap that gets the single middle groove with smart clearance (mm). */
+const SMART_MAX_GAP = 1 // = cam SMART_MAX_GAP (toolpath does not import cam)
 
 export interface LoopItem {
   path: Path
@@ -97,16 +111,22 @@ export function emitLoops(
 /** Removes the parts of the loops that lie inside `region` (closed loops become open pieces). */
 export function withoutRegion(items: LoopItem[], region: ReturnType<typeof offset>): LoopItem[] {
   if (!region.length) return items
-  const rb = polygonSetBBox(region)
+  // a big region (smart clearance zone) is cut into tiles: each loop is clipped only by its neighbours
+  const tiles =
+    countPoints(region) > 2000 ? tileRegion(region) : [{ bbox: polygonSetBBox(region), set: region }]
   const out: LoopItem[] = []
   for (const it of items) {
     const b = bboxOfPath(it.path)
-    if (b.maxX < rb.minX || b.minX > rb.maxX || b.maxY < rb.minY || b.minY > rb.maxY) {
+    const near: PolygonSet = []
+    for (const t of tiles)
+      if (!(b.maxX < t.bbox.minX || b.minX > t.bbox.maxX || b.maxY < t.bbox.minY || b.minY > t.bbox.maxY))
+        near.push(...t.set)
+    if (!near.length) {
       out.push(it)
       continue
     }
     const line = it.closed ? it.path.concat([it.path[0]]) : it.path
-    const pieces = clipLinesOutside([line], region).filter((p) => p.length >= 2)
+    const pieces = clipLinesOutside([line], near).filter((p) => p.length >= 2)
     if (pieces.length === 1 && it.closed && pieces[0].length >= line.length) {
       out.push(it)
       continue
@@ -143,7 +163,10 @@ export function generateIsolation(ctx: StepContext): ToolpathSegment[] {
       `${skip.missed} skipped part${skip.missed === 1 ? ' is' : 's are'} no longer on the copper of this step (the board changed?).`
     )
 
-  const gaps = findNarrowGaps(copperBoard, w / 2 + extra)
+  const smart = !!p.smart
+  const smartGap = p.smartMaxGap && p.smartMaxGap > 0 ? p.smartMaxGap : SMART_MAX_GAP
+  // with smart clearance a gap only needs room for the groove itself (it is cut in the middle)
+  const gaps = findNarrowGaps(copperBoard, smart ? w / 2 : w / 2 + extra)
   const ignoreBelow = Math.max(0, p.ignoreGapsBelow ?? 0)
   const ignored = new Set(step.ignoredProblems ?? [])
   gaps.locations.forEach((loc, i) => {
@@ -151,7 +174,7 @@ export function generateIsolation(ctx: StepContext): ToolpathSegment[] {
     const id = problemId('gap', loc)
     if (ignored.has(id) || (ignoreBelow > 0 && gap < ignoreBelow)) return
     if (skipBand.length && pointInPolygonSet(loc, skipBand)) return
-    ctx.problems.push({ id, kind: 'narrow-gap', x: loc.x, y: loc.y, gap, needed: w + 2 * extra })
+    ctx.problems.push({ id, kind: 'narrow-gap', x: loc.x, y: loc.y, gap, needed: smart ? w : w + 2 * extra })
   })
   const shown = ctx.problems.length
   if (shown > 0) {
@@ -183,11 +206,21 @@ export function generateIsolation(ctx: StepContext): ToolpathSegment[] {
   const segments: ToolpathSegment[] = []
   let clipped = 0
   const skipWork = skip.islands.length ? toWork(ctx, skip.islands) : []
+  // Smart clearance: narrow gaps get one groove along their middle instead of the passes
+  const gapsMid = smart ? gapMiddles(copper, { maxGap: smartGap }) : { lines: [], zone: [] }
+  const zone = gapsMid.zone
+  const middle = smart ? joinOpenPaths(smartCenterlines(gapsMid.lines, copper, w, clip, skipWork)) : []
+  const middleEnds = middle.flatMap((m) => [m[0], m[m.length - 1]])
   for (const d of offsets) {
-    const ringsW = rings(offset(copper, d)).map((r) => {
-      const s = simplifyPath(r, undefined, true)
-      return climb ? s.reverse() : s
-    })
+    // smart: the outline of (copper grown by d ∪ narrow zone) - the usual pass in open areas,
+    // crossing the gap where a narrow gap ends (the middle groove ends on that crossing)
+    const grown = offset(copper, d)
+    const ringsW = rings(zone.length ? fillPockets(union(grown, zone), smartGap, middleEnds, w) : grown).map(
+      (r) => {
+        const s = simplifyPath(r, undefined, true)
+        return climb ? s.reverse() : s
+      }
+    )
     let items = clipRings(ringsW, clip)
     // the parts of this pass that run around a skipped copper area are left out
     if (skipWork.length) items = withoutRegion(items, offset(skipWork, d + 0.02))
@@ -197,5 +230,102 @@ export function generateIsolation(ctx: StepContext): ToolpathSegment[] {
     pos = res.end
   }
   if (clipped > 0) ctx.warnings.push(`${clipped} isolation path piece(s) were clipped at the stock edge.`)
+  if (smart) {
+    const items: LoopItem[] = middle.map((path) => ({ path, closed: false }))
+    if (items.length) segments.push(...emitLoops(items, depths, ctx, pos).segments)
+  }
   return segments
+}
+
+/**
+ * Smart clearance: holes in (grown copper + narrow zone) smaller than half the gap limit squared
+ * are pockets inside narrow gaps the zone did not cover, not open areas (an open area wider than
+ * the limit is at least about 0.8 x limit^2). A pocket a middle groove passes through is filled, so
+ * it is not cut as a loop of its own; one where middle grooves END (where three features meet)
+ * is kept - its outline is what joins those grooves.
+ */
+function fillPockets(set: PolygonSet, maxGap: number, ends: Vec2[], w: number): PolygonSet {
+  const min = 0.5 * maxGap * maxGap
+  const keep = (h: Path): boolean => {
+    if (Math.abs(pathArea(h)) >= min) return true
+    const b = bboxOfPath(h)
+    const near = ends.filter(
+      (e) => e.x >= b.minX - w && e.x <= b.maxX + w && e.y >= b.minY - w && e.y <= b.maxY + w
+    )
+    if (!near.length) return false
+    // an end inside the pocket or within w of its outline
+    const ring = { outer: h, holes: [] }
+    return near.some((e) => pointInPolygonSet(e, [ring]) || distToRing(e, h) <= w)
+  }
+  return set.map((poly) => ({ outer: poly.outer, holes: poly.holes.filter(keep) }))
+}
+
+function distToRing(p: Vec2, r: Path): number {
+  let best = Infinity
+  for (let i = 0; i < r.length; i++) {
+    const a = r[i]
+    const b = r[(i + 1) % r.length]
+    const dx = b.x - a.x
+    const dy = b.y - a.y
+    const l = dx * dx + dy * dy
+    const t = l > 0 ? Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / l)) : 0
+    best = Math.min(best, Math.hypot(a.x + t * dx - p.x, a.y + t * dy - p.y))
+  }
+  return best
+}
+
+const ptKey = (p: Vec2): string => `${p.x.toFixed(4)},${p.y.toFixed(4)}`
+
+/**
+ * Smart clearance: the middle of every gap up to `maxGap` wide, inside the area being isolated,
+ * not where the groove would cut into copper (gaps narrower than the groove are reported instead).
+ */
+function smartCenterlines(
+  middles: Path[],
+  copper: PolygonSet,
+  w: number,
+  clip: BBox,
+  skip: PolygonSet
+): Path[] {
+  let lines = middles.map((l) => simplifyPath(l, 0.002))
+  lines = clipLinesOutside(lines, offset(copper, (w / 2) * 0.999))
+  if (skip.length) lines = clipLinesOutside(lines, offset(skip, w))
+  const out: Path[] = []
+  for (const l of lines)
+    for (const piece of clipPolylineToRect(l, clip)) if (piece.length >= 2) out.push(simplifyPath(piece))
+  return out
+}
+
+/** Joins open paths that meet end to end into longer ones (fewer plunges). */
+export function joinOpenPaths(paths: Path[]): Path[] {
+  const ends = new Map<string, number[]>()
+  const add = (k: string, i: number): void => {
+    const l = ends.get(k)
+    if (l) l.push(i)
+    else ends.set(k, [i])
+  }
+  paths.forEach((p, i) => {
+    add(ptKey(p[0]), i)
+    add(ptKey(p[p.length - 1]), i)
+  })
+  const used = new Uint8Array(paths.length)
+  const out: Path[] = []
+  const extend = (path: Path): Path => {
+    for (;;) {
+      const k = ptKey(path[path.length - 1])
+      const next = (ends.get(k) ?? []).find((j) => !used[j])
+      if (next === undefined) return path
+      used[next] = 1
+      const q = paths[next]
+      path = ptKey(q[0]) === k ? path.concat(q.slice(1)) : path.concat(q.slice(0, -1).reverse())
+    }
+  }
+  for (let i = 0; i < paths.length; i++) {
+    if (used[i]) continue
+    used[i] = 1
+    let path = extend(paths[i].slice())
+    path = extend(path.reverse())
+    out.push(path)
+  }
+  return out
 }

@@ -27,6 +27,11 @@ function rectSet(b: BBox): PolygonSet {
   ]
 }
 
+/** A big polygon set cut into small tiles (each with its bbox), for cheap local booleans. */
+export function tileRegion(set: PolygonSet): { bbox: BBox; set: PolygonSet }[] {
+  return set.length ? tile(set, polygonSetBBox(set)) : []
+}
+
 /** Recursively bisect a big polygon set so every tile has few vertices (keeps pairwise booleans cheap). */
 function tile(set: PolygonSet, bbox: BBox, depth = 0): Tile[] {
   if (set.length === 0) return []
@@ -124,7 +129,7 @@ function distanceNear(pa: Polygon, pb: Polygon, box: BBox): { d: number; p: Vec2
  * by `radius` individually and pairwise overlaps of the grown shapes are the narrow places.
  * Narrow slots inside a single polygon (e.g. a U-shaped trace) are not reported.
  */
-export function findNarrowGaps(copper: PolygonSet, radius: number): GapReport {
+export function findNarrowGaps(copper: PolygonSet, radius: number, zone?: PolygonSet): GapReport {
   const report: GapReport = { count: 0, locations: [], widths: [], ends: [] }
   if (copper.length < 2 || radius <= 0) return report
   const r = radius * (1 - 1e-3) // features exactly 2r apart are fine
@@ -161,6 +166,7 @@ export function findNarrowGaps(copper: PolygonSet, radius: number): GapReport {
       }
       if (pieces.length === 0) continue
       const merged = ti.length > 1 || tj.length > 1 ? union(pieces) : pieces
+      if (zone) zone.push(...merged)
       for (const p of merged) {
         if (polygonSetArea([p]) < 1e-6) continue
         const b = polygonSetBBox([p])
@@ -294,4 +300,18 @@ export function analyzeClearance(copper: PolygonSet): ClearanceInfo {
     places: widths.length,
     perimeter
   }
+}
+
+/**
+ * Where two different copper features are at most `maxGap` apart, as seen from a pass running
+ * `ringDistance` from the copper: the overlap of every pair of features each grown by
+ * (maxGap − ringDistance). A pass point of feature A lies in it exactly when the gap between A
+ * and another feature is at most maxGap there.
+ */
+export function narrowZone(copper: PolygonSet, maxGap: number, ringDistance: number): PolygonSet {
+  const zone: PolygonSet = []
+  const r = maxGap - ringDistance
+  if (r <= 0) return zone
+  findNarrowGaps(copper, r, zone)
+  return zone.length ? union(zone) : zone
 }
