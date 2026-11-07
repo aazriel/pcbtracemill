@@ -23,7 +23,7 @@ export interface TouchOffOptions {
 
 /** The probe starts this far above the rough zero (set on paper) and searches down to this far below it (mm). */
 export const TOUCH_OFF_START = 0.5
-export const TOUCH_OFF_REACH = 1
+export const TOUCH_OFF_REACH = 2
 
 /**
  * Insert a Z touch-off at the height-map reference point before the spindle starts for each bit
@@ -67,10 +67,12 @@ export function addZTouchOff(gcode: string, o: TouchOffOptions): string {
         c(`==== Z TOUCH-OFF ${count}: find the copper at point 1 X${n(o.x)} Y${n(o.y)} and set Z0 there ====`)
       )
       out.push('M5')
-      // Mach3 / generic: start from no G92 offset, so the G92 Z0 below is the plain, tested case
-      if (setZero === 'G92 Z0') out.push(`G92.1 ${c('clear old G92 offsets - the Z DRO may change')}`)
+      // No G92.1 here: Mach3 runs the file once while loading it (toolpath preview) and keeps the
+      // G92 offset of the G92 Z0 below. An operator who zeroes Z after loading then had Z0 moved
+      // by that offset when G92.1 ran, and the probe stopped above the copper. G92 Z0 replaces
+      // any old offset anyway.
       out.push(
-        `M0 ${c('Z TOUCH-OFF: set Z zero ROUGHLY on the copper - a sheet of paper is enough - then clip the probe to the bit and press Cycle Start')}`
+        `M0 ${c('Z TOUCH-OFF: set Z zero ROUGHLY on the copper - a sheet of paper is enough - then clip the probe to the bit and press Cycle Start. The probe searches down to ${n(TOUCH_OFF_REACH)} mm below that zero')}`
       )
       out.push(`G0 Z${n(o.safeZ)}`)
       out.push(`G0 X${n(o.x)} Y${n(o.y)}`)
