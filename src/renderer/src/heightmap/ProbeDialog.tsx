@@ -342,7 +342,9 @@ export function ProbeDialog({
         machine.maxFeedXY,
         machine.maxFeedZ,
         machine.postProcessor === 'mach3' && mach3Recorder === 'variables'
-          ? { lift: live.retouchLift ?? MACH3_RETOUCH_LIFT, feed: MACH3_RETOUCH_FEED }
+          ? live.retouch
+            ? { lift: live.retouchLift ?? MACH3_RETOUCH_LIFT, feed: MACH3_RETOUCH_FEED }
+            : undefined
           : undefined
       )
     }
@@ -764,7 +766,9 @@ export function ProbeDialog({
                   <span className="ml-1 font-normal text-slate-500">
                     speed {cfg.probeFeed} mm/min · lift {cfg.clearanceZ} mm
                     {machine?.postProcessor === 'mach3' && mach3Recorder === 'variables'
-                      ? ` · re-touch ${cfg.retouchLift ?? MACH3_RETOUCH_LIFT} mm`
+                      ? cfg.retouch
+                        ? ` · re-touch ${cfg.retouchLift ?? MACH3_RETOUCH_LIFT} mm`
+                        : ' · one touch per point'
                       : ''}
                   </span>
                 </button>
@@ -805,6 +809,14 @@ export function ProbeDialog({
                       {...fig(HELP['autolevel.clearanceZ']?.body, <ProbeLiftFigure lift={cfg.clearanceZ} />)}
                     />
                     {machine?.postProcessor === 'mach3' && mach3Recorder === 'variables' && (
+                      <Switch
+                        label="Touch every point twice"
+                        checked={!!cfg.retouch}
+                        onChange={(v) => patch({ retouch: v })}
+                        description={`Off (normal): one touch per point. On: after the touch the bit lifts and touches again slowly at F${MACH3_RETOUCH_FEED}, and the slow touch is recorded - only needed if a fast touch presses your board down.`}
+                      />
+                    )}
+                    {machine?.postProcessor === 'mach3' && mach3Recorder === 'variables' && cfg.retouch && (
                       <NumberField
                         label="Re-touch lift"
                         unit="mm"
@@ -825,11 +837,10 @@ export function ProbeDialog({
                     Mach3 records the points with
                     <HelpTip title="How Mach3 records the points">
                       <b>G-code variables</b> (normal): plain G-code, no file and nothing to install. Each
-                      point is touched fast, then the bit lifts {cfg.retouchLift ?? MACH3_RETOUCH_LIFT} mm (so
-                      a pressed-down board springs back) and touches again slowly at F{MACH3_RETOUCH_FEED};
-                      the height is read with G92 and kept in Mach3 variables #500…. The corrected files read
-                      them – so do not close Mach3 between probing and milling. Works also when your motion
-                      controller never tells Mach3 where the probe tripped.
+                      point is touched once at the probe speed (a second, slow touch can be switched on under
+                      Advanced); the height is read with G92 and kept in Mach3 variables #500…. The corrected
+                      files read them – so do not close Mach3 between probing and milling. Works also when
+                      your motion controller never tells Mach3 where the probe tripped.
                       <br />
                       <b>Digitize file</b>: Mach3’s own M40 / M41 write every touch into a file that you load
                       into TraceMill. Only correct if your motion controller reports the probe position.

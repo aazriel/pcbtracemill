@@ -561,7 +561,12 @@ export interface ProbeGridConfig {
    * least 2 mm absolute.
    */
   clearanceZ: number
-  /** Mach3 G-code-variables probing: lift before the slow re-touch, mm (default 0.25). */
+  /**
+   * Mach3 G-code-variables probing: after the touch, lift and touch every point a second time
+   * slowly (default off, D-033: on a user's machine both touches agreed within ±10 µm at F15).
+   */
+  retouch?: boolean
+  /** Lift before the slow re-touch, mm (default 0.25). */
   retouchLift?: number
   /**
    * Grid cells to probe (row-major index iy * countX + ix), e.g. only the points near a round
