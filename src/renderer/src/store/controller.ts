@@ -16,7 +16,7 @@ import type {
   StepValidation
 } from '@core/model/types'
 import { computeBoardBBox } from '@core/model/board'
-import { DEFAULT_MACHINE_ID, MACHINE_PRESETS } from '@core/machines'
+import { DEFAULT_MACHINE_ID, MACHINE_PRESETS, refreshPresetHeights } from '@core/machines'
 import { refreshStarterFeeds, STARTER_TOOLS } from '@core/tools'
 import {
   createStep,
@@ -124,9 +124,22 @@ export function canEnterStage(stage: Stage): boolean {
 export function ensureDefaults(): void {
   const p = useProject.getState()
   if (!p.machine) p.setMachine(MACHINE_PRESETS.find((m) => m.id === DEFAULT_MACHINE_ID) ?? MACHINE_PRESETS[0])
+  else refreshMachineHeights()
   if (!p.tools.length) p.setTools(STARTER_TOOLS.map((t) => ({ ...t })))
   else refreshToolFeeds()
   syncMaterialToBoard()
+}
+
+/** A built-in machine still on the old 5 mm safe height gets 2 mm (D-030). */
+function refreshMachineHeights(): void {
+  const p = useProject.getState()
+  if (!p.machine) return
+  const m = refreshPresetHeights(p.machine)
+  if (m === p.machine) return
+  p.setMachine(m)
+  useUi
+    .getState()
+    .toast('info', 'Safe height lowered to 2 mm (travel 1 mm): enough above a flat board, and faster.')
 }
 
 /** Starter V-bits still on the old, too fast feeds get the current ones (edited tools are kept). */
@@ -675,6 +688,7 @@ export async function loadProjectText(content: string, path: string | null): Pro
   }
   useProject.getState().loadProject(project, parsed, path)
   refreshToolFeeds()
+  refreshMachineHeights()
   useProject.temporal.getState().clear()
   useUi.getState().set({ cam: null, camStale: true })
   void regenerate()

@@ -33,7 +33,7 @@ describe('probe grid', () => {
   it('defaultProbeGrid', () => {
     const g = defaultProbeGrid({ minX: 0, minY: 0, maxX: 45, maxY: 30 })
     // lift between points = 5 % of the 9 x 10 mm spacing
-    expect(g).toMatchObject({ countX: 6, countY: 4, probeFeed: 50, probeDepth: -2, clearanceZ: 0.5 })
+    expect(g).toMatchObject({ countX: 6, countY: 4, probeFeed: 20, probeDepth: -2, clearanceZ: 0.5 })
     expect(defaultProbeGrid({ minX: 0, minY: 0, maxX: 40, maxY: 40 }, 20).clearanceZ).toBe(1)
     const tiny = defaultProbeGrid({ minX: 0, minY: 0, maxX: 3, maxY: 0 })
     expect(tiny.countX).toBe(2)
@@ -85,8 +85,8 @@ describe('probe programs (golden)', () => {
     )
     expect(
       generateProbeProgram(cfg, machine({ postProcessor: 'mach3' }), { mach3Recorder: 'digitize' })
-    ).toMatch(/^M40 [\s\S]*^G31 Z-2 F50$[\s\S]*^M41 /m)
-    expect(generateProbeProgram(cfg, machine({ postProcessor: 'grbl' }))).toMatch(/^G38.2 Z-2 F50$/m)
+    ).toMatch(/^M40 [\s\S]*^G31 Z-2 F20$[\s\S]*^M41 /m)
+    expect(generateProbeProgram(cfg, machine({ postProcessor: 'grbl' }))).toMatch(/^G38.2 Z-2 F20$/m)
   })
 })
 
@@ -246,7 +246,7 @@ describe('applyHeightMap', () => {
     const cfg = { ...defaultProbeGrid({ minX: 0, minY: 0, maxX: 30, maxY: 20 }, 10), cells: [0, 1, 2, 5, 6] }
     const text = generateProbeProgram(cfg, machine({ postProcessor: 'mach3' }))
     // every probed point: fast, up, slow, read through G92, clear G92 again
-    expect(text).toMatch(/^G31 Z-2 F50\nG91\nG0 Z0\.25\nG90\nG31 Z-2 F10\nG92 Z0\n#501=#5213\nG92\.1$/m)
+    expect(text).toMatch(/^G31 Z-2 F20\nG91\nG0 Z0\.25\nG90\nG31 Z-2 F10\nG92 Z0\n#501=#5213\nG92\.1$/m)
     // point 1 is touched again at the end and is the reference
     expect(text).toMatch(/^#497=#5213$/m)
     expect(text).toMatch(/^#501=\[#501-#497\]$/m)

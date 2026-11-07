@@ -1,6 +1,6 @@
 (TraceMill auto-level probe program - mach3 - G31)
 (Grid 3 x 2 = 6 points, X0..20 Y0..10, spacing 10 x 10 mm)
-(Probe feed 50 mm/min, max depth Z-2, lift 0.5 mm above each touch)
+(Probe feed 20 mm/min, max depth Z-2, lift 0.5 mm above each touch)
 (The bit lifts only a little above each touch - if a point does NOT touch, stop the machine.)
 (SAFETY: clip the probe wire to the bit and the ground clip to the copper board)
 (SAFETY: test continuity first - touch clip to bit and check the controller sees the probe)
@@ -24,7 +24,7 @@ M0 (Check the Z DRO: if it changed, zero Z on the copper at point 1 again with Z
 G0 Z2
 #499=0 (heights not complete yet)
 G0 X0 Y0 (first point = height reference)
-G31 Z-2 F50
+G31 Z-2 F20
 G91
 G0 Z0.25
 G90
@@ -36,7 +36,7 @@ G91
 G0 Z0.5
 G90
 G0 X10 Y0
-G31 Z-2 F50
+G31 Z-2 F20
 G91
 G0 Z0.25
 G90
@@ -48,7 +48,7 @@ G91
 G0 Z0.5
 G90
 G0 X20 Y0
-G31 Z-2 F50
+G31 Z-2 F20
 G91
 G0 Z0.25
 G90
@@ -60,7 +60,7 @@ G91
 G0 Z0.5
 G90
 G0 X20 Y10
-G31 Z-2 F50
+G31 Z-2 F20
 G91
 G0 Z0.25
 G90
@@ -72,7 +72,7 @@ G91
 G0 Z0.5
 G90
 G0 X10 Y10
-G31 Z-2 F50
+G31 Z-2 F20
 G91
 G0 Z0.25
 G90
@@ -84,7 +84,7 @@ G91
 G0 Z0.5
 G90
 G0 X0 Y10
-G31 Z-2 F50
+G31 Z-2 F20
 G91
 G0 Z0.25
 G90
@@ -95,7 +95,7 @@ G92.1
 G0 Z2
 (Point 1 again - the height reference, measured last)
 G0 X0 Y0
-G31 Z-2 F50
+G31 Z-2 F20
 G91
 G0 Z0.25
 G90
