@@ -63,10 +63,29 @@ export interface UiState {
   clearance: Record<string, ClearanceInfo | null>
   set(patch: Partial<UiState>): void
   toast(level: Toast['level'], message: string): void
+  /** Mouse over a toast: it stays until the mouse leaves (then 4 s more). */
+  holdToast(id: number, hold: boolean): void
   dismissToast(id: number): void
 }
 
 let toastId = 0
+const toastTimers = new Map<number, ReturnType<typeof setTimeout>>()
+
+/** Long enough to read: 4 s + 70 ms per character (a 300-character note stays 25 s), at most 30 s. */
+export function toastDuration(level: Toast['level'], message: string): number {
+  return Math.min(30000, Math.max(level === 'error' ? 8000 : 4000, 4000 + message.length * 70))
+}
+
+function startToastTimer(id: number, ms: number, set: (fn: (s: UiState) => Partial<UiState>) => void): void {
+  clearTimeout(toastTimers.get(id))
+  toastTimers.set(
+    id,
+    setTimeout(() => {
+      toastTimers.delete(id)
+      set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) }))
+    }, ms)
+  )
+}
 
 export const useUi = create<UiState>()((set) => ({
   stage: 'board',
@@ -96,10 +115,13 @@ export const useUi = create<UiState>()((set) => ({
   toast: (level, message) => {
     const id = ++toastId
     set((s) => ({ toasts: [...s.toasts.slice(-2), { id, level, message }] }))
-    setTimeout(
-      () => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
-      level === 'error' ? 8000 : 3500
-    )
+    startToastTimer(id, toastDuration(level, message), set)
+  },
+  holdToast: (id, hold) => {
+    if (hold) {
+      clearTimeout(toastTimers.get(id))
+      toastTimers.delete(id)
+    } else startToastTimer(id, 4000, set)
   },
   dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) }))
 }))
