@@ -23,6 +23,7 @@ import {
   canEnterStage,
   changeEda,
   ensureDefaults,
+  addUserTools,
   newProject,
   openProject,
   redo,
@@ -34,6 +35,7 @@ import {
   useStageStatus,
   analyzeCopperLayers
 } from '@renderer/store/controller'
+import { loadUserTools } from '@renderer/tools/toolLibrary'
 import { BoardStage } from '@renderer/stages/BoardStage'
 import { ManufactureStage } from '@renderer/stages/ManufactureStage'
 import { SimulationStage } from '@renderer/stages/SimulationStage'
@@ -74,6 +76,7 @@ export function App(): React.JSX.Element {
 
   useEffect(() => {
     ensureDefaults()
+    void loadUserTools().then(addUserTools)
     // first start: the tour (there is no last session yet); afterwards: offer the last session
     void maybeShowTour()
     void checkLastSession()

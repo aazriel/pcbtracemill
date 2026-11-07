@@ -10,6 +10,7 @@ export function Toasts(): React.JSX.Element {
     <div
       className="pointer-events-none fixed bottom-4 right-4 z-[200] flex w-96 flex-col gap-2"
       role="status"
+      data-toasts
       aria-live="polite"
     >
       {toasts.map((t) => (

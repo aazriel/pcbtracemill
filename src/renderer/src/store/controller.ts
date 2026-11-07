@@ -20,6 +20,7 @@ import type {
 import { computeBoardBBox } from '@core/model/board'
 import { DEFAULT_MACHINE_ID, MACHINE_PRESETS, refreshPresetHeights } from '@core/machines'
 import { refreshStarterFeeds, STARTER_TOOLS } from '@core/tools'
+import { withUserTools } from '@renderer/tools/toolLibrary'
 import {
   combinedClearance,
   createStep,
@@ -131,7 +132,22 @@ export function ensureDefaults(): void {
   else refreshMachineHeights()
   if (!p.tools.length) p.setTools(STARTER_TOOLS.map((t) => ({ ...t })))
   else refreshToolFeeds()
+  addUserTools()
   syncMaterialToBoard()
+}
+
+/**
+ * The tools the user made in earlier sessions join the project's list. Not an edit of the
+ * project: no undo step, no unsaved-changes mark.
+ */
+export function addUserTools(): void {
+  const p = useProject.getState()
+  const next = withUserTools(p.tools)
+  if (next === p.tools) return
+  const t = useProject.temporal.getState()
+  t.pause()
+  useProject.setState({ tools: next })
+  t.resume()
 }
 
 /** A built-in machine still on the old 5 mm safe height gets 2 mm (D-030). */
@@ -771,6 +787,7 @@ export async function loadProjectText(content: string, path: string | null): Pro
   useProject.getState().loadProject(project, parsed, path)
   refreshToolFeeds()
   refreshMachineHeights()
+  addUserTools()
   useProject.temporal.getState().clear()
   useUi.getState().set({ cam: null, camStale: true })
   void regenerate()

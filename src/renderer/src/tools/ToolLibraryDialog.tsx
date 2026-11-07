@@ -28,6 +28,7 @@ import { HelpTip } from '@renderer/components/ui/help'
 import { cn, uid } from '@renderer/lib/utils'
 import { ToolCard } from './ToolCard'
 import { ToolEditor } from './ToolEditor'
+import { forgetTool, rememberTool } from './toolLibrary'
 import {
   defaultToolName,
   nextToolNumber,
@@ -142,6 +143,7 @@ function ToolLibraryBody({
   const save = (): boolean => {
     if (!draft || draft.builtIn || errors.length) return false
     upsertTool(cloneTool(draft))
+    rememberTool(cloneTool(draft))
     setIsNew(false)
     toast('success', `Saved "${draft.name}".`)
     return true
@@ -169,6 +171,7 @@ function ToolLibraryBody({
   const doDelete = (t: Tool): void => {
     const idx = tools.findIndex((x) => x.id === t.id)
     removeTool(t.id)
+    forgetTool(t.id)
     const rest = tools.filter((x) => x.id !== t.id)
     const next = rest[Math.min(idx, rest.length - 1)]
     if (next) show(next)

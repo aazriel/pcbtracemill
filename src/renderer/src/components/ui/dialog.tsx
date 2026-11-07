@@ -30,7 +30,11 @@ export function Dialog({
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm data-[state=open]:animate-in" />
         <DialogPrimitive.Content
-          onInteractOutside={(e) => !dismissable && e.preventDefault()}
+          onInteractOutside={(e) => {
+            // a click on a toast (its X) is not a click outside the dialog
+            const t = e.target as Element | null
+            if (!dismissable || t?.closest?.('[data-toasts]')) e.preventDefault()
+          }}
           className={cn(
             'fixed left-1/2 top-1/2 z-50 flex max-h-[92vh] w-[min(92vw,720px)] -translate-x-1/2 -translate-y-1/2 flex-col rounded-xl border border-slate-700 bg-slate-900 text-slate-100 shadow-2xl',
             className
