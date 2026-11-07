@@ -211,16 +211,22 @@ export function generateIsolation(ctx: StepContext): ToolpathSegment[] {
   const zone = gapsMid.zone
   const middle = smart ? joinOpenPaths(smartCenterlines(gapsMid.lines, copper, w, clip, skipWork)) : []
   const middleEnds = middle.flatMap((m) => [m[0], m[m.length - 1]])
+  // pockets are filled only where they touch the narrow zone (see fillPockets)
+  const nearZone = zoneProximity(zone, 0.02)
   for (const d of offsets) {
     // smart: the outline of (copper grown by d ∪ narrow zone) - the usual pass in open areas,
     // crossing the gap where a narrow gap ends (the middle groove ends on that crossing)
     const grown = offset(copper, d)
-    const ringsW = rings(zone.length ? fillPockets(union(grown, zone), smartGap, middleEnds, w) : grown).map(
-      (r) => {
-        const s = simplifyPath(r, undefined, true)
-        return climb ? s.reverse() : s
-      }
-    )
+    const passSet = zone.length ? fillPockets(union(grown, zone), smartGap, middleEnds, w, nearZone) : grown
+    const passRings = rings(passSet)
+    // smart: the extra clearance only where it fits - a slot inside the copper (thermal relief)
+    // or a hole it would close is cut at the plain distance instead
+    if (smart && extra > 0 && d === offsets[0])
+      passRings.push(...closedByExtra(copper, d - extra, passSet, nearZone))
+    const ringsW = passRings.map((r) => {
+      const s = simplifyPath(r, undefined, true)
+      return climb ? s.reverse() : s
+    })
     let items = clipRings(ringsW, clip)
     // the parts of this pass that run around a skipped copper area are left out
     if (skipWork.length) items = withoutRegion(items, offset(skipWork, d + 0.02))
@@ -238,17 +244,26 @@ export function generateIsolation(ctx: StepContext): ToolpathSegment[] {
 }
 
 /**
- * Smart clearance: holes in (grown copper + narrow zone) smaller than half the gap limit squared
+ * Smart clearance: holes in (grown copper + narrow zone) that touch the zone and are smaller than half the gap limit squared
  * are pockets inside narrow gaps the zone did not cover, not open areas (an open area wider than
  * the limit is at least about 0.8 x limit^2). A pocket a middle groove passes through is filled, so
  * it is not cut as a loop of its own; one where middle grooves END (where three features meet)
  * is kept - its outline is what joins those grooves.
  */
-function fillPockets(set: PolygonSet, maxGap: number, ends: Vec2[], w: number): PolygonSet {
+function fillPockets(
+  set: PolygonSet,
+  maxGap: number,
+  ends: Vec2[],
+  w: number,
+  nearZone: (p: Vec2) => boolean
+): PolygonSet {
   const min = 0.5 * maxGap * maxGap
   const keep = (h: Path): boolean => {
     if (Math.abs(pathArea(h)) >= min) return true
     const b = bboxOfPath(h)
+    // a hole that does not touch the narrow zone is a slot inside one feature (a thermal relief)
+    // or an open area - it is milled as usual
+    if (!h.some(nearZone)) return true
     const near = ends.filter(
       (e) => e.x >= b.minX - w && e.x <= b.maxX + w && e.y >= b.minY - w && e.y <= b.maxY + w
     )
@@ -258,6 +273,71 @@ function fillPockets(set: PolygonSet, maxGap: number, ends: Vec2[], w: number): 
     return near.some((e) => pointInPolygonSet(e, [ring]) || distToRing(e, h) <= w)
   }
   return set.map((poly) => ({ outer: poly.outer, holes: poly.holes.filter(keep) }))
+}
+
+/**
+ * Holes of the copper grown by `tight` that the pass set (grown by tight + extra clearance) no
+ * longer has - thermal-relief slots and small openings the extra clearance closes. Holes that touch
+ * the narrow zone are gaps between different features and are handled by the middle groove.
+ */
+function closedByExtra(
+  copper: PolygonSet,
+  tight: number,
+  passSet: PolygonSet,
+  nearZone: (p: Vec2) => boolean
+): Path[] {
+  const looseHoles = passSet.flatMap((p) => p.holes).map((h) => ({ b: bboxOfPath(h), v: h[0] }))
+  const out: Path[] = []
+  for (const poly of offset(copper, tight))
+    for (const h of poly.holes) {
+      const b = bboxOfPath(h)
+      const asPoly = [{ outer: [...h].reverse(), holes: [] }]
+      const kept = looseHoles.some(
+        (l) =>
+          l.b.minX >= b.minX &&
+          l.b.maxX <= b.maxX &&
+          l.b.minY >= b.minY &&
+          l.b.maxY <= b.maxY &&
+          pointInPolygonSet(l.v, asPoly)
+      )
+      if (kept) continue
+      if (h.some(nearZone)) continue
+      out.push(h)
+    }
+  return out
+}
+
+/** A test "is this point within `tol` of the zone's outline", backed by an edge grid. */
+function zoneProximity(zone: PolygonSet, tol: number): (p: Vec2) => boolean {
+  if (!zone.length) return () => false
+  const cell = 0.5
+  const grid = new Map<string, [Vec2, Vec2][]>()
+  for (const r of rings(zone))
+    for (let i = 0; i < r.length; i++) {
+      const a = r[i]
+      const b = r[(i + 1) % r.length]
+      for (
+        let gx = Math.floor((Math.min(a.x, b.x) - tol) / cell);
+        gx <= Math.floor((Math.max(a.x, b.x) + tol) / cell);
+        gx++
+      )
+        for (
+          let gy = Math.floor((Math.min(a.y, b.y) - tol) / cell);
+          gy <= Math.floor((Math.max(a.y, b.y) + tol) / cell);
+          gy++
+        ) {
+          const k = `${gx},${gy}`
+          const l = grid.get(k)
+          if (l) l.push([a, b])
+          else grid.set(k, [[a, b]])
+        }
+    }
+  return (p) => {
+    for (const [a, b] of grid.get(`${Math.floor(p.x / cell)},${Math.floor(p.y / cell)}`) ?? [])
+      if (distToRing(p, [a, b]) <= tol) return true
+    // (hole corners never lie strictly inside the zone: the holes are outside it)
+    return false
+  }
 }
 
 function distToRing(p: Vec2, r: Path): number {

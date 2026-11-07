@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Path, PolygonSet, Toolpath } from '@core/model/types'
 import {
+  applyAffine,
   difference,
   offset,
   pointInPolygonSet,
@@ -22,7 +23,16 @@ const vbit = (() => {
 })()
 const DEPTH = 0.03
 
-function run(copper: PolygonSet, smart: boolean): { tp: Toolpath; cuts: Path[]; work: PolygonSet } {
+function run(
+  copper: PolygonSet,
+  smart: boolean,
+  extra = 0
+): {
+  tp: Toolpath
+  cuts: Path[]
+  work: PolygonSet
+  toWork: (x: number, y: number) => { x: number; y: number }
+} {
   const bb = polygonSetBBox(copper)
   const mat = material({
     width: bb.maxX - bb.minX + 10,
@@ -32,7 +42,7 @@ function run(copper: PolygonSet, smart: boolean): { tp: Toolpath; cuts: Path[]; 
     doubleSided: false
   })
   const st = step('isolate', ['cu'], { cutDepth: DEPTH })
-  st.params.isolation = { ...st.params.isolation, passes: 1, smart, smartMaxGap: 1 }
+  st.params.isolation = { ...st.params.isolation, passes: 1, smart, smartMaxGap: 1, extraClearance: extra }
   const tp = generateToolpath({
     step: st,
     tool: vbit,
@@ -55,7 +65,8 @@ function run(copper: PolygonSet, smart: boolean): { tp: Toolpath; cuts: Path[]; 
     }
     if (cur.length > 1) cuts.push(cur)
   }
-  return { tp, cuts, work: transformPolygonSet(boardToWorkTransform(mat, bb, 'top'), copper) }
+  const M = boardToWorkTransform(mat, bb, 'top')
+  return { tp, cuts, work: transformPolygonSet(M, copper), toWork: (x, y) => applyAffine(M, { x, y }) }
 }
 
 /** Groups of copper features still joined by uncut copper (each group > 1 = a short). */
@@ -137,6 +148,21 @@ describe('smart clearance (D-034)', () => {
     const all = [...difference(copper, thermalHole), ...pad]
     const r = run(all, true)
     expect(shorts(r.work, r.cuts)).toBe(0)
+  })
+
+  it('still cuts a thermal slot that the extra clearance would close', () => {
+    // pour with a 0.25 mm wide thermal slot around a spoke-connected pad
+    const slotted = difference(
+      unionPaths([rectPath(0, 0, 20, 20)]),
+      difference(
+        unionPaths([rectPath(0, 0, 3.1, 3.1)]),
+        unionPaths([rectPath(0, 0, 2.6, 2.6), rectPath(0, 0, 0.5, 4)])
+      )
+    )
+    const r = run([...slotted, ...unionPaths([rectPath(15, 15, 2, 2)])], true, 0.1)
+    expect(shorts(r.work, r.cuts)).toBe(0)
+    // a line from the pad across the slot on its right side meets the slot cut
+    expect(crossings(r.cuts, r.toWork(0.9, 0.6), r.toWork(2.2, 0.6))).toBeGreaterThanOrEqual(1)
   })
 
   it('keeps three features that meet in one spot isolated', () => {
