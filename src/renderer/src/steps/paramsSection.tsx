@@ -1,6 +1,6 @@
 /** Kind-specific parameter section of the Step editor (isolation, clearing, cutout, drilling...). */
 import { Check, Minus, Settings2, X } from 'lucide-react'
-import type { CutDirection, StepParams, ValidationIssue } from '@core/model/types'
+import type { CamStep, CutDirection, StepParams, ValidationIssue } from '@core/model/types'
 import { effectiveCutWidth } from '@core/tools'
 import { SMART_EXTRA_CLEARANCE } from '@core/cam'
 import { useProject } from '@renderer/store/project'
@@ -39,6 +39,7 @@ import {
 } from './stepFigures'
 import type { SectionProps } from './editorSections'
 import { IsolationAdvice } from './IsolationAdvice'
+import { useFlash, useStepEditor } from './editorStore'
 
 const r3 = (v: number): number => Math.round(v * 1000) / 1000
 
@@ -296,6 +297,7 @@ export function ParamsSection({
   const tool = tools.find((t) => t.id === draft.toolId)
   const holeSizes = useHoleSizes(draft.layerIds)
   const boardBox = useBoardBBox()
+  const flash = useStepEditor((s) => s.flash)
   const p = draft.params
   const err = (re: RegExp): string | null => firstIssue(issues, re, 'error')
   /** (?) content: the explanation plus the illustration of that setting. */
@@ -313,6 +315,9 @@ export function ParamsSection({
   switch (draft.kind) {
     case 'isolate': {
       const ip = p.isolation
+      const flashPasses = flash.includes('passes') ? 'flash-field' : undefined
+      const flashOverlap = flash.includes('overlap') ? 'flash-field' : undefined
+      const flashExtra = flash.includes('extraClearance') ? 'flash-field' : undefined
       const width = tool ? effectiveCutWidth(tool, draft.cutDepth) : 0.2
       const isoFig = (
         <Figure caption="Top view of one pad: each dashed line is one pass of the bit.">
@@ -328,32 +333,7 @@ export function ParamsSection({
       return (
         <div className="flex flex-col gap-3">
           <IsolationAdvice draft={draft} update={update} tool={tool} />
-          <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-2" data-testid="smart-clearance">
-            <Switch
-              label="Smart clearance"
-              checked={!!ip.smart}
-              onChange={(v) =>
-                setParam(
-                  update,
-                  'isolation',
-                  v ? { smart: true, extraClearance: SMART_EXTRA_CLEARANCE } : { smart: false }
-                )
-              }
-              description="Narrow gaps get ONE groove along their middle instead of a pass along each side, so a groove that comes out a little wide eats the gap, not your traces. Where the copper is further apart the passes follow it as usual. Less cutting, shorter jobs."
-            />
-            {ip.smart && (
-              <NumberField
-                label="One middle groove for gaps up to"
-                unit="mm"
-                min={0.2}
-                max={5}
-                step={0.1}
-                value={ip.smartMaxGap ?? 1}
-                onChange={(v) => setParam(update, 'isolation', { smartMaxGap: v })}
-                description="Gaps wider than this get the passes along the copper. 1 mm is a good start."
-              />
-            )}
-          </div>
+          <IsolationParamsSmart draft={draft} update={update} />
           <Grid
             row
             how={
@@ -377,6 +357,7 @@ export function ParamsSection({
               step={1}
               value={ip.passes}
               onChange={(v) => setParam(update, 'isolation', { passes: Math.round(v) })}
+              className={flashPasses}
               description="How many grooves are cut next to each other around every trace."
               {...fig(help('isolation.passes'), isoFig)}
               error={err(/passes/i)}
@@ -390,11 +371,12 @@ export function ParamsSection({
               step={5}
               value={Math.round(ip.overlap * 100)}
               disabled={ip.passes <= 1}
+              className={flashOverlap}
               onChange={(v) => setParam(update, 'isolation', { overlap: v / 100 })}
               description={
                 ip.passes <= 1
                   ? 'Not used with one pass.'
-                  : 'How much each pass covers the previous one: 50 % for a V-bit (it cuts its full width only at full depth), 15 % for a flat end mill.'
+                  : 'How much each pass covers the previous one: 50 % V-bit, 15 % flat end mill.'
               }
               {...fig(
                 `${help('isolation.overlap')} ${help('concept.overlap')}`,
@@ -408,10 +390,11 @@ export function ParamsSection({
               min={0}
               step={0.05}
               value={ip.extraClearance}
+              className={flashExtra}
               onChange={(v) => setParam(update, 'isolation', { extraClearance: v })}
               description={
                 ip.smart
-                  ? 'Where the copper is further apart than the limit above: keeps the passes this far from it (0.1 mm by default), so a groove that comes out a little wide does not eat a thin trace. Slots too narrow for it are still cut.'
+                  ? 'Open areas: keeps the passes this far from the copper, so a slightly wide groove does not eat a thin trace.'
                   : 'Moves the first pass further away from the copper, leaving a wider gap.'
               }
               {...fig(help('isolation.extraClearance'), <ExtraClearanceFigure extra={ip.extraClearance} />)}
@@ -823,4 +806,56 @@ export function ParamsSection({
       )
     }
   }
+}
+
+/** Smart clearance (D-034) in its own frame inside the isolation settings. */
+function IsolationParamsSmart({
+  draft,
+  update
+}: {
+  draft: CamStep
+  update: (fn: (d: CamStep) => CamStep) => void
+}): React.JSX.Element {
+  const ip = draft.params.isolation
+  const flashSmart = useFlash('smart')
+  const flashGap = useFlash('smartMaxGap')
+  return (
+    <fieldset
+      className="flex flex-col gap-2 rounded-md border border-slate-700/80 bg-slate-950/40 px-3 pb-3 pt-1"
+      data-testid="smart-clearance"
+    >
+      <legend className="px-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+        Smart clearance
+      </legend>
+      <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-2">
+        <div className={flashSmart}>
+          <Switch
+            label="One groove in narrow gaps"
+            checked={!!ip.smart}
+            onChange={(v) =>
+              setParam(
+                update,
+                'isolation',
+                v ? { smart: true, extraClearance: SMART_EXTRA_CLEARANCE } : { smart: false }
+              )
+            }
+            description="Narrow gaps get ONE groove down their middle instead of a pass along each side: a slightly wide groove eats the gap, not your traces. Wider gaps get the passes below. Less cutting, shorter jobs."
+          />
+        </div>
+        {ip.smart && (
+          <NumberField
+            label="Narrow = up to"
+            unit="mm"
+            min={0.2}
+            max={5}
+            step={0.1}
+            value={ip.smartMaxGap ?? 1}
+            className={flashGap}
+            onChange={(v) => setParam(update, 'isolation', { smartMaxGap: v })}
+            description="Gaps up to this wide get the single middle groove. 1 mm is a good start."
+          />
+        )}
+      </div>
+    </fieldset>
+  )
 }
