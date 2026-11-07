@@ -131,12 +131,29 @@ function IntroStep({
   )
 }
 
+/** "Do not show this again" for the how-it-works page (settings key). */
+const SKIP_INTRO_KEY = 'probeIntroSkip'
+let skipIntro = false
+void window.tracemill
+  ?.settingsGet<boolean>(SKIP_INTRO_KEY, false)
+  .then((v) => (skipIntro = !!v))
+  .catch(() => undefined)
+function setSkipIntro(v: boolean): void {
+  if (skipIntro === v) return
+  skipIntro = v
+  void window.tracemill?.settingsSet(SKIP_INTRO_KEY, v)
+}
+
 function IntroPage({
   understood,
-  setUnderstood
+  setUnderstood,
+  dontShow,
+  setDontShow
 }: {
   understood: boolean
   setUnderstood: (v: boolean) => void
+  dontShow: boolean
+  setDontShow: (v: boolean) => void
 }): React.JSX.Element {
   const machine = useProject((s) => s.machine)
   const dialect = machine?.postProcessor ?? 'generic'
@@ -220,6 +237,16 @@ function IntroPage({
         />
         I understand the process and the safety notes.
       </label>
+      <label className="flex cursor-pointer items-center gap-2 px-3 text-xs text-slate-400">
+        <input
+          type="checkbox"
+          data-testid="probe-intro-skip"
+          checked={dontShow}
+          onChange={(e) => setDontShow(e.target.checked)}
+          className="size-3.5 accent-sky-500"
+        />
+        Do not show this page again (open it with Back on the next page)
+      </label>
     </div>
   )
 }
@@ -248,6 +275,7 @@ export function ProbeDialog({
   const scene = useWorkScene(al.measuredSide)
   const [page, setPage] = useState<'intro' | 'config'>('intro')
   const [understood, setUnderstood] = useState(false)
+  const [dontShow, setDontShow] = useState(false)
   const [mode, setMode] = useState<GridMode>('spacing')
   // the grid spacing follows the narrowest copper gap of the job (D-031)
   const clearance = useJobClearance()
@@ -269,8 +297,9 @@ export function ProbeDialog({
   // Initialise the grid when the dialog opens (last saved grid, else the board shape).
   useEffect(() => {
     if (!open) return
-    setPage('intro')
-    setUnderstood(false)
+    setPage(skipIntro ? 'config' : 'intro')
+    setUnderstood(skipIntro)
+    setDontShow(skipIntro)
     const saved = al.probeCfg
     if (saved && scene) {
       setCfg(saved)
@@ -445,7 +474,14 @@ export function ProbeDialog({
         <Button variant="ghost" onClick={() => onOpenChange(false)}>
           Cancel
         </Button>
-        <Button data-testid="probe-next" disabled={!understood} onClick={() => setPage('config')}>
+        <Button
+          data-testid="probe-next"
+          disabled={!understood}
+          onClick={() => {
+            setSkipIntro(dontShow)
+            setPage('config')
+          }}
+        >
           Next: set up the grid <ArrowRight />
         </Button>
       </>
@@ -505,7 +541,12 @@ export function ProbeDialog({
     >
       <div data-testid="probe-dialog">
         {page === 'intro' ? (
-          <IntroPage understood={understood} setUnderstood={setUnderstood} />
+          <IntroPage
+            understood={understood}
+            setUnderstood={setUnderstood}
+            dontShow={dontShow}
+            setDontShow={setDontShow}
+          />
         ) : !cfg || !scene || !material ? (
           <div className="p-6 text-sm text-slate-400">Import a board and set up the material first.</div>
         ) : (

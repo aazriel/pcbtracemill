@@ -22,6 +22,8 @@ import { cn, formatBytes, formatDuration } from '@renderer/lib/utils'
 import { useProject } from '@renderer/store/project'
 import { useUi } from '@renderer/store/ui'
 import { regenerate } from '@renderer/store/controller'
+import { Dialog } from '@renderer/components/ui/dialog'
+import { useAutoLevel } from '@renderer/heightmap/state'
 import { GcodePreviewDialog } from './GcodePreviewDialog'
 import { saveMany, saveOne, type ExportFile } from './exportFiles'
 
@@ -122,6 +124,15 @@ export function FilesTable({
   const steps = useProject((s) => s.steps)
   const tools = useProject((s) => s.tools)
   const [preview, setPreview] = useState<ExportFile | null>(null)
+  const probeSaved = useAutoLevel((s) => s.probeSaved)
+  const heightMap = useProject((s) => s.heightMap)
+  /** A save that waits for "yes, without auto-level" (a probe program was made, probing not done). */
+  const [unprobed, setUnprobed] = useState<(() => void) | null>(null)
+  const [unprobedOk, setUnprobedOk] = useState(false)
+  const guard = (action: () => void): void => {
+    if (probeSaved && !heightMap && !unprobedOk) setUnprobed(() => action)
+    else action()
+  }
 
   const totals = useMemo(
     () => ({
@@ -176,7 +187,7 @@ export function FilesTable({
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-3">
         <div className="min-w-0 flex-1">
-          <h2 className="text-lg font-semibold text-slate-100">Your G-code files</h2>
+          <h2 className="text-lg font-semibold text-slate-100">2. Your G-code files</h2>
           <p className="text-xs text-slate-400">
             Load these into your machine’s control software one after another, top to bottom.
           </p>
@@ -186,7 +197,7 @@ export function FilesTable({
           variant="success"
           data-testid="export-save-all"
           disabled={busy || !files.length}
-          onClick={() => void saveAll()}
+          onClick={() => guard(() => void saveAll())}
         >
           {busy ? <Loader2 className="animate-spin" /> : <Save />}
           Save {files.length} G-code file{files.length === 1 ? '' : 's'}
@@ -290,7 +301,12 @@ export function FilesTable({
                     <Button size="sm" variant="ghost" onClick={() => setPreview(f)} disabled={busy}>
                       <Eye /> Preview
                     </Button>
-                    <Button size="sm" variant="secondary" onClick={() => void saveSingle(f)} disabled={busy}>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => guard(() => void saveSingle(f))}
+                      disabled={busy}
+                    >
                       <Download /> Save
                     </Button>
                   </div>
@@ -317,6 +333,36 @@ export function FilesTable({
         </table>
       </div>
 
+      <Dialog
+        open={!!unprobed}
+        onOpenChange={(o) => !o && setUnprobed(null)}
+        title="Save without auto-level?"
+        description="You made a probe program, but probing is not marked as done."
+        footer={
+          <>
+            <Button variant="ghost" data-testid="unprobed-back" onClick={() => setUnprobed(null)}>
+              Go back
+            </Button>
+            <Button
+              variant="secondary"
+              data-testid="unprobed-save"
+              onClick={() => {
+                const run = unprobed
+                setUnprobed(null)
+                setUnprobedOk(true)
+                run?.()
+              }}
+            >
+              Save without auto-level
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-slate-300">
+          These files do <b>not</b> follow the board&apos;s surface. If you ran the probe program, first press{' '}
+          <b>Probing done</b> (or load the probe results) in <b>1. Probe the board</b> above, then save.
+        </p>
+      </Dialog>
       {preview && (
         <GcodePreviewDialog
           open
@@ -324,7 +370,7 @@ export function FilesTable({
           name={preview.file.name}
           text={preview.text}
           note={preview.levelled ? 'Includes the height-map Z correction.' : undefined}
-          onSave={() => void saveSingle(preview)}
+          onSave={() => guard(() => void saveSingle(preview))}
         />
       )}
     </div>
