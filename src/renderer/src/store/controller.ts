@@ -7,20 +7,24 @@ import { useMemo } from 'react'
 import type {
   BBox,
   CamStep,
+  ClearanceInfo,
   EdaTool,
   ImportedLayer,
   Material,
   ParsedLayer,
   Project,
   StepKind,
-  StepValidation
+  StepValidation,
+  Toolpath
 } from '@core/model/types'
 import { computeBoardBBox } from '@core/model/board'
 import { DEFAULT_MACHINE_ID, MACHINE_PRESETS, refreshPresetHeights } from '@core/machines'
 import { refreshStarterFeeds, STARTER_TOOLS } from '@core/tools'
 import {
+  combinedClearance,
   createStep,
   defaultMaterial,
+  planIsolation,
   recipe,
   resetMaterialToDefault,
   validateMaterial,
@@ -30,7 +34,7 @@ import { summarizeLayerStatus } from '@core/import'
 import { serializeProject, deserializeProject, newProjectName } from '@core/project'
 import { bboxIsEmpty } from '@core/geometry'
 import * as Comlink from 'comlink'
-import { camWorker } from '@workers/index'
+import { analysisWorker, camWorker } from '@workers/index'
 import { parsedCache, layersWithParsed, toProject, useProject, type ProjectState } from './project'
 import { useUi, type BrowseKind, type Stage } from './ui'
 import { EDA_INFO, edaInfo } from '@renderer/layers/eda'
@@ -415,7 +419,7 @@ export async function resetLayerToAuto(id: string): Promise<void> {
 
 // ───────────────────────────────────────── steps
 
-export function applyRecipe(): void {
+export async function applyRecipe(): Promise<void> {
   const p = useProject.getState()
   if (!p.machine || !p.material) ensureDefaults()
   const s = useProject.getState()
@@ -438,9 +442,30 @@ export function applyRecipe(): void {
         'Your design has copper on both sides, so the material was switched to double-sided with alignment pins.'
       )
   }
-  const steps = recipe({ layers, tools: s.tools, material, machine: s.machine, newId: () => uid('S') })
-  s.setSteps(steps)
+  // the isolation settings follow the measured copper spacing (D-031): wait for it
+  const copper = layers.filter((l) => l.type === 'copper')
+  if (copper.some((l) => !(l.id in useUi.getState().clearance)))
+    useUi.getState().toast('info', 'Measuring the gaps between the copper to set up the isolation…')
+  const clearance: Record<string, ClearanceInfo | null> = {}
+  for (const l of copper) clearance[l.id] = await layerClearance(l.id)
+  const now = useProject.getState()
+  if (!now.machine) return
+  const steps = recipe({
+    layers,
+    tools: now.tools,
+    material,
+    machine: now.machine,
+    newId: () => uid('S'),
+    clearance
+  })
+  now.setSteps(steps)
   scheduleRegenerate(true)
+  const iso = steps.find((x) => x.kind === 'isolate')
+  const tool = iso && now.tools.find((t) => t.id === iso.toolId)
+  if (iso && tool) {
+    const plan = planIsolation(tool, combinedClearance(iso.layerIds.map((id) => clearance[id])), material)
+    if (plan.notes.length) useUi.getState().toast('info', plan.notes.join(' '))
+  }
 }
 
 // ───────────────────────────────────────── places a step cannot machine
@@ -511,6 +536,45 @@ export function scheduleRegenerate(force = false): void {
   }, 350)
 }
 
+// ───────────────────────────────────────── copper spacing (D-031)
+
+const clearanceJobs = new Map<string, { geometry: unknown; promise: Promise<ClearanceInfo | null> }>()
+
+/**
+ * Measured copper spacing of one copper layer. Runs once per parsed geometry in the background
+ * worker; the result also lands in `useUi().clearance`.
+ */
+export function layerClearance(layerId: string): Promise<ClearanceInfo | null> {
+  const geometry = parsedCache.get(layerId)?.geometry
+  if (!geometry?.length) return Promise.resolve(null)
+  const job = clearanceJobs.get(layerId)
+  if (job && job.geometry === geometry) return job.promise
+  const promise = analysisWorker()
+    .analyzeClearance(geometry)
+    .then((info) => {
+      if (clearanceJobs.get(layerId)?.geometry === geometry)
+        useUi.getState().set({ clearance: { ...useUi.getState().clearance, [layerId]: info } })
+      return info
+    })
+    .catch(() => null)
+  clearanceJobs.set(layerId, { geometry, promise })
+  return promise
+}
+
+/** Copper spacing of a step's copper layers (the narrowest of them). */
+export async function stepClearance(layerIds: string[]): Promise<ClearanceInfo | null> {
+  const copper = useProject
+    .getState()
+    .layers.filter((l) => layerIds.includes(l.id) && l.type === 'copper')
+    .map((l) => l.id)
+  return combinedClearance(await Promise.all(copper.map(layerClearance)))
+}
+
+/** Starts measuring every copper layer that is not measured yet (called after import / parse). */
+export function analyzeCopperLayers(): void {
+  for (const l of useProject.getState().layers) if (l.type === 'copper') void layerClearance(l.id)
+}
+
 const gapCache = new Map<string, number | null>()
 
 /**
@@ -531,6 +595,24 @@ export async function measureNarrowestGap(layerIds: string[], ignoreBelow = 0): 
   }
   gapCache.set(key, gap)
   return gap
+}
+
+/**
+ * The toolpath an edited (unsaved) step would get, for the live results in the step editor. Runs
+ * in the background worker so it does not wait behind a full regeneration.
+ */
+export async function previewStepToolpath(
+  draft: CamStep
+): Promise<{ toolpath: Toolpath | null; error: string | null }> {
+  const s = useProject.getState()
+  if (!s.machine || !s.material) return { toolpath: null, error: null }
+  const steps = s.steps.some((x) => x.id === draft.id)
+    ? s.steps.map((x) => (x.id === draft.id ? draft : x))
+    : [...s.steps, draft]
+  return analysisWorker().previewStep(
+    { layers: layersWithParsed(s.layers), steps, tools: s.tools, material: s.material, machine: s.machine },
+    draft
+  )
 }
 
 export async function regenerate(): Promise<void> {

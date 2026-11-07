@@ -12,7 +12,8 @@
  *   4. Cutout, always last, on whichever side is facing up at the end — cutting the board free earlier would
  *      leave it loose for the remaining operations.
  */
-import type { CamStep, ImportedLayer, MachineProfile, Material, Tool } from '../model/types'
+import type { CamStep, ClearanceInfo, ImportedLayer, MachineProfile, Material, Tool } from '../model/types'
+import { combinedClearance, planIsolation } from './isolationPlan'
 import { createStep } from './steps'
 
 export interface RecipeContext {
@@ -21,6 +22,8 @@ export interface RecipeContext {
   material: Material
   machine: MachineProfile
   newId: () => string
+  /** Measured copper spacing per copper layer id (D-031): sets the isolation passes and depth. */
+  clearance?: Record<string, ClearanceInfo | null>
 }
 
 /** A hole may be drilled with a bit up to this much smaller than the hole (mm). */
@@ -140,9 +143,34 @@ export function recipe(ctx: RecipeContext): CamStep[] {
     side: 'top' | 'bottom',
     layerIds: string[],
     tool: Tool | null
-  ): CamStep => createStep(kind, { id: newId(), side, layerIds, toolId: tool?.id ?? null, machine, material })
+  ): CamStep =>
+    createStep(kind, { id: newId(), side, layerIds, toolId: tool?.id ?? null, tool, machine, material })
+  const isolate = (side: 'top' | 'bottom', copper: ImportedLayer[]): CamStep => {
+    const s = mk(
+      'isolate',
+      side,
+      copper.map((l) => l.id),
+      isoTool
+    )
+    if (isoTool) {
+      const plan = planIsolation(
+        isoTool,
+        combinedClearance(copper.map((l) => ctx.clearance?.[l.id])),
+        material
+      )
+      s.cutDepth = plan.cutDepth
+      s.params.isolation = {
+        ...s.params.isolation,
+        passes: plan.passes,
+        overlap: plan.overlap,
+        extraClearance: plan.extraClearance
+      }
+    }
+    return s
+  }
 
   const steps: CamStep[] = []
+  const isoTool = pickIsolationTool(tools)
 
   // 1. Alignment pins
   if (doubleSided) {
@@ -150,17 +178,8 @@ export function recipe(ctx: RecipeContext): CamStep[] {
   }
 
   // 2. First side
-  const isoTool = pickIsolationTool(tools)
   const firstCopper = firstSide === 'top' ? copperTop : copperBottom
-  if (firstCopper.length)
-    steps.push(
-      mk(
-        'isolate',
-        firstSide,
-        firstCopper.map((l) => l.id),
-        isoTool
-      )
-    )
+  if (firstCopper.length) steps.push(isolate(firstSide, firstCopper))
 
   if (drillLayers.length) {
     const ids = drillLayers.map((l) => l.id)
@@ -200,15 +219,7 @@ export function recipe(ctx: RecipeContext): CamStep[] {
   }
 
   // 3. Second side
-  if (doubleSided)
-    steps.push(
-      mk(
-        'isolate',
-        'bottom',
-        copperBottom.map((l) => l.id),
-        isoTool
-      )
-    )
+  if (doubleSided) steps.push(isolate('bottom', copperBottom))
 
   // 4. Cutout
   if (outlineLayers.length)

@@ -153,7 +153,7 @@ export function StepsPanel(): React.JSX.Element {
 
   const runRecipe = (): void => {
     if (steps.length) setConfirmRecipe(true)
-    else applyRecipe()
+    else void applyRecipe()
   }
 
   const duplicate = (step: CamStep): void => {
@@ -395,7 +395,7 @@ export function StepsPanel(): React.JSX.Element {
             <Button
               onClick={() => {
                 setConfirmRecipe(false)
-                applyRecipe()
+                void applyRecipe()
               }}
               data-testid="recipe-confirm"
             >

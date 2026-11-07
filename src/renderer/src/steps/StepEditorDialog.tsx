@@ -2,12 +2,12 @@
  * Step editor: one dialog for adding and editing a CAM step. Split into sections (Layer, Tool,
  * General, <kind> parameters, Results); each section gets a status circle computed from validateStep.
  */
-import { useMemo, useRef } from 'react'
-import type { CamStep, ValidationIssue } from '@core/model/types'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import type { CamStep, Toolpath, ValidationIssue } from '@core/model/types'
 import { STEP_KIND_INFO, validateStep } from '@core/cam'
 import { useProject } from '@renderer/store/project'
 import { useUi } from '@renderer/store/ui'
-import { showProblems } from '@renderer/store/controller'
+import { previewStepToolpath, showProblems } from '@renderer/store/controller'
 import { Dialog } from '@renderer/components/ui/dialog'
 import { Button } from '@renderer/components/ui/button'
 import { StatusCircle, type StatusLevel } from '@renderer/components/ui/status'
@@ -90,8 +90,32 @@ function Body({ draft }: { draft: CamStep }): React.JSX.Element {
   const scrollRef = useRef<HTMLDivElement>(null)
   const refs = useRef<Partial<Record<SectionId, HTMLElement | null>>>({})
   const toolpath = cam?.toolpaths.find((t) => t.stepId === draft.id)
-  const changed = !saved || JSON.stringify(saved) !== JSON.stringify(draft)
+  const draftKey = JSON.stringify(draft)
+  const changed = !saved || JSON.stringify(saved) !== draftKey
   const showSkip = useShowSkip(draft)
+  // live results: with auto-generate on, the edited step is calculated on its own as you type
+  const auto = useProject((s) => s.settings.autoRegenerate)
+  const [preview, setPreview] = useState<{ key: string; toolpath: Toolpath | null } | null>(null)
+  useEffect(() => {
+    if (!auto || !changed) return
+    let live = true
+    const t = setTimeout(() => {
+      void previewStepToolpath(JSON.parse(draftKey) as CamStep)
+        .then((r) => live && setPreview({ key: draftKey, toolpath: r.toolpath }))
+        .catch(() => live && setPreview({ key: draftKey, toolpath: null }))
+    }, 400)
+    return () => {
+      live = false
+      clearTimeout(t)
+    }
+  }, [auto, changed, draftKey])
+  const livePath = changed && preview?.key === draftKey ? preview.toolpath : null
+  const setPreviewSeconds = useStepEditor((s) => s.setPreviewSeconds)
+  useEffect(() => {
+    if (preview)
+      setPreviewSeconds({ key: preview.key, seconds: preview.toolpath?.stats.estimatedSeconds ?? null })
+  }, [preview, setPreviewSeconds])
+  const resultsPending = changed && !livePath
 
   const sections: { id: SectionId; title: string; hint: string }[] = [
     { id: 'layer', title: 'Layer', hint: 'What to work on' },
@@ -183,7 +207,13 @@ function Body({ draft }: { draft: CamStep }): React.JSX.Element {
               )}
               {s.id === 'skip' && <SkipSection draft={draft} update={update} issues={st.issues} />}
               {s.id === 'results' && (
-                <ResultsSection draft={draft} toolpath={toolpath} stale={changed || camStale} />
+                <ResultsSection
+                  draft={draft}
+                  toolpath={changed ? (livePath ?? undefined) : toolpath}
+                  stale={!changed && camStale}
+                  pending={resultsPending && !(auto && preview?.key === draftKey)}
+                  manual={!auto}
+                />
               )}
             </section>
           )

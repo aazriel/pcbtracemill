@@ -1,5 +1,5 @@
 /** Detection of places where separate copper features are too close for the tool to pass between. */
-import type { BBox, Path, Polygon, PolygonSet, Vec2 } from '../model/types'
+import type { BBox, ClearanceInfo, Path, Polygon, PolygonSet, Vec2 } from '../model/types'
 import {
   countPoints,
   intersection,
@@ -53,6 +53,8 @@ export interface GapReport {
   locations: Vec2[]
   /** Actual distance between the two copper features at each place (same order as locations). */
   widths: number[]
+  /** The closest points of the two features at each place, and the two polygon indexes. */
+  ends: { a: Vec2; b: Vec2; i: number; j: number }[]
 }
 
 function segDist2(a: Vec2, b: Vec2, p: Vec2): number {
@@ -65,9 +67,25 @@ function segDist2(a: Vec2, b: Vec2, p: Vec2): number {
   return x * x + y * y
 }
 
-/** Distance between two segments (they never cross: the polygons are separate features). */
-function segSegDist(a: Vec2, b: Vec2, c: Vec2, d: Vec2): number {
-  return Math.sqrt(Math.min(segDist2(a, b, c), segDist2(a, b, d), segDist2(c, d, a), segDist2(c, d, b)))
+function closestOn(a: Vec2, b: Vec2, p: Vec2): Vec2 {
+  const dx = b.x - a.x
+  const dy = b.y - a.y
+  const l = dx * dx + dy * dy
+  const t = l > 0 ? Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / l)) : 0
+  return { x: a.x + t * dx, y: a.y + t * dy }
+}
+
+/** Distance between two segments (they never cross: the polygons are separate features) and the closest points. */
+function segSegClosest(a: Vec2, b: Vec2, c: Vec2, d: Vec2): { d: number; p: Vec2; q: Vec2 } {
+  const cands: [number, Vec2, Vec2][] = [
+    [segDist2(a, b, c), closestOn(a, b, c), c],
+    [segDist2(a, b, d), closestOn(a, b, d), d],
+    [segDist2(c, d, a), a, closestOn(c, d, a)],
+    [segDist2(c, d, b), b, closestOn(c, d, b)]
+  ]
+  let best = cands[0]
+  for (const k of cands) if (k[0] < best[0]) best = k
+  return { d: Math.sqrt(best[0]), p: best[1], q: best[2] }
 }
 
 function edgesNear(poly: Polygon, box: BBox): [Vec2, Vec2][] {
@@ -88,12 +106,16 @@ function edgesNear(poly: Polygon, box: BBox): [Vec2, Vec2][] {
   return out
 }
 
-/** Smallest distance between two polygons, looking only at edges inside `box`. */
-function distanceNear(pa: Polygon, pb: Polygon, box: BBox): number {
+/** Smallest distance between two polygons, looking only at edges inside `box`, and its end points. */
+function distanceNear(pa: Polygon, pb: Polygon, box: BBox): { d: number; p: Vec2; q: Vec2 } {
   const ea = edgesNear(pa, box)
   const eb = edgesNear(pb, box)
-  let best = Infinity
-  for (const [a, b] of ea) for (const [c, d] of eb) best = Math.min(best, segSegDist(a, b, c, d))
+  let best = { d: Infinity, p: { x: 0, y: 0 }, q: { x: 0, y: 0 } }
+  for (const [a, b] of ea)
+    for (const [c, d] of eb) {
+      const k = segSegClosest(a, b, c, d)
+      if (k.d < best.d) best = k
+    }
   return best
 }
 
@@ -103,7 +125,7 @@ function distanceNear(pa: Polygon, pb: Polygon, box: BBox): number {
  * Narrow slots inside a single polygon (e.g. a U-shaped trace) are not reported.
  */
 export function findNarrowGaps(copper: PolygonSet, radius: number): GapReport {
-  const report: GapReport = { count: 0, locations: [], widths: [] }
+  const report: GapReport = { count: 0, locations: [], widths: [], ends: [] }
   if (copper.length < 2 || radius <= 0) return report
   const r = radius * (1 - 1e-3) // features exactly 2r apart are fine
   const items = copper.map((poly) => {
@@ -146,7 +168,8 @@ export function findNarrowGaps(copper: PolygonSet, radius: number): GapReport {
         report.locations.push({ x: (b.minX + b.maxX) / 2, y: (b.minY + b.maxY) / 2 })
         const near = { minX: b.minX - r, minY: b.minY - r, maxX: b.maxX + r, maxY: b.maxY + r }
         const dist = distanceNear(items[i].poly, items[j].poly, near)
-        report.widths.push(Number.isFinite(dist) ? dist : 0)
+        report.widths.push(Number.isFinite(dist.d) ? dist.d : 0)
+        report.ends.push({ a: dist.p, b: dist.q, i, j })
       }
     }
   }
@@ -173,4 +196,102 @@ export function narrowestGap(copper: PolygonSet, limit = 1, ignoreBelow = 0): nu
   const floor = Math.max(ignoreBelow, MIN_REAL_GAP)
   for (const w of r.widths) if (w >= floor && w < best) best = w
   return Number.isFinite(best) ? best : null
+}
+
+function segmentsCross(a: Vec2, b: Vec2, c: Vec2, d: Vec2): boolean {
+  const o = (p: Vec2, q: Vec2, r: Vec2): number => (q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x)
+  const d1 = o(a, b, c)
+  const d2 = o(a, b, d)
+  const d3 = o(c, d, a)
+  const d4 = o(c, d, b)
+  return d1 * d2 < 0 && d3 * d4 < 0
+}
+
+function insideRing(p: Vec2, r: Path): boolean {
+  let inside = false
+  for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
+    const a = r[i]
+    const b = r[j]
+    if (a.y > p.y !== b.y > p.y && p.x < ((b.x - a.x) * (p.y - a.y)) / (b.y - a.y) + a.x) inside = !inside
+  }
+  return inside
+}
+
+/** Does segment a-b cross or lie inside polygon `poly`? */
+function segmentHitsPolygon(a: Vec2, b: Vec2, poly: Polygon): boolean {
+  const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }
+  if (insideRing(mid, poly.outer) && !poly.holes.some((h) => insideRing(mid, h))) return true
+  for (const r of [poly.outer, ...poly.holes])
+    for (let k = 0; k < r.length; k++) if (segmentsCross(a, b, r[k], r[(k + 1) % r.length])) return true
+  return false
+}
+
+/** Gaps narrower than this cannot be milled by any PCB bit: copper meant to touch, or slivers. */
+export const MILLABLE_GAP = 0.1
+/** Gaps up to this wide are measured; wider ones only count as "at least this". */
+export const CLEARANCE_LIMIT = 1.5
+
+export type { ClearanceInfo }
+
+/**
+ * Measures the copper spacing of one copper layer, the way a DRC report reads: every place where
+ * two different copper features come closer than {@link CLEARANCE_LIMIT} with nothing between
+ * them is a measurement. Gaps under {@link MILLABLE_GAP} are copper meant to touch (counted as
+ * `tiny`); the narrowest of the rest is what the isolation has to get through.
+ */
+export function analyzeClearance(copper: PolygonSet): ClearanceInfo {
+  let perimeter = 0
+  for (const poly of copper)
+    for (const r of [poly.outer, ...poly.holes])
+      for (let i = 0; i < r.length; i++) {
+        const a = r[i]
+        const b = r[(i + 1) % r.length]
+        perimeter += Math.hypot(b.x - a.x, b.y - a.y)
+      }
+  const rep = findNarrowGaps(copper, CLEARANCE_LIMIT / 2)
+  const boxes = copper.map((p) => polygonSetBBox([p]))
+  // a gap is the empty space between two features: one measured across a third feature is not one
+  const open = (k: number): boolean => {
+    const { a, b, i, j } = rep.ends[k]
+    const box = {
+      minX: Math.min(a.x, b.x),
+      minY: Math.min(a.y, b.y),
+      maxX: Math.max(a.x, b.x),
+      maxY: Math.max(a.y, b.y)
+    }
+    for (let n = 0; n < copper.length; n++) {
+      if (n === i || n === j || !bboxOverlap(boxes[n], box)) continue
+      if (segmentHitsPolygon(a, b, copper[n])) return false
+    }
+    return true
+  }
+  const widths = rep.widths
+    .filter((w, k) => w >= MIN_REAL_GAP && w < CLEARANCE_LIMIT && open(k))
+    .sort((a, b) => a - b)
+  const tiny = widths.filter((w) => w < MILLABLE_GAP).length
+  const millable = widths.filter((w) => w >= MILLABLE_GAP)
+  const BAND = 0.03
+  // drawn arcs make a 0.2 mm design gap measure 0.1995: report gaps on a 0.005 mm step
+  const step = (v: number): number => Math.round(Math.round(v / 0.005) * 0.005 * 1000) / 1000
+  if (!millable.length)
+    return { clearance: null, atClearance: 0, typical: null, tiny, places: widths.length, perimeter }
+  const c = millable[0]
+  // the design rule: the narrowest width shared by at least 2 places and 3 % of all places
+  const need = Math.max(2, Math.ceil(0.03 * millable.length))
+  let typical: number | null = null
+  for (let i = 0, j = 0; i < millable.length; i++) {
+    while (j < millable.length && millable[j] <= millable[i] + BAND) j++
+    if (j - i >= need) {
+      typical = step(millable[i])
+      break
+    }
+  }
+  return {
+    clearance: step(c),
+    atClearance: millable.filter((w) => w <= c + BAND).length,
+    typical,
+    tiny,
+    places: widths.length,
+    perimeter
+  }
 }

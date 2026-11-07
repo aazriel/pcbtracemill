@@ -25,6 +25,12 @@ export interface ToolpathInput {
   machine: MachineProfile
   /** Board extents in board coordinates (see computeBoardBBox). */
   boardBBox: BBox
+  /**
+   * Copper clearing: an enabled isolation step on the same side runs before this one. false = the
+   * clearing is the only thing separating the copper, so places it cannot pass are shorts (D-032).
+   * undefined = unknown (single-step use).
+   */
+  isolatedBefore?: boolean
 }
 
 /** Thrown for unrecoverable input problems; generateAll reports the message per step. */

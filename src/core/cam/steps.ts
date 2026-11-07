@@ -16,6 +16,7 @@ import type {
   ValidationLevel
 } from '../model/types'
 import { TOOL_TYPE_INFO, validateTool } from '../tools'
+import { defaultOverlap } from './isolationPlan'
 
 export interface StepKindInfo {
   label: string
@@ -149,6 +150,8 @@ export interface CreateStepOptions {
   side?: 'top' | 'bottom'
   layerIds?: string[]
   toolId?: string | null
+  /** The chosen tool: its type sets the pass overlap (V-bit 50 %, flat 15 %). */
+  tool?: Tool | null
   machine?: MachineProfile
   material?: Material
 }
@@ -159,6 +162,11 @@ const DEFAULT_MATERIAL_DIMS = { thickness: 1.6, copperThickness: 0.035 }
 export function createStep(kind: StepKind, opts: CreateStepOptions): CamStep {
   const side = opts.side ?? 'top'
   const name = kind === 'alignment' ? STEP_KIND_INFO[kind].label : `${STEP_KIND_INFO[kind].label} (${side})`
+  const params = defaultStepParams()
+  if (opts.tool) {
+    params.isolation.overlap = defaultOverlap(opts.tool)
+    params.clear.overlap = defaultOverlap(opts.tool)
+  }
   return {
     id: opts.id,
     kind,
@@ -169,7 +177,7 @@ export function createStep(kind: StepKind, opts: CreateStepOptions): CamStep {
     toolId: opts.toolId ?? null,
     cutDepth: defaultCutDepth(kind, opts.material ?? DEFAULT_MATERIAL_DIMS),
     safeZ: null,
-    params: defaultStepParams()
+    params
   }
 }
 

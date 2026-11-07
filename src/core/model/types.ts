@@ -312,6 +312,25 @@ export type StepKind = 'drill' | 'clear' | 'cutout' | 'holeMill' | 'isolate' | '
 
 export type CutDirection = 'climb' | 'conventional'
 
+/** What the board's copper spacing looks like (one copper layer). See D-031. */
+export interface ClearanceInfo {
+  /**
+   * The narrowest millable gap between two copper features (≥ 0.1 mm), mm – what the isolation
+   * must get through. null = every gap is at least 1.5 mm.
+   */
+  clearance: number | null
+  /** Places within 0.03 mm of that narrowest gap. */
+  atClearance: number
+  /** The gap most places share (the design rule), mm; null when there are too few places to tell. */
+  typical: number | null
+  /** Places narrower than 0.1 mm (copper that touches / slivers): never millable, not counted above. */
+  tiny: number
+  /** All measured places under 1.5 mm. */
+  places: number
+  /** Total length of the copper outlines, mm: one isolation pass is about this long. */
+  perimeter: number
+}
+
 export interface IsolationParams {
   passes: number
   /** Overlap between passes 0..0.9 */

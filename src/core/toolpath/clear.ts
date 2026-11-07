@@ -14,7 +14,7 @@ import type { Path, PolygonSet, ToolpathSegment } from '../model/types'
 import { applyAffine, difference, intersection, offset, polygonArea, rings, type Affine } from '../geometry'
 import { effectiveCutWidth } from '../tools/geometry'
 import { fmt, selectedGeometry, selectedLayers, toWork, ToolpathError, type StepContext } from './context'
-import { problemId } from './gaps'
+import { findNarrowGaps, problemId } from './gaps'
 import { emitLoops, type LoopItem } from './isolate'
 import { depthLevels } from './moves'
 import { buildOutline, outlineLayers } from './outline'
@@ -59,6 +59,31 @@ export function generateClear(ctx: StepContext): ToolpathSegment[] {
   const copper = toWork(ctx, copperBoard)
   let target = board
   if (p.clearMargin > 0) target = intersection(board, offset(copper, p.clearMargin))
+  // Without an isolation step before, this pass is what separates the copper: every place where the
+  // tool cannot get between two copper features leaves them connected (D-032).
+  if (ctx.input.isolatedBefore === false) {
+    const gaps = findNarrowGaps(copperBoard, r + extra)
+    const ignored = new Set(step.ignoredProblems ?? [])
+    let shorts = 0
+    gaps.locations.forEach((loc, i) => {
+      const id = problemId('gap', loc)
+      if (ignored.has(id) || gaps.widths[i] < 0.02) return
+      shorts++
+      ctx.problems.push({
+        id,
+        kind: 'narrow-gap',
+        x: loc.x,
+        y: loc.y,
+        gap: gaps.widths[i],
+        needed: w + 2 * extra
+      })
+    })
+    if (shorts > 0)
+      ctx.warnings.push(
+        `There is no isolation step before this one, and the ${fmt(w)} mm bit cannot pass between the copper at ${shorts} place${shorts === 1 ? '' : 's'} – ` +
+          `${shorts === 1 ? 'it stays' : 'they stay'} connected and the board will be shorted there. Add an “Isolate traces” step before clearing. Use “Show on board” to see ${shorts === 1 ? 'it' : 'them'}.`
+      )
+  }
   const region = difference(target, offset(copper, r + extra))
   if (region.length === 0) {
     ctx.warnings.push('There is no copper area wide enough for this tool to clear.')
@@ -85,7 +110,8 @@ export function generateClear(ctx: StepContext): ToolpathSegment[] {
   const remnants = difference(difference(target, offset(copper, extra + 1e-3)), swept).filter(
     (poly) => polygonArea(poly) >= Math.max(0.25 * w * w, 0.01)
   )
-  if (remnants.length > 0) {
+  // after an isolation step the copper is already separated: leftover copper is only cosmetic
+  if (remnants.length > 0 && ctx.input.isolatedBefore !== true) {
     const toBoard = invertAffine(ctx.m)
     const ignored = new Set(step.ignoredProblems ?? [])
     let area = 0
@@ -103,7 +129,7 @@ export function generateClear(ctx: StepContext): ToolpathSegment[] {
       area += a
       ctx.problems.push({ id, kind: 'uncleared', x: at.x, y: at.y, area: a })
     }
-    const n = ctx.problems.length
+    const n = ctx.problems.filter((q) => q.kind === 'uncleared').length
     if (n > 0)
       ctx.warnings.push(
         `${n} area(s) narrower than the ${fmt(w)} mm tool remain uncleared (${fmt(area)} mm²). ` +

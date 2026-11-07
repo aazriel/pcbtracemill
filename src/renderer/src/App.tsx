@@ -31,7 +31,8 @@ import {
   saveProject,
   undo,
   useBoardHint,
-  useStageStatus
+  useStageStatus,
+  analyzeCopperLayers
 } from '@renderer/store/controller'
 import { BoardStage } from '@renderer/stages/BoardStage'
 import { ManufactureStage } from '@renderer/stages/ManufactureStage'
@@ -60,6 +61,15 @@ export function App(): React.JSX.Element {
   const canRedo = useTemporal((s) => s.futureStates.length > 0)
   // re-render when stage availability changes
   useProject((s) => s.layers.length)
+  // measure the copper spacing of every copper layer in the background (D-031)
+  const parsedVersion = useProject((s) => s.parsedVersion)
+  const copperKey = useProject((s) =>
+    s.layers
+      .filter((l) => l.type === 'copper')
+      .map((l) => l.id)
+      .join(',')
+  )
+  useEffect(() => analyzeCopperLayers(), [parsedVersion, copperKey])
   useUi((s) => s.cam)
 
   useEffect(() => {
