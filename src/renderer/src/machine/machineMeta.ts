@@ -45,6 +45,7 @@ const ERROR_FIELDS: [RegExp, MachineFieldKey][] = [
   [/^Work area/i, 'workArea'],
   [/XY feed/i, 'maxFeedXY'],
   [/Z feed/i, 'maxFeedZ'],
+  [/^Acceleration/i, 'accel'],
   [/^Minimum spindle/i, 'spindleMin'],
   [/^Maximum spindle/i, 'spindleMax'],
   [/spin-up/i, 'spindleSpinUpSec'],

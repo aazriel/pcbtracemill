@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import type { MachineProfile } from '@core/model/types'
 import { MACHINE_FIELD_HELP } from '@core/machines'
+import { DEFAULT_ACCEL } from '@core/gcode'
 import { Button } from '@renderer/components/ui/button'
 import { NumberField, SelectField, Switch, TextField } from '@renderer/components/ui/fields'
 import { HelpTip } from '@renderer/components/ui/help'
@@ -25,9 +26,9 @@ import { MachineIcon } from './MachineCard'
 import { POST_OPTIONS, errorsByField, type MachineFieldKey } from './machineMeta'
 
 type KeysOfType<V> = {
-  [K in keyof MachineProfile]: MachineProfile[K] extends V ? K : never
+  [K in keyof MachineProfile]-?: MachineProfile[K] extends V ? K : never
 }[keyof MachineProfile]
-type NumKey = KeysOfType<number>
+type NumKey = KeysOfType<number> | 'accel'
 type BoolKey = KeysOfType<boolean>
 type TextKey = 'name' | 'description' | 'fileExtension' | 'customHeader' | 'customFooter'
 type SelectKey = 'postProcessor' | 'outputUnits' | 'commentStyle' | 'probeCommand'
@@ -86,7 +87,8 @@ const GROUPS: Group[] = [
     specs: [
       { kind: 'workArea' },
       { kind: 'number', key: 'maxFeedXY', step: 50, min: 0 },
-      { kind: 'number', key: 'maxFeedZ', step: 50, min: 0 }
+      { kind: 'number', key: 'maxFeedZ', step: 50, min: 0 },
+      { kind: 'number', key: 'accel', step: 10, min: 1 }
     ]
   },
   {
@@ -144,6 +146,9 @@ const GROUPS: Group[] = [
   }
 ]
 
+/** Shown for optional settings an older machine profile does not have yet. */
+const numDefault = (key: NumKey): number => (key === 'accel' ? DEFAULT_ACCEL : 0)
+
 const specKeys = (s: Spec): MachineFieldKey[] => (s.kind === 'workArea' ? ['workArea'] : [s.key])
 
 function readValue(m: MachineProfile, s: Spec): ReactNode {
@@ -152,7 +157,7 @@ function readValue(m: MachineProfile, s: Spec): ReactNode {
     case 'workArea':
       return `X ${m.workArea.x} × Y ${m.workArea.y} × Z ${m.workArea.z} mm`
     case 'number':
-      return `${m[s.key]}${unit ? ` ${unit}` : ''}`
+      return `${m[s.key] ?? numDefault(s.key)}${unit ? ` ${unit}` : ''}`
     case 'bool':
       return m[s.key] ? (
         <span className="inline-flex items-center gap-1 text-emerald-300">
@@ -262,7 +267,7 @@ function EditRow({
           {...figureProps}
           description={h.description}
           unit={h.unit}
-          value={m[spec.key]}
+          value={m[spec.key] ?? numDefault(spec.key)}
           step={spec.step}
           min={spec.min}
           max={spec.max}

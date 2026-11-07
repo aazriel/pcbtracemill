@@ -424,8 +424,9 @@ describe('stats and generateAll', () => {
       { kind: 'retract', x: 100, y: 0, z: 5 }
     ]
     const t = estimateTime(moves, m, { x: 0, y: 0, z: 5 })
-    // plunge 1 mm @ 60 = 1 s; feed 100 mm @ 600 = 10 s × 1.15; rapids 0.45 s + 0.55 s + 2 × 0.05 s → 13.6 s
-    expect(t).toBeCloseTo(13.6, 6)
+    // at 50 mm/s² (default): rapid down 4.5 mm @ 600 = 0.65 s; plunge 1 mm @ 60 = 1.02 s;
+    // feed 100 mm @ 600 = 10.2 s (ramps 0.2 s each end); retract 5.5 mm = 0.75 s -> 12.62 s
+    expect(t).toBeCloseTo(12.62, 6)
   })
 
   it('toolpath stats are consistent', () => {

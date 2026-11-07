@@ -1,5 +1,6 @@
 /** Move emission helpers, arc linearisation, statistics and time estimation. */
 import type { MachineProfile, Move, Path, Toolpath, ToolpathSegment, ToolpathStats } from '../model/types'
+import { DEFAULT_ACCEL, moveTimes, type TimedMove } from '../gcode/motionTime'
 
 export interface Vec3 {
   x: number
@@ -205,58 +206,47 @@ export function linearizeArcs(moves: Move[], tol = 0.005, start?: Vec3): Move[] 
 
 // ─────────────────────────────────────────── stats & time
 
-/** Multiplier applied to feed-move time to account for acceleration/deceleration. */
-export const ACCEL_FACTOR = 1.15
-/** Fixed overhead per rapid move, seconds (acceleration ramps). */
-const RAPID_OVERHEAD_S = 0.05
-
 function isFeedLike(k: Move['kind']): boolean {
   return k === 'feed' || k === 'arc-cw' || k === 'arc-ccw'
 }
 
-function walk(
-  moves: Move[],
-  machine: MachineProfile,
-  start: Vec3,
-  visit: (m: Move, len: number, seconds: number) => void
-): Vec3 {
+/**
+ * Run time in seconds of `moves` starting at `start`, with the same acceleration model as the
+ * G-code file estimate (gcode/motionTime.ts, D-029): rapids per axis at machine.maxFeedXY / maxFeedZ,
+ * feeds at their feed clamped to the machine limits, slowing down for corners; dwells as given.
+ */
+function runSeconds(moves: Move[], machine: MachineProfile, start: Vec3): number {
+  const timed: TimedMove[] = []
+  let dwell = 0
   let pos = start
-  for (const m of moves) {
-    const len = moveLength(pos, m)
-    let s = 0
-    if (m.kind === 'dwell') s = m.seconds ?? 0
-    else if (m.kind === 'rapid' || m.kind === 'retract') {
-      const dxy = Math.hypot(m.x - pos.x, m.y - pos.y)
-      const dz = Math.abs(m.z - pos.z)
-      const tXY = machine.maxFeedXY > 0 ? dxy / machine.maxFeedXY : 0
-      const tZ = machine.maxFeedZ > 0 ? dz / machine.maxFeedZ : 0
-      s = len > 0 ? Math.max(tXY, tZ) * 60 + RAPID_OVERHEAD_S : 0
-    } else if (m.kind === 'plunge') {
-      const f = Math.min(m.feed ?? machine.maxFeedZ, machine.maxFeedZ || Infinity)
-      s = f > 0 ? (len / f) * 60 : 0
-    } else {
-      const lim =
-        isFeedLike(m.kind) && Math.abs(m.z - pos.z) > Math.hypot(m.x - pos.x, m.y - pos.y)
-          ? machine.maxFeedZ
-          : machine.maxFeedXY
-      const f = Math.min(m.feed ?? lim, lim || Infinity)
-      s = f > 0 ? (len / f) * 60 * ACCEL_FACTOR : 0
+  for (const m of linearizeArcs(moves, 0.01, start)) {
+    if (m.kind === 'dwell') {
+      dwell += m.seconds ?? 0
+      continue
     }
-    visit(m, len, s)
-    if (m.kind !== 'dwell') pos = { x: m.x, y: m.y, z: m.z }
+    const from = [pos.x, pos.y, pos.z] as const
+    const to = [m.x, m.y, m.z] as const
+    if (m.kind === 'rapid' || m.kind === 'retract') timed.push({ kind: 'rapid', from, to, feed: 0 })
+    else
+      timed.push({
+        kind: 'feed',
+        from,
+        to,
+        feed: m.feed ?? (m.kind === 'plunge' ? machine.maxFeedZ : machine.maxFeedXY)
+      })
+    pos = { x: m.x, y: m.y, z: m.z }
   }
-  return pos
+  const lim = {
+    maxFeedXY: machine.maxFeedXY,
+    maxFeedZ: machine.maxFeedZ,
+    accel: machine.accel && machine.accel > 0 ? machine.accel : DEFAULT_ACCEL
+  }
+  return moveTimes(timed, lim).reduce((t, s) => t + s, dwell)
 }
 
-/**
- * Estimated run time in seconds: feed/arc moves at their commanded feed (clamped to machine limits)
- * × {@link ACCEL_FACTOR}; rapids at machine.maxFeedXY / maxFeedZ (+ small overhead); plunges at their
- * feed; dwells as given. Starts from `start` (default X0 Y0 at machine.safeZ).
- */
+/** Estimated run time in seconds. Starts from `start` (default X0 Y0 at machine.safeZ). */
 export function estimateTime(moves: Move[], machine: MachineProfile, start?: Vec3): number {
-  let t = 0
-  walk(moves, machine, start ?? { x: 0, y: 0, z: machine.safeZ }, (_m, _l, s) => (t += s))
-  return t
+  return runSeconds(moves, machine, start ?? { x: 0, y: 0, z: machine.safeZ })
 }
 
 /** Stats for a list of segments (cut length counts feed + arc moves, rapid length counts rapids + retracts). */
@@ -266,15 +256,20 @@ export function computeStats(
   start?: Vec3
 ): ToolpathStats {
   const st: ToolpathStats = { cutLength: 0, rapidLength: 0, plungeCount: 0, estimatedSeconds: 0 }
-  let pos: Vec3 = start ?? { x: 0, y: 0, z: machine.safeZ }
+  const from: Vec3 = start ?? { x: 0, y: 0, z: machine.safeZ }
+  let pos = from
+  const all: Move[] = []
   for (const seg of segments) {
-    pos = walk(seg.moves, machine, pos, (m, len, s) => {
-      st.estimatedSeconds += s
+    for (const m of seg.moves) {
+      const len = moveLength(pos, m)
       if (isFeedLike(m.kind)) st.cutLength += len
       else if (m.kind === 'rapid' || m.kind === 'retract') st.rapidLength += len
       else if (m.kind === 'plunge') st.plungeCount++
-    })
+      if (m.kind !== 'dwell') pos = { x: m.x, y: m.y, z: m.z }
+      all.push(m)
+    }
   }
+  st.estimatedSeconds = runSeconds(all, machine, from)
   return st
 }
 

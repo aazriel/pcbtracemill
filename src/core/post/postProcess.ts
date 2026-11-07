@@ -6,7 +6,7 @@ import type {
   Toolpath,
   ToolpathSegment
 } from '../model/types'
-import { interpretGcode } from '../gcode/interpreter'
+import { interpretGcode, machineTiming } from '../gcode/interpreter'
 import { resolvePostOptions, type PostOptions } from './dialects'
 import { fmtDuration, safeFileBase, slug, toolLabel } from './format'
 import { ProgramWriter } from './writer'
@@ -157,7 +157,7 @@ function emitFile(group: FileGroup, ctx: PostContext, opts: PostOptions): GcodeF
 
   // ── Estimate time from the program itself, then finalise.
   const draft = w.lines.join('\n')
-  const est = interpretGcode(draft, { rapidFeed: machine.maxFeedXY > 0 ? machine.maxFeedXY : undefined })
+  const est = interpretGcode(draft, machineTiming(machine))
   const estimatedSeconds = Math.round(est.totalSeconds * 10) / 10
   let lines = w.lines.map((l) =>
     l === ESTIMATE_PLACEHOLDER ? w.commentText(`Estimated time: ${fmtDuration(estimatedSeconds)}`) : l

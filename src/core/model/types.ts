@@ -180,6 +180,11 @@ export interface MachineProfile {
   /** Maximum feed rates mm/min. */
   maxFeedXY: number
   maxFeedZ: number
+  /**
+   * Axis acceleration mm/s², used only for the run-time estimate (missing = DEFAULT_ACCEL, 50).
+   * Mach3: Config > Motor Tuning, "Accel" (in units/s²).
+   */
+  accel?: number
   /** Spindle RPM range. */
   spindleMin: number
   spindleMax: number

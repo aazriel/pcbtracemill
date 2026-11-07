@@ -64,7 +64,7 @@ A realistic, top-down preview of the whole job on your material: shiny copper, m
 
 ## 4. Export
 
-Choose **one file per step**, **one per tool**, or **one combined file**. The table lists each file with its size and estimated run time; **Save** writes them in your machine's format (Mach3 `.tap`, GRBL `.nc`, LinuxCNC `.ngc`, …). Bottom-side files are marked — flip the board before running them.
+Choose **one file per step**, **one per tool**, or **one combined file**. The table lists each file with its size and estimated run time (it includes the machine's acceleration – set **Acceleration** in the machine settings to your Mach3 Motor Tuning value for the closest estimate; time you spend at pauses is not counted); **Save** writes them in your machine's format (Mach3 `.tap`, GRBL `.nc`, LinuxCNC `.ngc`, …). Bottom-side files are marked — flip the board before running them.
 
 **Find Z zero with the probe before each bit** (off by default) works without probing the board: each file that is not height-corrected stops before every bit; set Z zero only roughly (a sheet of paper), clip the probe on and press Start. The bit touches the copper slowly near the front-left corner of the board (point 1 of the probe grid), sets Z0 there, and stops so you can remove the clip.
 
