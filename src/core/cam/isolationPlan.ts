@@ -139,21 +139,14 @@ export function planIsolation(
   let passes = 2
   if (pass !== null && pass > EXTRA_PASS_LIMIT_S) passes = 1
 
-  if (c !== null && c <= TIGHT_CLEARANCE + 1e-9)
-    notes.push(
-      `The narrowest copper gaps on this board are ${mm(c)}${where(info)} - that is narrow and hard to mill (0.5 mm or more is easy; set it in your PCB design rules if you can). Auto-level the board: without probing a cut this shallow cannot follow it.`
-    )
-  else if (c !== null)
-    notes.push(`The narrowest copper gaps are ${mm(c)}${where(info)} - comfortable to mill.`)
-  if (tooWide)
-    notes.push(
-      `The ${mm(width)} groove of this bit is wider than the ${mm(c ?? 0)} gaps, so they will not be isolated - choose a finer V-bit.`
-    )
+  if (c !== null && c < TIGHT_CLEARANCE - 1e-9)
+    notes.push(`Narrowest gap ${mm(c)}${where(info)}: tight, hard to mill. Auto-level the board.`)
+  else if (c !== null) notes.push(`Narrowest gap ${mm(c)}${where(info)}: easy to mill.`)
+  if (tooWide) notes.push(`This bit cuts ${mm(width)}, wider than the ${mm(c ?? 0)} gaps: use a finer V-bit.`)
   notes.push(
-    `Smart clearance: every gap up to ${mm(SMART_MAX_GAP)} is cut ONCE, along its middle - as far from both traces as it can be, so a groove that comes out a bit wide does not eat the traces. Where the copper is further apart, ${passes} pass${passes > 1 ? 'es' : ''} follow${passes > 1 ? '' : 's'} the copper, ${mm(SMART_EXTRA_CLEARANCE)} away from it. ${mm(cutDepth)} deep${c !== null && c < TIGHT_CLEARANCE ? ' (just through the copper - no deeper for gaps this narrow)' : ''}.`
+    `Depth ${mm(cutDepth)}. Gaps up to ${mm(SMART_MAX_GAP)}: one groove in the middle. Wider: ${passes} pass${passes > 1 ? 'es' : ''}, ${mm(SMART_EXTRA_CLEARANCE)} off the copper.`
   )
-  if (passes === 1 && pass !== null)
-    notes.push(`1 pass in the open areas: a second one would add about ${roughDuration(pass)}.`)
+  if (passes === 1 && pass !== null) notes.push(`A 2nd pass would add about ${roughDuration(pass)}.`)
   return {
     passes,
     overlap,

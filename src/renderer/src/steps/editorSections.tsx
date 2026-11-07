@@ -35,6 +35,7 @@ import { DepthCrossSection, Figure, SideIllustration } from './illustrations'
 import { HeightsIllustration } from '@renderer/machine/HeightsIllustration'
 import { help, layerLabel, withSide } from './stepUtils'
 import { applyIsolationPlan, useStepClearance } from './IsolationAdvice'
+import { useFlash } from './editorStore'
 
 export interface SectionProps {
   draft: CamStep
@@ -292,6 +293,7 @@ export function ToolSection({ draft, update }: SectionProps): React.JSX.Element 
 // ───────────────────────────────────────── General
 
 export function GeneralSection({ draft, update, issues }: SectionProps): React.JSX.Element {
+  const flashDepth = useFlash('cutDepth')
   const material = useProject((s) => s.material)
   const machine = useProject((s) => s.machine)
   const tools = useProject((s) => s.tools)
@@ -363,6 +365,7 @@ export function GeneralSection({ draft, update, issues }: SectionProps): React.J
           step={draft.kind === 'isolate' || draft.kind === 'clear' ? 0.01 : 0.1}
           min={0}
           value={draft.cutDepth}
+          className={flashDepth}
           onChange={(v) => update((d) => ({ ...d, cutDepth: v }))}
           description="How deep the bit goes below the copper surface (Z0)."
           helpWide

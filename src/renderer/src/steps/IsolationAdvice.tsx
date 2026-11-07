@@ -53,6 +53,31 @@ export function withPlan(draft: CamStep, plan: IsolationPlan): CamStep {
 
 const same = (a: number, b: number): boolean => Math.abs(a - b) < 1e-6
 
+/** The fields the plan changes in this draft (their flash keys). */
+export function planChanges(draft: CamStep, plan: IsolationPlan): string[] {
+  const ip = draft.params.isolation
+  const k: string[] = []
+  if (!same(draft.cutDepth, plan.cutDepth)) k.push('cutDepth')
+  if (ip.passes !== plan.passes) k.push('passes')
+  if (plan.passes > 1 && !same(ip.overlap, plan.overlap)) k.push('overlap')
+  if (!same(ip.extraClearance, plan.extraClearance)) k.push('extraClearance')
+  if (!!ip.smart !== plan.smart) k.push('smart')
+  if (plan.smart && !same(ip.smartMaxGap ?? 1, plan.smartMaxGap)) k.push('smartMaxGap')
+  return k
+}
+
+/** Applies the plan to the edited step and flashes the fields it changed. */
+export function applyPlan(
+  update: (fn: (d: CamStep) => CamStep) => void,
+  plan: IsolationPlan,
+  toolId: string
+): void {
+  const d = useStepEditor.getState().draft
+  const keys = d && d.toolId === toolId ? planChanges(d, plan) : []
+  update((x) => (x.toolId === toolId ? withPlan(x, plan) : x))
+  useStepEditor.getState().flashFields(keys)
+}
+
 /** Does the draft use the plan's values? */
 export function followsPlan(draft: CamStep, plan: IsolationPlan): boolean {
   const ip = draft.params.isolation
@@ -74,10 +99,13 @@ export async function applyIsolationPlan(
 ): Promise<void> {
   const info = await stepClearance(draft.layerIds)
   const plan = planIsolation(tool, info, material ?? { copperThickness: 0.035 })
-  update((d) => (d.toolId === tool.id ? withPlan(d, plan) : d))
+  applyPlan(update, plan, tool.id)
   useUi
     .getState()
-    .toast('info', `Isolation settings set for this bit. ${plan.notes.join(' ')} You can change them.`)
+    .toast(
+      'info',
+      `Set for this bit: ${plan.cutDepth} mm deep, ${plan.passes} pass${plan.passes > 1 ? 'es' : ''}, smart clearance.`
+    )
 }
 
 export function IsolationAdvice({
@@ -137,14 +165,13 @@ export function IsolationAdvice({
         <Info className="mt-px size-3.5 shrink-0 text-sky-400" />
         <div className="flex flex-col gap-1">
           {info?.clearance == null ? (
-            <span>All copper gaps on this layer are 1.5 mm or wider – easy to isolate.</span>
+            <span>All gaps 1.5 mm or wider: easy.</span>
           ) : (
             plan.notes.map((n) => <span key={n}>{n}</span>)
           )}
           {info && info.tiny > 0 && (
             <span className="text-slate-400">
-              {info.tiny} place{info.tiny === 1 ? ' is' : 's are'} under 0.1 mm – copper meant to touch (or
-              slivers); no bit can cut there.
+              {info.tiny} place{info.tiny === 1 ? '' : 's'} under 0.1 mm: no bit fits (copper meant to touch).
             </span>
           )}
         </div>
@@ -153,8 +180,8 @@ export function IsolationAdvice({
         <div className="flex gap-1.5 text-amber-200" data-testid="isolation-pass-time">
           <Clock className="mt-px size-3.5 shrink-0" />
           <span>
-            {extraPasses === 1 ? 'The extra pass adds' : `The ${extraPasses} extra passes add`} about{' '}
-            <b>{roughDuration(added)}</b> of machine time.
+            {extraPasses === 1 ? 'Extra pass:' : `${extraPasses} extra passes:`} +
+            <b>{roughDuration(added)}</b>
           </span>
         </div>
       )}
@@ -164,10 +191,9 @@ export function IsolationAdvice({
           variant="secondary"
           className="self-start"
           data-testid="isolation-apply-plan"
-          onClick={() => update((d) => withPlan(d, plan))}
+          onClick={() => applyPlan(update, plan, tool.id)}
         >
-          Use the recommended settings (smart clearance, {plan.cutDepth} mm deep, {plan.passes} pass
-          {plan.passes > 1 ? 'es' : ''} {plan.extraClearance} mm from the copper in open areas)
+          Use recommended ({plan.cutDepth} mm, {plan.passes} pass{plan.passes > 1 ? 'es' : ''}, smart)
         </Button>
       )}
     </div>

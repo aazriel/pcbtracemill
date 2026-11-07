@@ -15,3 +15,20 @@ body,
     sans-serif;
   overflow: hidden;
 }
+
+/* a field the app just set: pulses three times */
+@keyframes tm-flash {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(56 189 248 / 0);
+    background-color: transparent;
+  }
+  50% {
+    box-shadow: 0 0 0 3px rgb(56 189 248 / 0.7);
+    background-color: rgb(56 189 248 / 0.12);
+  }
+}
+.flash-field {
+  border-radius: 0.375rem;
+  animation: tm-flash 0.8s ease-in-out 3;
+}
