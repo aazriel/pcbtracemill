@@ -43,7 +43,9 @@ export function withPlan(draft: CamStep, plan: IsolationPlan): CamStep {
         ...draft.params.isolation,
         passes: plan.passes,
         overlap: plan.overlap,
-        extraClearance: plan.extraClearance
+        extraClearance: plan.extraClearance,
+        smart: plan.smart,
+        smartMaxGap: plan.smartMaxGap
       }
     }
   }
@@ -56,6 +58,7 @@ export function followsPlan(draft: CamStep, plan: IsolationPlan): boolean {
   const ip = draft.params.isolation
   return (
     ip.passes === plan.passes &&
+    !!ip.smart === plan.smart &&
     same(ip.extraClearance, plan.extraClearance) &&
     same(draft.cutDepth, plan.cutDepth) &&
     (plan.passes === 1 || same(ip.overlap, plan.overlap))
@@ -163,8 +166,8 @@ export function IsolationAdvice({
           data-testid="isolation-apply-plan"
           onClick={() => update((d) => withPlan(d, plan))}
         >
-          Use the recommended settings ({plan.passes} pass{plan.passes > 1 ? 'es' : ''}, {plan.cutDepth} mm
-          deep, +{plan.extraClearance} mm)
+          Use the recommended settings (smart clearance, {plan.cutDepth} mm deep, {plan.passes} pass
+          {plan.passes > 1 ? 'es' : ''} in open areas)
         </Button>
       )}
     </div>

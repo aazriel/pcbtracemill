@@ -339,6 +339,14 @@ export interface IsolationParams {
   /** Extra clearance added to the first pass offset, mm. */
   extraClearance: number
   /**
+   * Smart clearance (D-034): where two copper features are at most `smartMaxGap` apart, cut ONE
+   * groove in the middle of the gap instead of a pass along each side; elsewhere the passes follow
+   * the copper as usual. Missing = off (older projects).
+   */
+  smart?: boolean
+  /** Gaps up to this wide get the single middle groove (mm, default 1). */
+  smartMaxGap?: number
+  /**
    * Places where copper features are closer than this (mm) are not reported: such tiny gaps (e.g.
    * inside a ground pour) usually belong together anyway. 0 / missing = report every narrow place.
    */
