@@ -167,7 +167,7 @@ export function IsolationAdvice({
           onClick={() => update((d) => withPlan(d, plan))}
         >
           Use the recommended settings (smart clearance, {plan.cutDepth} mm deep, {plan.passes} pass
-          {plan.passes > 1 ? 'es' : ''} in open areas)
+          {plan.passes > 1 ? 'es' : ''} {plan.extraClearance} mm from the copper in open areas)
         </Button>
       )}
     </div>

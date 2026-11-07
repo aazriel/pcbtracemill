@@ -2,6 +2,7 @@
 import { Check, Minus, Settings2, X } from 'lucide-react'
 import type { CutDirection, StepParams, ValidationIssue } from '@core/model/types'
 import { effectiveCutWidth } from '@core/tools'
+import { SMART_EXTRA_CLEARANCE } from '@core/cam'
 import { useProject } from '@renderer/store/project'
 import { useBoardBBox, useLayersWithParsed } from '@renderer/store/controller'
 import { bboxIsEmpty } from '@core/geometry'
@@ -332,7 +333,11 @@ export function ParamsSection({
               label="Smart clearance"
               checked={!!ip.smart}
               onChange={(v) =>
-                setParam(update, 'isolation', v ? { smart: true, extraClearance: 0 } : { smart: false })
+                setParam(
+                  update,
+                  'isolation',
+                  v ? { smart: true, extraClearance: SMART_EXTRA_CLEARANCE } : { smart: false }
+                )
               }
               description="Narrow gaps get ONE groove along their middle instead of a pass along each side, so a groove that comes out a little wide eats the gap, not your traces. Where the copper is further apart the passes follow it as usual. Less cutting, shorter jobs."
             />
@@ -406,7 +411,7 @@ export function ParamsSection({
               onChange={(v) => setParam(update, 'isolation', { extraClearance: v })}
               description={
                 ip.smart
-                  ? 'Only where the copper is further apart than the smart-clearance limit: moves the passes there away from the copper.'
+                  ? 'Where the copper is further apart than the limit above: keeps the passes this far from it (0.1 mm by default), so a groove that comes out a little wide does not eat a thin trace. Slots too narrow for it are still cut.'
                   : 'Moves the first pass further away from the copper, leaving a wider gap.'
               }
               {...fig(help('isolation.extraClearance'), <ExtraClearanceFigure extra={ip.extraClearance} />)}

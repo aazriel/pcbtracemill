@@ -82,7 +82,8 @@ describe('isolation plan from the clearance (D-031)', () => {
     expect(p.cutDepth).toBe(0.05)
     // groove 0.1 + 2*0.05*tan15deg = 0.127
     expect(p.width).toBeCloseTo(0.1268, 3)
-    expect(p.extraClearance).toBe(0)
+    // the passes in open areas keep 0.1 mm from the copper
+    expect(p.extraClearance).toBe(0.1)
     expect(p.centred).toBe(true)
     expect(p.notes[0]).toMatch(/hard to mill/)
     expect(p.notes.join(' ')).toMatch(/cut ONCE, along its middle/)
@@ -92,7 +93,7 @@ describe('isolation plan from the clearance (D-031)', () => {
     const wide = { ...vbit, geometry: { ...vbit.geometry, tipDiameter: 0.2 } }
     const p = planIsolation(wide, info(0.2), cu)
     expect(p.tooWide).toBe(true)
-    expect(p.extraClearance).toBe(0)
+    expect(p.extraClearance).toBe(0.1) // open areas only
     expect(p.notes.join(' ')).toMatch(/finer V-bit/)
   })
 
@@ -100,7 +101,7 @@ describe('isolation plan from the clearance (D-031)', () => {
     const quick = planIsolation(vbit, info(0.8, 1000), cu)
     expect(quick.passes).toBe(2)
     expect(quick.cutDepth).toBe(0.1)
-    expect(quick.extraClearance).toBe(0)
+    expect(quick.extraClearance).toBe(0.1)
     // 10 m of copper outline at 50 mm/min ≈ 3.7 h per pass
     const slow = planIsolation(vbit, info(0.8, 10000), cu)
     expect(slow.passes).toBe(1)

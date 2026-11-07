@@ -13,6 +13,11 @@ import { defaultCopperDepth } from './steps'
 export const TIGHT_CLEARANCE = 0.5
 /** Smart clearance: gaps up to this wide (mm) are cut once, along their middle (D-034). */
 export const SMART_MAX_GAP = 1
+/**
+ * Smart clearance: where the copper is further apart, the passes keep this far from it (mm), so a
+ * groove that comes out a little wide does not eat a thin trace. Slots it would close are still cut.
+ */
+export const SMART_EXTRA_CLEARANCE = 0.1
 /** Below this clearance an unprobed board almost certainly fails: recommend auto-levelling. */
 export const PROBE_RECOMMENDED_BELOW = 0.8
 /** A second pass that adds more than this (s) is left out by the automatic settings. */
@@ -150,14 +155,14 @@ export function planIsolation(
       `The ${mm(width)} groove of this bit is wider than the ${mm(c ?? 0)} gaps, so they will not be isolated - choose a finer V-bit.`
     )
   notes.push(
-    `Smart clearance: every gap up to ${mm(SMART_MAX_GAP)} is cut ONCE, along its middle - as far from both traces as it can be, so a groove that comes out a bit wide does not eat the traces. Where the copper is further apart, ${passes} pass${passes > 1 ? 'es' : ''} follow${passes > 1 ? '' : 's'} the copper. ${mm(cutDepth)} deep${c !== null && c <= TIGHT_CLEARANCE ? ' (no deeper for gaps this narrow)' : ''}.`
+    `Smart clearance: every gap up to ${mm(SMART_MAX_GAP)} is cut ONCE, along its middle - as far from both traces as it can be, so a groove that comes out a bit wide does not eat the traces. Where the copper is further apart, ${passes} pass${passes > 1 ? 'es' : ''} follow${passes > 1 ? '' : 's'} the copper, ${mm(SMART_EXTRA_CLEARANCE)} away from it. ${mm(cutDepth)} deep${c !== null && c <= TIGHT_CLEARANCE ? ' (no deeper for gaps this narrow)' : ''}.`
   )
   if (passes === 1 && pass !== null)
     notes.push(`1 pass in the open areas: a second one would add about ${roughDuration(pass)}.`)
   return {
     passes,
     overlap,
-    extraClearance: 0,
+    extraClearance: SMART_EXTRA_CLEARANCE,
     cutDepth,
     smart: true,
     smartMaxGap: SMART_MAX_GAP,
