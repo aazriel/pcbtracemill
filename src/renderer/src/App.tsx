@@ -36,7 +36,7 @@ import {
   analyzeCopperLayers
 } from '@renderer/store/controller'
 import { loadUserTools } from '@renderer/tools/toolLibrary'
-import { loadProjectNames } from '@renderer/store/projectNames'
+import { loadProjectFolder } from '@renderer/store/projectNames'
 import { UNNAMED_PROJECT } from '@core/project'
 import { BoardStage } from '@renderer/stages/BoardStage'
 import { ManufactureStage } from '@renderer/stages/ManufactureStage'
@@ -79,7 +79,7 @@ export function App(): React.JSX.Element {
   useEffect(() => {
     ensureDefaults()
     void loadUserTools().then(addUserTools)
-    void loadProjectNames()
+    void loadProjectFolder()
     // first start: the tour (there is no last session yet); afterwards: offer the last session
     void maybeShowTour()
     void checkLastSession()

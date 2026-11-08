@@ -24,17 +24,27 @@ export function projectNameBase(name: string): string {
   return name.trim().replace(/\s+\d+$/, '')
 }
 
+/** The file name (without .tmill) a project is saved under: "my pcb 1" -> "my_pcb_1". */
+export function projectFileBase(name: string): string {
+  return (
+    name
+      .trim()
+      .replace(/[^a-z0-9_-]+/gi, '_')
+      .replace(/^_+|_+$/g, '') || 'board'
+  )
+}
+
 /**
- * A project name not used before: `wanted` (default: the base of the last used name, else
- * "my_pcb") when it is free, otherwise the same name with the next free number ("my_pcb 1").
+ * A project name whose file is free: `wanted` (default "my_pcb") when no project in `used` (names
+ * or file names, compared as file names) has it, otherwise the next free number ("my_pcb 1").
  */
 export function nextProjectName(used: string[], wanted?: string): string {
-  const taken = new Set(used.map((n) => n.trim().toLowerCase()))
-  const last = used.length ? projectNameBase(used[used.length - 1]) : ''
-  const name = (wanted ?? '').trim() || last || 'my_pcb'
-  if (!taken.has(name.toLowerCase())) return name
+  const taken = new Set(used.map((n) => projectFileBase(n).toLowerCase()))
+  const free = (n: string): boolean => !taken.has(projectFileBase(n).toLowerCase())
+  const name = (wanted ?? '').trim() || 'my_pcb'
+  if (free(name)) return name
   const base = projectNameBase(name)
-  for (let i = 1; ; i++) if (!taken.has(`${base} ${i}`.toLowerCase())) return `${base} ${i}`
+  for (let i = 1; ; i++) if (free(`${base} ${i}`)) return `${base} ${i}`
 }
 
 /** Pretty JSON for a .tmill file. Parsed layer caches are stripped; raw file text is kept. */

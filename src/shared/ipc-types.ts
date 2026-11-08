@@ -53,6 +53,12 @@ export interface TraceMillApi {
   /** Save several files into a user-chosen directory. Returns directory or null. */
   saveFilesToDir(files: { name: string; content: string }[]): Promise<string | null>
   openProject(): Promise<{ path: string; content: string } | null>
+  /** The folder new projects are saved in (the one chosen last, else Documents). */
+  projectFolder(): Promise<string>
+  /** Asks for a folder to save projects in (null = cancelled). */
+  pickProjectFolder(start?: string): Promise<string | null>
+  /** Names (without .tmill) of the project files in a folder. */
+  projectFiles(dir: string): Promise<string[]>
   settingsGet<T>(key: string, fallback: T): Promise<T>
   settingsSet(key: string, value: unknown): Promise<void>
   onMenu(cb: (command: MenuCommand) => void): () => void

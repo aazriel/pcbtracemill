@@ -1,7 +1,14 @@
 import { useEffect, useState } from 'react'
-import { Check } from 'lucide-react'
+import { Check, FolderOpen } from 'lucide-react'
 import type { EdaTool } from '@core/model/types'
-import { suggestProjectName, usedProjectNames } from '@renderer/store/projectNames'
+import {
+  pickProjectFolder,
+  projectNameTaken,
+  projectPathFor,
+  refreshProjectFiles,
+  suggestProjectName,
+  useProjectFolder
+} from '@renderer/store/projectNames'
 import { Dialog } from '@renderer/components/ui/dialog'
 import { cn } from '@renderer/lib/utils'
 import { EDA_INFO } from './eda'
@@ -25,11 +32,20 @@ export function EdaDialog({
   onClose: () => void
 }): React.JSX.Element {
   const [name, setName] = useState('')
+  const { folder } = useProjectFolder()
   useEffect(() => {
-    if (open && askName) setName(suggestProjectName())
+    if (!open || !askName) return
+    let live = true
+    setName(suggestProjectName())
+    // the files in the folder may have changed since the app started
+    void refreshProjectFiles().then(() => live && setName(suggestProjectName()))
+    return () => {
+      live = false
+    }
   }, [open, askName])
   const trimmed = name.trim()
-  const usedBefore = !!trimmed && usedProjectNames().some((n) => n.toLowerCase() === trimmed.toLowerCase())
+  const taken = !!trimmed && projectNameTaken(trimmed)
+  const path = trimmed ? projectPathFor(trimmed) : null
   return (
     <Dialog
       open={open}
@@ -42,24 +58,44 @@ export function EdaDialog({
       }
     >
       {askName && (
-        <label
+        <div
           className="mb-5 flex flex-col gap-1.5 rounded-lg border-2 border-sky-500/60 bg-sky-500/10 p-3"
           data-testid="project-name-field"
         >
-          <span className="text-base font-bold text-sky-100">Name your project</span>
-          <input
-            value={name}
-            autoFocus
-            onFocus={(e) => e.target.select()}
-            onChange={(e) => setName(e.target.value)}
-            className="rounded-md border border-sky-500/70 bg-slate-950 px-3 py-2 text-lg font-semibold text-white outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-500/40"
-            data-testid="project-name"
-            aria-label="Project name"
-          />
+          <label htmlFor="project-name" className="text-base font-bold text-sky-100">
+            Name your project
+          </label>
+          <div className="flex items-stretch gap-2">
+            <input
+              id="project-name"
+              value={name}
+              autoFocus
+              spellCheck={false}
+              onFocus={(e) => e.target.select()}
+              onChange={(e) => setName(e.target.value)}
+              className="min-w-0 flex-1 rounded-md border border-sky-500/70 bg-slate-950 px-3 py-2 text-lg font-semibold text-white outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-500/40"
+              data-testid="project-name"
+              aria-label="Project name"
+            />
+            {folder && (
+              <button
+                type="button"
+                title={`Saved in ${folder}. Click to choose another folder.`}
+                onClick={() => void pickProjectFolder()}
+                className="flex max-w-[45%] items-center gap-1.5 rounded-md border border-slate-600 bg-slate-900 px-3 text-sm text-slate-200 hover:border-sky-500 hover:bg-slate-800"
+                data-testid="project-folder"
+              >
+                <FolderOpen className="size-4 shrink-0 text-sky-300" />
+                <bdi dir="ltr" className="truncate">
+                  {shortFolder(folder)}
+                </bdi>
+              </button>
+            )}
+          </div>
           <span className="text-xs text-slate-300">
-            {usedBefore ? (
+            {taken ? (
               <>
-                You used this name before.{' '}
+                <span className="text-amber-300">A project with this name is already in this folder.</span>{' '}
                 <button
                   type="button"
                   className="font-semibold text-sky-300 hover:underline"
@@ -68,11 +104,18 @@ export function EdaDialog({
                   Use "{suggestProjectName(trimmed)}"
                 </button>
               </>
+            ) : path ? (
+              <>
+                Ctrl+S (Cmd+S on a Mac) saves it as{' '}
+                <bdi dir="ltr" className="font-mono text-slate-200">
+                  {path}
+                </bdi>
+              </>
             ) : (
               'Shown in the G-code and used for the file names. Save with Ctrl+S (Cmd+S on a Mac).'
             )}
           </span>
-        </label>
+        </div>
       )}
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2" data-testid="eda-options">
         {EDA_INFO.map((e) => {
@@ -105,4 +148,11 @@ export function EdaDialog({
       </p>
     </Dialog>
   )
+}
+
+/** "C:\Users\me\Documents\pcb" -> "…\Documents\pcb" (the full path is in the tooltip). */
+function shortFolder(f: string): string {
+  const parts = f.split(/[\\/]+/).filter(Boolean)
+  const sep = f.includes('\\') ? '\\' : '/'
+  return parts.length > 2 ? `…${sep}${parts.slice(-2).join(sep)}` : f
 }

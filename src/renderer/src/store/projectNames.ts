@@ -1,50 +1,118 @@
 /**
- * Project names used before (newest last), so a new project can be offered the next free one
- * ("my_pcb" -> "my_pcb 1"). Electron settings, localStorage in the browser.
+ * Where new projects are saved and which names are free there. A name counts as used only when a
+ * project file with it exists in the save folder (naming a project at import does not use it up).
+ * The folder is the one chosen last (Electron settings 'projectFolder'), else Documents.
+ * In the browser there is no folder: projects download, every name is free.
  */
-import { nextProjectName } from '@core/project'
+import { useSyncExternalStore } from 'react'
+import { nextProjectName, projectFileBase } from '@core/project'
 
-const KEY = 'projectNames'
-const LS_KEY = 'tracemill.projectNames'
-const MAX = 200
+const KEY = 'projectFolder'
 
-let names: string[] = []
-let loaded: Promise<string[]> | null = null
+interface FolderState {
+  /** The save folder (null in the browser or until loaded). */
+  folder: string | null
+  /** Project files (names without .tmill) in that folder. */
+  files: string[]
+}
 
-export function loadProjectNames(): Promise<string[]> {
+let state: FolderState = { folder: null, files: [] }
+let loaded: Promise<void> | null = null
+const listeners = new Set<() => void>()
+
+function setState(next: FolderState): void {
+  state = next
+  for (const l of listeners) l()
+}
+
+async function filesIn(folder: string): Promise<string[]> {
+  try {
+    return (await window.tracemill?.projectFiles(folder)) ?? []
+  } catch {
+    return []
+  }
+}
+
+/** Loads the save folder and its project files once (call refreshProjectFiles for a fresh list). */
+export function loadProjectFolder(): Promise<void> {
   loaded ??= (async () => {
-    let raw: unknown = []
+    if (!window.tracemill) return
     try {
-      if (window.tracemill) raw = await window.tracemill.settingsGet<unknown>(KEY, [])
-      else raw = JSON.parse(localStorage.getItem(LS_KEY) ?? '[]')
+      const folder = await window.tracemill.projectFolder()
+      setState({ folder, files: await filesIn(folder) })
     } catch {
-      raw = []
+      // no folder: saving asks where
     }
-    names = Array.isArray(raw) ? raw.filter((n): n is string => typeof n === 'string') : []
-    return names
   })()
   return loaded
 }
 
-/** The names used so far (empty until loaded). */
-export function usedProjectNames(): string[] {
-  return names
+/** Reads the project files of the save folder again (they may have changed outside TraceMill). */
+export async function refreshProjectFiles(): Promise<void> {
+  await loadProjectFolder()
+  if (state.folder) setState({ ...state, files: await filesIn(state.folder) })
 }
 
-/** The name suggested for a new project. */
-export function suggestProjectName(wanted?: string): string {
-  return nextProjectName(names, wanted)
+/** The save folder and its project files, for components. */
+export function useProjectFolder(): FolderState {
+  return useSyncExternalStore(
+    (l) => {
+      listeners.add(l)
+      return () => listeners.delete(l)
+    },
+    () => state
+  )
 }
 
-/** A project got this name (named at import, or saved). */
-export function rememberProjectName(name: string): void {
-  const n = name.trim()
-  if (!n) return
-  names = [...names.filter((x) => x.toLowerCase() !== n.toLowerCase()), n].slice(-MAX)
+export function projectFolder(): string | null {
+  return state.folder
+}
+
+/** New projects are saved here from now on. */
+export async function setProjectFolder(folder: string): Promise<void> {
+  if (!folder) return
+  setState({ folder, files: await filesIn(folder) })
   try {
-    if (window.tracemill) void window.tracemill.settingsSet(KEY, names)
-    else localStorage.setItem(LS_KEY, JSON.stringify(names))
+    await window.tracemill?.settingsSet(KEY, folder)
   } catch {
-    // storage unavailable
+    // not remembered: only this session
   }
+}
+
+/** Asks for another save folder. True when one was chosen. */
+export async function pickProjectFolder(): Promise<boolean> {
+  const dir = await window.tracemill?.pickProjectFolder(state.folder ?? undefined)
+  if (!dir) return false
+  await setProjectFolder(dir)
+  return true
+}
+
+/** The name suggested for a new project: `wanted` or the next free number in the save folder. */
+export function suggestProjectName(wanted?: string): string {
+  return nextProjectName(state.files, wanted)
+}
+
+/** Is there a project file with this name in the save folder already? */
+export function projectNameTaken(name: string): boolean {
+  const f = projectFileBase(name).toLowerCase()
+  return state.files.some((x) => x.toLowerCase() === f)
+}
+
+const sep = (folder: string): string => (folder.includes('\\') ? '\\' : '/')
+
+/** The file a project with this name is saved to in the save folder (null without a folder). */
+export function projectPathFor(name: string): string | null {
+  const f = state.folder
+  if (!f) return null
+  return `${f.replace(/[\\/]+$/, '')}${sep(f)}${projectFileBase(name)}.tmill`
+}
+
+/** A project was saved to `path`: its folder becomes the save folder and the name is used. */
+export function projectSavedAt(path: string): void {
+  const i = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'))
+  if (i <= 0) return
+  const folder = path.slice(0, i)
+  const file = path.slice(i + 1).replace(/\.tmill$/i, '')
+  if (folder !== state.folder) void setProjectFolder(folder)
+  else if (!projectNameTaken(file)) setState({ ...state, files: [...state.files, file] })
 }
