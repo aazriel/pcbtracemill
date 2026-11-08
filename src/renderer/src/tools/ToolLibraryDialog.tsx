@@ -28,7 +28,7 @@ import { HelpTip } from '@renderer/components/ui/help'
 import { cn, uid } from '@renderer/lib/utils'
 import { ToolCard } from './ToolCard'
 import { ToolEditor } from './ToolEditor'
-import { forgetTool, rememberTool } from './toolLibrary'
+import { forgetTool, rememberTool, toolNameClash, uniqueToolName } from './toolLibrary'
 import {
   defaultToolName,
   nextToolNumber,
@@ -59,7 +59,10 @@ export function ToolLibraryDialog(props: ToolLibraryDialogProps): React.JSX.Elem
 }
 
 type Confirm =
-  { kind: 'unsaved'; proceed: () => void } | { kind: 'delete'; tool: Tool; usedBy: string[] } | null
+  | { kind: 'unsaved'; proceed: () => void }
+  | { kind: 'delete'; tool: Tool; usedBy: string[] }
+  | { kind: 'replace'; other: Tool; after?: (saved: Tool) => void }
+  | null
 
 const cloneTool = (t: Tool): Tool => ({ ...t, geometry: { ...t.geometry }, feeds: { ...t.feeds } })
 
@@ -72,6 +75,7 @@ function ToolLibraryBody({
   const tools = useProject((s) => s.tools)
   const steps = useProject((s) => s.steps)
   const upsertTool = useProject((s) => s.upsertTool)
+  const upsertStep = useProject((s) => s.upsertStep)
   const removeTool = useProject((s) => s.removeTool)
   const toast = useUi((s) => s.toast)
 
@@ -124,7 +128,13 @@ function ToolLibraryBody({
     guard(() => {
       const base = createTool(type, { number: nextToolNumber(tools) })
       const g = base.geometry
-      show({ ...base, name: defaultToolName(type, g.diameter, g.tipAngle, g.tipDiameter) }, true)
+      show(
+        {
+          ...base,
+          name: uniqueToolName(tools, defaultToolName(type, g.diameter, g.tipAngle, g.tipDiameter))
+        },
+        true
+      )
       if (tab !== 'all' && tab !== type) setTab(type)
       setSearch('')
     })
@@ -135,18 +145,46 @@ function ToolLibraryBody({
     guard(() => {
       const copy = duplicateTool(src, uid('tool'))
       copy.number = nextToolNumber(tools)
+      copy.name = uniqueToolName(tools, copy.name)
       show(copy, true)
       if (tab !== 'all' && tab !== copy.type) setTab(copy.type)
     })
   }
 
-  const save = (): boolean => {
-    if (!draft || draft.builtIn || errors.length) return false
+  /** Saves the draft, then runs `after`; a name another tool has asks to replace that tool first. */
+  const save = (after?: (saved: Tool) => void): void => {
+    if (!draft || draft.builtIn || errors.length) return
+    const clash = toolNameClash(tools, draft)
+    if (clash?.builtIn) {
+      toast('error', `A built-in tool is already called "${clash.name}". Choose another name.`)
+      return
+    }
+    if (clash) {
+      setConfirm({ kind: 'replace', other: clash, after })
+      return
+    }
     upsertTool(cloneTool(draft))
     rememberTool(cloneTool(draft))
     setIsNew(false)
     toast('success', `Saved "${draft.name}".`)
-    return true
+    after?.(draft)
+  }
+
+  /** Saves the draft over `other` (same name): it keeps other's id, so its steps use the new values. */
+  const replace = (other: Tool, after?: (saved: Tool) => void): void => {
+    if (!draft) return
+    const t = { ...cloneTool(draft), id: other.id }
+    upsertTool(t)
+    rememberTool(cloneTool(t))
+    if (stored && draft.id !== other.id) {
+      // the edited tool merges into the replaced one: its steps move over
+      for (const s of steps) if (s.toolId === draft.id) upsertStep({ ...s, toolId: other.id })
+      removeTool(draft.id)
+      forgetTool(draft.id)
+    }
+    show(t)
+    toast('success', `Replaced "${other.name}".`)
+    after?.(t)
   }
 
   const discard = (): void => {
@@ -200,8 +238,10 @@ function ToolLibraryBody({
         setBlocked('Fix the highlighted problems (or discard your changes) before using this tool.')
         return
       }
-      if (!save()) return
-      finish()
+      save((saved) => {
+        onSelect(saved.id)
+        onOpenChange(false)
+      })
       return
     }
     if (!isCurrent) guard(finish)
@@ -461,7 +501,7 @@ function ToolLibraryBody({
                               data-testid="tool-save"
                               size="sm"
                               disabled={!dirty || errors.length > 0}
-                              onClick={save}
+                              onClick={() => save()}
                             >
                               <Save /> Save
                             </Button>
@@ -534,7 +574,7 @@ function ToolLibraryBody({
                 onClick={() => {
                   const p = confirm.proceed
                   setConfirm(null)
-                  if (save()) p()
+                  save(() => p())
                 }}
               >
                 <Save /> Save and continue
@@ -548,6 +588,39 @@ function ToolLibraryBody({
           {errors.length > 0 && (
             <p className="mt-2 text-xs text-rose-300">It can&apos;t be saved yet: {errors.join(' ')}</p>
           )}
+        </Dialog>
+      )}
+
+      {confirm?.kind === 'replace' && (
+        <Dialog
+          open
+          onOpenChange={(o) => !o && setConfirm(null)}
+          title={`Replace "${confirm.other.name}"?`}
+          description="Tool names are unique. A tool with this name already exists."
+          className="w-[min(92vw,460px)]"
+          footer={
+            <>
+              <Button variant="ghost" data-testid="tool-replace-cancel" onClick={() => setConfirm(null)}>
+                Back, I&apos;ll rename it
+              </Button>
+              <Button
+                variant="danger"
+                data-testid="tool-replace-confirm"
+                onClick={() => {
+                  const c = confirm
+                  setConfirm(null)
+                  replace(c.other, c.after)
+                }}
+              >
+                <Save /> Replace it
+              </Button>
+            </>
+          }
+        >
+          <p className="text-sm text-slate-300">
+            The saved &quot;{confirm.other.name}&quot; gets the values you entered here. Steps that use it
+            keep using it, with the new values.
+          </p>
         </Dialog>
       )}
 
