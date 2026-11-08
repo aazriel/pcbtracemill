@@ -189,8 +189,8 @@ export function AutoLevelSection({
             <p className="flex gap-1 text-[11px] leading-snug text-sky-300/90">
               <AlertTriangle className="mt-px size-3 shrink-0" />
               <span>
-                Probe with a <b>sturdy bit</b> – a 1–3 mm flat end mill or a smooth steel pin – not the V-bit.
-                If the copper doesn’t conduct somewhere, a thin tip is pushed into the board and breaks.
+                Probing with the 0.1 mm milling bit works – keep it slow and the copper clean. Where the
+                copper doesn’t conduct, the tip is pushed into the board and breaks.
               </span>
             </p>
           </Step>

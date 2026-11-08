@@ -177,9 +177,9 @@ function IntroPage({
             board until the maximum depth.
           </li>
           <li>
-            Probe with a <b>sturdy bit</b>: a 1–3 mm flat end mill or a smooth steel pin – not the V-bit.
-            Where the copper doesn’t conduct (oxide, lacquer), the bit is pushed into the board and a thin V
-            tip breaks. Afterwards TraceMill finds Z zero again for the real bit at point 1.
+            You can probe with the <b>milling bit itself</b> (0.1 mm tip) – keep the probe speed slow. Clean
+            the copper first: where it doesn’t conduct (oxide, lacquer), the tip is pushed into the board and
+            breaks. After a bit change TraceMill finds Z zero again at point 1.
           </li>
           <li>Remove the clip from the bit before you start milling.</li>
           {machine && !machine.supportsProbing && (
@@ -225,9 +225,9 @@ function IntroPage({
       <p className="text-sm text-slate-300">{HELP['autolevel.probing']?.body} Here is the whole process:</p>
       <ol className="flex flex-col gap-2">
         <IntroStep n={1} title="Connect the probe" art={<ConnectIllustration />}>
-          Put a sturdy bit in the spindle (not the V-bit). Clip the probe wire onto the bit (the metal shank)
-          and connect the second wire to the copper of the board, for example with a crocodile clip on the
-          edge. Both go to the probe input of your controller.
+          Put the milling bit in the spindle (or any other bit). Clip the probe wire onto the bit (the metal
+          shank) and connect the second wire to the copper of the board, for example with a crocodile clip on
+          the edge. Both go to the probe input of your controller.
         </IntroStep>
         <IntroStep n={2} title="Test the connection" art={<ContinuityIllustration />}>
           Touch the board clip to the bit by hand: your control software should show the probe as “triggered”

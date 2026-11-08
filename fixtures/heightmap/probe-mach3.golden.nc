@@ -5,7 +5,7 @@
 (SAFETY: clip the probe wire to the bit and the ground clip to the copper board)
 (SAFETY: test continuity first - touch clip to bit and check the controller sees the probe)
 (SAFETY: start with the bit ABOVE the board, spindle OFF)
-(SAFETY: probe with a sturdy bit - flat end mill or steel pin - not a V-bit, a thin tip breaks)
+(SAFETY: clean copper and test the probe first - where it does not conduct, a thin tip breaks)
 (SETUP: zero X/Y as for milling and zero Z on the copper at the first point X0 Y0)
 (Zero Z with the Zero Z button G54. Any G92 offset is cleared G92.1 - G92 is used only to read each height. Heights are relative to point 1.)
 (After a bit change Z0 must be at the copper of the first point again.)

@@ -162,7 +162,7 @@ export function generateProbeProgram(
   L.push(c('SAFETY: clip the probe wire to the bit and the ground clip to the copper board'))
   L.push(c('SAFETY: test continuity first - touch clip to bit and check the controller sees the probe'))
   L.push(c('SAFETY: start with the bit ABOVE the board, spindle OFF'))
-  L.push(c('SAFETY: probe with a sturdy bit - flat end mill or steel pin - not a V-bit, a thin tip breaks'))
+  L.push(c('SAFETY: clean copper and test the probe first - where it does not conduct, a thin tip breaks'))
   L.push(
     c(
       `SETUP: zero X/Y as for milling and zero Z on the copper at the first point X${n(pts[0].x)} Y${n(pts[0].y)}`

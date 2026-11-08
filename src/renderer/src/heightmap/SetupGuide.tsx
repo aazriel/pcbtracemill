@@ -15,6 +15,8 @@ const COPPER_TOP = '#d08a4a'
 const FR4 = '#3f5a2a'
 const WOOD = '#6b4f35'
 const TAPE = '#e2e8f0'
+const MASKING = '#e7d7a1'
+const GLUE = '#fde047'
 const OK = '#22c55e'
 const BAD = '#f43f5e'
 const DUR = '6s'
@@ -178,28 +180,38 @@ function SolderFigure(): React.JSX.Element {
 
 /** 3. Tape strips on the table, the sheet goes down onto them, a roller presses it flat. */
 function TapeFigure(): React.JSX.Element {
-  const strips = [30, 90, 150, 210, 270]
+  const drops = [40, 85, 130, 175, 220, 265]
   return (
     <Scene>
       <Table />
-      {strips.map((x, i) => (
-        <rect key={x} x={x - 22} y={118} width={44} height={4} fill={TAPE}>
+      {/* masking tape on the table */}
+      <rect x={10} y={119} width={300} height={3} fill={MASKING}>
+        <Anim attributeName="width" values="0;0;300;300" keyTimes="0;0.03;0.15;1" />
+      </rect>
+      {/* glue drops on it */}
+      {drops.map((x, i) => (
+        <circle key={x} cx={x} cy={118} r={0} fill={GLUE}>
           <Anim
-            attributeName="opacity"
-            values="0;0;1;1"
-            keyTimes={`0;${(0.05 + i * 0.06).toFixed(2)};${(0.09 + i * 0.06).toFixed(2)};1`}
+            attributeName="r"
+            values="0;0;2.6;2.6;0"
+            keyTimes={`0;${(0.18 + i * 0.03).toFixed(2)};${(0.21 + i * 0.03).toFixed(2)};0.53;0.55`}
           />
-        </rect>
+        </circle>
       ))}
       <g>
-        <Sheet x0={10} x1={310} y={107.5} />
-        <Move values="0 -60;0 -60;0 0;0 0" keyTimes="0;0.4;0.55;1" />
+        <Sheet x0={10} x1={310} y={104.5} />
+        {/* masking tape under the sheet */}
+        <rect x={10} y={115} width={300} height={3} fill={MASKING} />
+        <Move values="0 -60;0 -60;0 1;0 1" keyTimes="0;0.4;0.55;1" />
       </g>
+      <Txt x={60} y={140} size={8} fill="#0f172a" anchor="start">
+        masking tape + glue + masking tape
+      </Txt>
       {/* roller */}
       <g>
         <Anim attributeName="opacity" values="0;0;1;1;0" keyTimes="0;0.58;0.6;0.95;1" />
-        <circle cx={0} cy={97} r={10} fill="#334155" stroke="#94a3b8" strokeWidth={1.5} />
-        <path d="M0 97 L-18 52" stroke="#94a3b8" strokeWidth={3} />
+        <circle cx={0} cy={95} r={10} fill="#334155" stroke="#94a3b8" strokeWidth={1.5} />
+        <path d="M0 95 L-18 50" stroke="#94a3b8" strokeWidth={3} />
         <Move values="20 0;20 0;300 0;300 0" keyTimes="0;0.6;0.95;1" />
       </g>
       {[16, 304].map((x) => (
@@ -208,7 +220,7 @@ function TapeFigure(): React.JSX.Element {
         </path>
       ))}
       <Txt x={160} y={30}>
-        double-sided tape under the whole sheet – press the corners hard
+        tape on both, glue between, press together – corners hard
       </Txt>
     </Scene>
   )
@@ -425,8 +437,12 @@ export const SETUP_GUIDE: GuidePage[] = [
     title: 'Tape it down',
     figure: TapeFigure,
     points: [
-      'Double-sided tape under the whole sheet, not only the edges, so the middle cannot bounce under the bit.',
-      'Press the sheet down firmly, especially the corners.'
+      <>
+        Put <b>masking tape</b> on the back of the sheet and on the machine table, add glue (super glue) on
+        one of them, and press the two together – firmly, especially the corners. It holds best and peels off
+        cleanly afterwards.
+      </>,
+      'Cover the whole back, not only the edges, so the middle cannot bounce under the bit. Double-sided tape works too, but holds less well.'
     ]
   },
   {
@@ -448,10 +464,13 @@ export const SETUP_GUIDE: GuidePage[] = [
     ]
   },
   {
-    title: 'Go slowly',
+    title: 'Go slowly – use the speeds TraceMill sets',
     figure: SlowFigure,
     points: [
-      'Keep the probe speed slow and don’t speed up the plunges. A fast move down can push the board off the tape or snap a 0.1 mm tip.',
+      <>
+        Use the <b>speeds TraceMill sets</b> – for probing <b>and</b> for cutting. A fast plunge or a fast cut
+        pushes the board out of place, or snaps a 0.1 mm tip.
+      </>,
       'Watch the first points: if the bit doesn’t go down to the copper, the controller missed that touch – stop and run the probe program again.'
     ]
   },
