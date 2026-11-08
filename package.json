@@ -3,7 +3,7 @@
   "productName": "PCB TraceMill",
   "version": "0.1.1",
   "description": "PCB TraceMill - Gerber to G-code for milling PCBs on a hobby CNC",
-  "homepage": "https://github.com/tracemill/tracemill",
+  "homepage": "https://aazriel.github.io/pcbtracemill/",
   "repository": {
     "type": "git",
     "url": "https://github.com/aazriel/pcbtracemill.git"
