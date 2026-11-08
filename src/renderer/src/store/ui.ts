@@ -27,6 +27,8 @@ export interface UiState {
   stage: Stage
   /** Which board side the Manufacture view shows. */
   viewSide: 'top' | 'bottom'
+  /** Manufacture: hover over copper highlights the net (off by default, the toolpaths matter there). */
+  manufactureHighlight: boolean
   /** Which side the Board stage shows (both = everything, seen from the top). */
   boardSide: BoardSide
   /** Latest CAM result (validations, toolpaths, G-code). */
@@ -91,6 +93,7 @@ function startToastTimer(id: number, ms: number, set: (fn: (s: UiState) => Parti
 export const useUi = create<UiState>()((set) => ({
   stage: 'board',
   viewSide: 'top',
+  manufactureHighlight: false,
   boardSide: 'top',
   cam: null,
   camVersion: 0,

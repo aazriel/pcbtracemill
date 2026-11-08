@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
-import { Loader2 } from 'lucide-react'
+import { Loader2, MousePointerClick } from 'lucide-react'
 import type { BBox, PolygonSet, Toolpath } from '@core/model/types'
 import { bboxIsEmpty, bboxUnion, union } from '@core/geometry'
 import { activeSkips, skippedIslands } from '@core/toolpath'
@@ -44,6 +44,7 @@ export function ManufactureStage(): React.JSX.Element {
   const problemStepId = useUi((s) => s.problemStepId)
   const problemFocus = useUi((s) => s.problemFocus)
   const setUi = useUi((s) => s.set)
+  const highlight = useUi((s) => s.manufactureHighlight)
   const [showRapids, setShowRapids] = useState(false)
   const [showPaths, setShowPaths] = useState(true)
 
@@ -169,7 +170,7 @@ export function ManufactureStage(): React.JSX.Element {
           layers={layers}
           side={viewSide}
           realistic={settings.realisticColors}
-          highlight={false}
+          highlight={highlight}
           fitBox={fitBox}
           focusBox={focusBox}
           underlay={underlay}
@@ -215,6 +216,21 @@ export function ManufactureStage(): React.JSX.Element {
                   onChange={(v) => setSettings({ realisticColors: v })}
                   help="Shows the board like a manufactured PCB instead of one colour per layer."
                 />
+              </div>
+              <div className="rounded-md border border-slate-700/80 bg-slate-950/60 px-2.5 py-1.5">
+                <div className="w-44">
+                  <Switch
+                    label="Highlight traces"
+                    checked={highlight}
+                    onChange={(v) => setUi({ manufactureHighlight: v })}
+                    help="Hover over copper to highlight the whole connection (net). Click to freeze the highlight, click again to release it."
+                  />
+                </div>
+                {highlight && (
+                  <span className="mt-0.5 flex items-center gap-1 text-[10px] text-slate-500">
+                    <MousePointerClick className="size-3" /> click a trace to freeze
+                  </span>
+                )}
               </div>
             </div>
           }
