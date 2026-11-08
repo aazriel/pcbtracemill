@@ -10,6 +10,7 @@ import {
   Factory,
   Info,
   Keyboard,
+  Layers,
   PlayCircle,
   Rocket,
   type LucideIcon
@@ -17,6 +18,7 @@ import {
 import { HELP } from '@core/help'
 import { Dialog } from '@renderer/components/ui/dialog'
 import { cn } from '@renderer/lib/utils'
+import { SetupGuide } from '@renderer/heightmap/SetupGuide'
 
 interface Topic {
   id: string
@@ -298,6 +300,12 @@ export const HELP_TOPICS: Topic[] = [
         </Section>
       </>
     )
+  },
+  {
+    id: 'setup',
+    label: 'Board setup',
+    icon: Layers,
+    body: () => <SetupGuide />
   },
   {
     id: 'shortcuts',

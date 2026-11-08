@@ -204,14 +204,23 @@ function IntroPage({
             barely scratched.
           </li>
           <li>
-            Hold the <b>corners</b> down (clamps, screws or a holder), put the board in the <b>middle</b> of
-            the sheet, and start milling <b>right after</b> probing.
+            Put the board in the <b>middle</b> of the sheet, tape it down, wait about <b>30 minutes</b> for
+            the tape to settle, then probe – and start milling <b>right after</b> probing.
           </li>
           <li>
             Watch the first points: if the bit doesn’t go down to the copper, the controller missed that
             touch. Stop and run the probe program again.
           </li>
         </ul>
+        <Button
+          size="sm"
+          variant="secondary"
+          className="mt-2"
+          data-testid="probe-setup-guide"
+          onClick={() => useUi.getState().set({ helpOpen: true, helpTopic: 'setup' })}
+        >
+          <Pin /> Board setup guide (step by step, with pictures)
+        </Button>
       </div>
       <p className="text-sm text-slate-300">{HELP['autolevel.probing']?.body} Here is the whole process:</p>
       <ol className="flex flex-col gap-2">

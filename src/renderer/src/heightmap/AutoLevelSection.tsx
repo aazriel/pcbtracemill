@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import {
   AlertTriangle,
+  BookOpen,
   CheckCircle2,
   Crosshair,
   Eye,
@@ -147,6 +148,14 @@ export function AutoLevelSection({
             <WarpIllustration />
           </div>
         </div>
+        <button
+          type="button"
+          className="flex items-center gap-1.5 self-start text-xs font-medium text-sky-300 hover:underline"
+          data-testid="autolevel-setup-guide"
+          onClick={() => useUi.getState().set({ helpOpen: true, helpTopic: 'setup' })}
+        >
+          <BookOpen className="size-3.5" /> How to set up the board for an even depth (guide)
+        </button>
 
         {material?.doubleSided && (
           <div className="flex items-center justify-between gap-2">
