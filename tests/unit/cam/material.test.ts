@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { defaultMaterial, resetMaterialToDefault, validateMaterial } from '@core/cam'
+import {
+  boardCentred,
+  defaultMaterial,
+  resetMaterialToDefault,
+  resizeKeepingCentre,
+  validateMaterial
+} from '@core/cam'
 
 const bbox = { minX: 10, minY: 20, maxX: 60, maxY: 60 } // 50 x 40
 
@@ -47,5 +53,22 @@ describe('material', () => {
     expect(issues.some((i) => i.field === 'copperThickness')).toBe(true)
     const w = validateMaterial({ ...defaultMaterial(bbox), copperThickness: 0.5 }, bbox)
     expect(w[0].level).toBe('warning')
+  })
+
+  it('a new stock size keeps a centred board centred (D-036)', () => {
+    const m = defaultMaterial(bbox) // 55 x 45, board 50 x 40 centred
+    expect(boardCentred(m, bbox)).toBe(true)
+    const r = resizeKeepingCentre(m, { ...m, width: 100, height: 80 }, bbox)
+    expect(r.offsetX).toBe(25)
+    expect(r.offsetY).toBe(20)
+    expect(boardCentred(r, bbox)).toBe(true)
+  })
+
+  it('an axis placed by the user keeps its offset when the size changes', () => {
+    const m = { ...defaultMaterial(bbox), offsetX: 1 } // X moved to the left, Y still centred
+    const r = resizeKeepingCentre(m, { ...m, width: 100, height: 80 }, bbox)
+    expect(r.offsetX).toBe(1)
+    expect(r.offsetY).toBe(20)
+    expect(boardCentred(r, bbox)).toBe(false)
   })
 })

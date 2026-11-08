@@ -80,6 +80,33 @@ export function resetMaterialToDefault(m: Material, bbox: BBox): Material {
   return { ...base, ...fitStock(base, bbox) }
 }
 
+/**
+ * The material after the user typed a new stock size: on each axis where the board was centred
+ * before, it stays centred in the new size (D-036 - the middle of a copper sheet is the flattest
+ * and stays put best). An axis the user placed elsewhere keeps its offset.
+ */
+export function resizeKeepingCentre(prev: Material, next: Material, bbox: BBox): Material {
+  const board = rotatedBoardSize(bbox, finite(next.rotation) ? next.rotation : 0)
+  if (board.width <= 0 && board.height <= 0) return next
+  const centred = (size: number, b: number, off: number): boolean =>
+    finite(size) && finite(off) && Math.abs(off - (size - b) / 2) < 0.01
+  const out = { ...next }
+  if (next.width !== prev.width && centred(prev.width, board.width, prev.offsetX) && finite(next.width))
+    out.offsetX = r2((next.width - board.width) / 2)
+  if (next.height !== prev.height && centred(prev.height, board.height, prev.offsetY) && finite(next.height))
+    out.offsetY = r2((next.height - board.height) / 2)
+  return out
+}
+
+/** Is the board in the middle of the material (both axes, within 0.01 mm)? */
+export function boardCentred(m: Material, bbox: BBox): boolean {
+  const b = rotatedBoardSize(bbox, finite(m.rotation) ? m.rotation : 0)
+  return (
+    Math.abs(m.offsetX - (m.width - b.width) / 2) < 0.01 &&
+    Math.abs(m.offsetY - (m.height - b.height) / 2) < 0.01
+  )
+}
+
 const finite = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v)
 const fmt = (v: number): string => String(Math.round(v * 100) / 100)
 

@@ -3,7 +3,14 @@ import { Crosshair, Layers, Maximize2, Move, RotateCcw, SquareStack } from 'luci
 import type { BBox, Material } from '@core/model/types'
 import { getHelp } from '@core/help'
 import { bboxIsEmpty } from '@core/geometry'
-import { MAX_STOCK_SIZE, resetMaterialToDefault, rotatedBoardSize, validateMaterial } from '@core/cam'
+import {
+  MAX_STOCK_SIZE,
+  boardCentred,
+  resetMaterialToDefault,
+  resizeKeepingCentre,
+  rotatedBoardSize,
+  validateMaterial
+} from '@core/cam'
 import { Button } from '@renderer/components/ui/button'
 import { Dialog } from '@renderer/components/ui/dialog'
 import { NumberField, Segmented, Switch } from '@renderer/components/ui/fields'
@@ -101,7 +108,7 @@ const PLACE_MARGIN = 2.5
 const PLACEMENTS: { id: PlacementId; label: string }[] = [
   { id: 'top-left', label: 'Top left (back left)' },
   { id: 'bottom-left', label: 'Bottom left (front left)' },
-  { id: 'center', label: 'Centre of the material' },
+  { id: 'center', label: 'Centre of the material (recommended: flattest part of the sheet)' },
   { id: 'top-right', label: 'Top right (back right)' },
   { id: 'bottom-right', label: 'Bottom right (front right)' }
 ]
@@ -159,6 +166,8 @@ export function MaterialDialog({
   const update = (patch: Partial<Material>, manual = false): void =>
     setDraft((d) => {
       let n: Material = { ...d, ...patch, alignment: { ...d.alignment, ...patch.alignment } }
+      // a new size keeps a centred board centred (D-036)
+      if (manual && hasBoard && ('width' in patch || 'height' in patch)) n = resizeKeepingCentre(d, n, bbox)
       if (manual) n.useDefaults = false
       else if (n.useDefaults && hasBoard) n = resetMaterialToDefault(n, bbox)
       return n
@@ -375,6 +384,23 @@ export function MaterialDialog({
             level={lvl('placement')}
             intro="Where the board sits on the material, measured from the bottom-left (front-left) corner of the material to the bottom-left corner of the board."
           >
+            {hasBoard && (
+              <p
+                className={cn(
+                  'rounded-md border px-2 py-1.5 text-[11px] leading-snug',
+                  boardCentred(draft, bbox)
+                    ? 'border-emerald-600/40 bg-emerald-500/5 text-slate-300'
+                    : 'border-amber-500/40 bg-amber-500/5 text-amber-100'
+                )}
+                data-testid="material-centre-advice"
+              >
+                <b>{boardCentred(draft, bbox) ? 'Centred - recommended.' : 'Tip: centre the board.'}</b> The
+                middle of a copper sheet is the flattest part and moves least while milling: the edges and
+                corners are where a sheet is bent and where tape lets go first, so a board there comes out cut
+                too deep in some places and too shallow in others.
+                {boardCentred(draft, bbox) ? ' Changing the material size keeps it centred.' : ''}
+              </p>
+            )}
             <div className="grid grid-cols-2 gap-2">
               <NumberField
                 label="X offset"
