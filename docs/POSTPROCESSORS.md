@@ -1,6 +1,6 @@
 # Post-processors
 
-TraceMill turns toolpaths (`Toolpath[]`, millimetres, Z0 = top of copper) into G-code with
+PCB TraceMill turns toolpaths (`Toolpath[]`, millimetres, Z0 = top of copper) into G-code with
 `postProcess()` from `src/core/post`. The machine profile's `postProcessor` field picks the
 **dialect**; the dialect turns the profile into a flat `PostOptions` object, and a single
 emitter (`ProgramWriter`) writes every dialect from those options.
@@ -117,7 +117,7 @@ everything from a step's tool change to its last move carries that step's `stepI
 always in `G21`, never changing work offsets:
 
 - **GRBL**: `G38.2 Z<depth> F<feed>`; results are `[PRB:x,y,z:1]` lines in the sender console
-  (machine coordinates — TraceMill realigns X/Y to the grid via the first point, and Z is made
+  (machine coordinates — PCB TraceMill realigns X/Y to the grid via the first point, and Z is made
   relative to the first point). A miss raises an ALARM.
 - **LinuxCNC**: `(PROBEOPEN probe-results.txt)` … `G38.2` … `(PROBECLOSE)`; the file holds
   `x y z a b c u v w` per point.

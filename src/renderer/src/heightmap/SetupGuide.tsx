@@ -419,7 +419,7 @@ export const SETUP_GUIDE: GuidePage[] = [
     figure: CentreFigure,
     points: [
       'The middle of a copper sheet is the flattest part and moves least. The edges and corners are where a sheet is bent and where tape lets go first.',
-      'TraceMill centres the board by default. When you type your real sheet size in Material, it stays centred.'
+      'PCB TraceMill centres the board by default. When you type your real sheet size in Material, it stays centred.'
     ]
   },
   {
@@ -464,12 +464,12 @@ export const SETUP_GUIDE: GuidePage[] = [
     ]
   },
   {
-    title: 'Go slowly – use the speeds TraceMill sets',
+    title: 'Go slowly – use the speeds PCB TraceMill sets',
     figure: SlowFigure,
     points: [
       <>
-        Use the <b>speeds TraceMill sets</b> – for probing <b>and</b> for cutting. A fast plunge or a fast cut
-        pushes the board out of place, or snaps a 0.1 mm tip.
+        Use the <b>speeds PCB TraceMill sets</b> – for probing <b>and</b> for cutting. A fast plunge or a fast
+        cut pushes the board out of place, or snaps a 0.1 mm tip.
       </>,
       'Watch the first points: if the bit doesn’t go down to the copper, the controller missed that touch – stop and run the probe program again.'
     ]

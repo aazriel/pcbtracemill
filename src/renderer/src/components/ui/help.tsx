@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { Tooltip } from './tooltip'
 
 /**
- * Small (?) icon that explains a concept in plain language. Every input in TraceMill has one; the
+ * Small (?) icon that explains a concept in plain language. Every input in PCB TraceMill has one; the
  * explanation (and any illustration) lives here so the forms themselves stay uncluttered.
  * `wide` makes room for an illustration.
  */

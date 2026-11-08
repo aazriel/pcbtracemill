@@ -98,7 +98,7 @@ function emitFile(group: FileGroup, ctx: PostContext, opts: PostOptions): GcodeF
   // ── Header
   w.setContext(null, null)
   if (opts.percentWrap) w.raw('%')
-  w.comment(`TraceMill G-code - ${opts.dialect} post`)
+  w.comment(`PCB TraceMill G-code - ${opts.dialect} post`)
   w.comment(`Project: ${ctx.projectName}`)
   w.comment(`File: ${group.name}`)
   w.comment(`Machine: ${machine.name}`)

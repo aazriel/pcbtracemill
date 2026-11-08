@@ -1,4 +1,4 @@
-(TraceMill G-code - grbl post)
+(PCB TraceMill G-code - grbl post)
 (Project: demo board)
 (File: demo_board_T2_0-8-mm-drill.nc)
 (Machine: GRBL 3018)

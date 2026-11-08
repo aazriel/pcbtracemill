@@ -54,7 +54,7 @@ export function EdaDialog({
       description={
         beforeBrowse
           ? 'Every PCB design program names its fabrication files differently. Pick yours and the file picker will only show the files it produces, so reports, BOMs and other files stay out of the way.'
-          : 'Every PCB design program names its fabrication files differently. Telling us which one you used lets TraceMill pick the right files and ignore reports, BOMs and other files that are not needed for milling.'
+          : 'Every PCB design program names its fabrication files differently. Telling us which one you used lets PCB TraceMill pick the right files and ignore reports, BOMs and other files that are not needed for milling.'
       }
     >
       {askName && (

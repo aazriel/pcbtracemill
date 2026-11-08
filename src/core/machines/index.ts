@@ -377,7 +377,7 @@ export const MACHINE_FIELD_HELP: Record<keyof MachineProfile, MachineFieldHelp> 
   workArea: {
     label: 'Work area',
     description:
-      'How far the machine can move in X (left-right), Y (front-back) and Z (up-down). TraceMill warns if a job would go outside it.',
+      'How far the machine can move in X (left-right), Y (front-back) and Z (up-down). PCB TraceMill warns if a job would go outside it.',
     unit: 'mm'
   },
   maxFeedXY: {

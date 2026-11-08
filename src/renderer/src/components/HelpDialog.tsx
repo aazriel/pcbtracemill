@@ -94,9 +94,9 @@ export const HELP_TOPICS: Topic[] = [
     icon: Rocket,
     body: () => (
       <>
-        <Section title="What TraceMill does">
+        <Section title="What PCB TraceMill does">
           <p>
-            TraceMill turns the fabrication files of a printed circuit board (Gerber + drill files) into
+            PCB TraceMill turns the fabrication files of a printed circuit board (Gerber + drill files) into
             G-code that a hobby CNC router runs to <B>mill</B> the board out of copper-clad material. You do
             not need to know anything about CNC: every field has a <B>(?)</B> bubble that explains it.
           </p>
@@ -162,7 +162,7 @@ export const HELP_TOPICS: Topic[] = [
         <Section title="Importing files">
           <p>
             Use <B>Choose files…</B> or <B>Choose a folder…</B> (or drag & drop). If everything is in a ZIP,
-            use <B>Import a ZIP…</B>. The first time — and whenever no layers are loaded — TraceMill asks
+            use <B>Import a ZIP…</B>. The first time — and whenever no layers are loaded — PCB TraceMill asks
             which <B>design program</B> made the files, so the picker only shows that program&rsquo;s
             fabrication files and the right names are recognised. Change it any time in the <B>Settings</B>{' '}
             menu.
@@ -292,8 +292,8 @@ export const HELP_TOPICS: Topic[] = [
                 copper.
               </>,
               <>
-                <B>Import probe results</B>: TraceMill shows a heat map and 3D surface and corrects the depth
-                in every exported file.
+                <B>Import probe results</B>: PCB TraceMill shows a heat map and 3D surface and corrects the
+                depth in every exported file.
               </>
             ]}
           />
@@ -354,7 +354,7 @@ export const HELP_TOPICS: Topic[] = [
     label: 'Glossary',
     icon: BookOpen,
     body: () => (
-      <Section title="CNC words used in TraceMill">
+      <Section title="CNC words used in PCB TraceMill">
         <dl className="space-y-3">
           {Object.entries(HELP)
             .filter(([k]) => k.startsWith('concept.'))
@@ -373,7 +373,7 @@ export const HELP_TOPICS: Topic[] = [
     label: 'About',
     icon: Info,
     body: () => (
-      <Section title="TraceMill">
+      <Section title="PCB TraceMill">
         <p>PCB Gerber → G-code CAM studio for hobby CNC routers.</p>
         <p className="text-slate-400">
           Isolation routing, copper clearing, drilling, hole milling, board cutout with tabs, double-sided
@@ -401,7 +401,7 @@ export function HelpDialog({
     <Dialog
       open={open}
       onOpenChange={(o) => !o && onClose()}
-      title="TraceMill Help"
+      title="PCB TraceMill Help"
       className="w-[min(94vw,920px)]"
     >
       <div className="flex h-[min(70vh,620px)] gap-4" data-testid="help-dialog">

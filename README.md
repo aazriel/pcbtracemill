@@ -1,10 +1,14 @@
-# TraceMill — PCB Gerber → G-Code CAM Studio
+# PCB TraceMill — mill your own PCBs on a hobby CNC
 
-TraceMill turns PCB fabrication files (Gerber RS-274X X1/X2 + Excellon) into G-code for hobby CNC routers: isolation routing, copper clearing, drilling, hole milling, board cutout with tabs, double-sided alignment, a realistic material-removal simulation and auto-levelling.
+**Website:** https://aazriel.github.io/pcbtracemill/ · **Download:** [latest release](https://github.com/aazriel/pcbtracemill/releases/latest) (Windows; macOS & Linux coming soon)
+
+![PCB TraceMill 3D simulation of a milled board](site/img/simulation.jpg)
+
+PCB TraceMill turns PCB fabrication files (Gerber RS-274X X1/X2 + Excellon) into G-code for hobby CNC routers: isolation routing, copper clearing, drilling, hole milling, board cutout with tabs, double-sided alignment, a realistic material-removal simulation and auto-levelling.
 
 - **Import**: Gerber X1/X2, Excellon PTH/NPTH, ZIP archives and folders; KiCad, Altium, Eagle and EasyEDA naming; automatic layer type & side detection (overridable).
 - **Manufacture**: machine presets (Mach3 primary, GRBL, LinuxCNC, Generic), material editor with live preview, step editor with validation, tool library with a starter kit, one-click Recipe.
-- **Simulation**: top-down heightfield simulation (WebGL) with tool-accurate walls, timeline markers and G-code sync.
+- **Simulation**: realistic 3D material-removal simulation (WebGL) with tool-accurate walls, timeline markers and G-code sync.
 - **Export**: per-step / per-tool / combined files, probe-program generation, probe import, heat map + 3D surface, Z correction.
 
 ## Development

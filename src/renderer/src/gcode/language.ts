@@ -1,6 +1,6 @@
 /**
  * The 'gcode' Monaco language: Monarch tokenizer (G/M words, axis coordinates, feeds, comments),
- * a dark theme matching TraceMill, and plain-language hover help from `gcodeLanguageKeywords`.
+ * a dark theme matching PCB TraceMill, and plain-language hover help from `gcodeLanguageKeywords`.
  */
 import type * as Monaco from 'monaco-editor/esm/vs/editor/editor.api'
 import { gcodeLanguageKeywords, type GcodeKeyword } from '@core/gcode'
@@ -34,7 +34,7 @@ export function describeWord(word: string): { title: string; text: string } | nu
     const k = byCode.get(code)
     return k
       ? { title: code, text: k.description }
-      : { title: code, text: 'Machine command (not used by TraceMill).' }
+      : { title: code, text: 'Machine command (not used by PCB TraceMill).' }
   }
   const k = byCode.get(letter)
   if (!k) return null

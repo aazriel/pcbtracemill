@@ -199,7 +199,7 @@ export const HELP: Record<string, HelpEntry> = {
   },
   'autolevel.heightmap': {
     title: 'Height map',
-    body: 'The grid of measured heights from probing. TraceMill uses it to raise or lower every move so it follows the real surface of the board.'
+    body: 'The grid of measured heights from probing. PCB TraceMill uses it to raise or lower every move so it follows the real surface of the board.'
   },
   'autolevel.grid': {
     title: 'Probe grid',
@@ -263,7 +263,7 @@ export const HELP: Record<string, HelpEntry> = {
   },
   'concept.doubleSided': {
     title: 'Double-sided boards',
-    body: 'Mill the top side first, then flip the board and mill the bottom. TraceMill mirrors the bottom side automatically, so after flipping everything lines up.'
+    body: 'Mill the top side first, then flip the board and mill the bottom. PCB TraceMill mirrors the bottom side automatically, so after flipping everything lines up.'
   },
   'concept.flip': {
     title: 'Flipping the board',

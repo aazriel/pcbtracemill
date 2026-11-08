@@ -142,7 +142,7 @@ export function AutoLevelSection({
         <div className={cn('flex gap-3', wide ? 'items-center' : 'flex-col')}>
           <p className={cn('leading-snug text-slate-400', wide ? 'flex-1 text-xs' : 'text-[11px]')}>
             Copper is only 0.035 mm thick and no board is perfectly flat. Measure the real surface once, and
-            TraceMill bends the G-code to follow it. Do this <b>before</b> saving the G-code files below.
+            PCB TraceMill bends the G-code to follow it. Do this <b>before</b> saving the G-code files below.
           </p>
           <div className={cn('rounded-md bg-slate-950/70 p-1.5', wide && 'w-72 shrink-0')}>
             <WarpIllustration />
@@ -162,8 +162,8 @@ export function AutoLevelSection({
             <span className="flex items-center gap-1 text-xs text-slate-300">
               Probed with side up
               <HelpTip title="Which side is probed?">
-                A height map only fits the side that is facing up while probing. TraceMill adjusts only the
-                files for that side. To level the other side, flip the board and probe again.
+                A height map only fits the side that is facing up while probing. PCB TraceMill adjusts only
+                the files for that side. To level the other side, flip the board and probe again.
               </HelpTip>
             </span>
             <Segmented

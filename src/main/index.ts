@@ -4,7 +4,9 @@ import { registerIpc } from './ipc'
 import { buildMenu } from './menu'
 
 // Automated tests and screenshots run with their own profile so they never touch the user's settings
-if (process.env.TRACEMILL_USER_DATA) app.setPath('userData', process.env.TRACEMILL_USER_DATA)
+// Settings, saved tools and the restore file live in %APPDATA%/TraceMill (macOS: Application Support,
+// Linux: ~/.config) - kept there after the rename to "PCB TraceMill" so nothing is lost.
+app.setPath('userData', process.env.TRACEMILL_USER_DATA || join(app.getPath('appData'), 'TraceMill'))
 
 function createWindow(): void {
   const win = new BrowserWindow({
@@ -13,7 +15,7 @@ function createWindow(): void {
     minWidth: 1100,
     minHeight: 700,
     show: false,
-    title: 'TraceMill',
+    title: 'PCB TraceMill',
     backgroundColor: '#0b0f14',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),

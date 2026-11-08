@@ -1,4 +1,4 @@
-N10 ; TraceMill G-code - generic post
+N10 ; PCB TraceMill G-code - generic post
 N20 ; Project: demo board
 N30 ; File: demo_board.gcode
 N40 ; Machine: Generic controller

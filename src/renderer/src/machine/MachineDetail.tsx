@@ -53,7 +53,7 @@ const GROUPS: Group[] = [
     id: 'general',
     title: 'General & output',
     icon: <FileCode />,
-    intro: 'What the machine is called and what kind of G-code file TraceMill writes for it.',
+    intro: 'What the machine is called and what kind of G-code file PCB TraceMill writes for it.',
     specs: [
       { kind: 'text', key: 'name' },
       { kind: 'text', key: 'description', multiline: true },

@@ -171,8 +171,8 @@ export function FilesTable({
           {generating ? 'Generating G-code…' : 'No G-code files yet'}
         </div>
         <p className="max-w-md text-sm text-slate-400">
-          G-code is the list of instructions your machine follows. TraceMill writes it from the steps you set
-          up in Manufacture.{' '}
+          G-code is the list of instructions your machine follows. PCB TraceMill writes it from the steps you
+          set up in Manufacture.{' '}
           {stale ? 'Something changed since the last generation, so it needs to be generated again.' : ''}
         </p>
         {camError && <p className="max-w-md text-sm text-rose-400">Last attempt failed: {camError}</p>}

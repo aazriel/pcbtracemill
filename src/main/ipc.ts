@@ -227,7 +227,7 @@ export function registerIpc(): void {
     const win = BrowserWindow.fromWebContents(e.sender)
     const res = await dialog.showOpenDialog(win!, {
       properties: ['openFile'],
-      filters: [{ name: 'TraceMill project', extensions: ['tmill'] }]
+      filters: [{ name: 'PCB TraceMill project', extensions: ['tmill'] }]
     })
     if (res.canceled || !res.filePaths[0]) return null
     return { path: res.filePaths[0], content: await fs.readFile(res.filePaths[0], 'utf8') }

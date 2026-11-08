@@ -1,4 +1,4 @@
-(TraceMill G-code - mach3 post)
+(PCB TraceMill G-code - mach3 post)
 (Project: demo board)
 (File: demo_board_03_hole-mill-3-mm.tap)
 (Machine: Mach3 router)

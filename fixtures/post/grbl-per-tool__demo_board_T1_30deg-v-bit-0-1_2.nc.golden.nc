@@ -1,4 +1,4 @@
-(TraceMill G-code - grbl post)
+(PCB TraceMill G-code - grbl post)
 (Project: demo board)
 (File: demo_board_T1_30deg-v-bit-0-1_2.nc)
 (Machine: GRBL 3018)

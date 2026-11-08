@@ -158,7 +158,7 @@ describe('post-processor invariants', () => {
     const [f] = postProcess(TOOLPATHS, ctx(MACHINES.generic, 'combined'))
     expect(f.text).not.toMatch(/G[23] /)
     expect(f.text).not.toMatch(/ S\d/)
-    expect(f.text).toMatch(/^N10 ; TraceMill/m)
+    expect(f.text).toMatch(/^N10 ; PCB TraceMill/m)
     expect(f.text).toMatch(/ M8$/m)
     expect(f.text).toMatch(/ M9$/m)
   })

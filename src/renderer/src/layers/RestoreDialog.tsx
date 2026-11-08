@@ -21,7 +21,7 @@ export function RestoreDialog(): React.JSX.Element | null {
       open
       onOpenChange={(o) => !o && void resolveRestore(false)}
       title="Pick up where you left off?"
-      description="TraceMill keeps your work while you use it. This is what was open when the app was closed."
+      description="PCB TraceMill keeps your work while you use it. This is what was open when the app was closed."
       className="w-[min(92vw,480px)]"
       footer={
         <>

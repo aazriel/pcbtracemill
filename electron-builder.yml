@@ -1,6 +1,6 @@
 appId: io.tracemill.app
-productName: TraceMill
-copyright: Copyright © 2026 TraceMill contributors (MIT)
+productName: PCB TraceMill
+copyright: Copyright © 2026 PCB TraceMill contributors (MIT)
 directories:
   output: release/${version}
   buildResources: resources
@@ -12,15 +12,15 @@ asarUnpack:
   - resources/**
 fileAssociations:
   - ext: tmill
-    name: TraceMill Project
-    description: TraceMill CAM project
+    name: PCB TraceMill Project
+    description: PCB TraceMill CAM project
     role: Editor
 win:
   target:
     - target: nsis
       arch: [x64]
   icon: resources/icon.png
-  artifactName: ${productName}-Setup-${version}.${ext}
+  artifactName: PCB-TraceMill-Setup-${version}.${ext}
 nsis:
   oneClick: false
   perMachine: false
@@ -34,7 +34,7 @@ mac:
   icon: resources/icon.png
   hardenedRuntime: true
   gatekeeperAssess: false
-  artifactName: ${productName}-${version}-universal.${ext}
+  artifactName: PCB-TraceMill-${version}-universal.${ext}
 dmg:
   writeUpdateInfo: false
 linux:
@@ -46,8 +46,8 @@ linux:
   category: Development
   syncDesktopName: true
   icon: resources/icon.png
-  maintainer: TraceMill contributors <noreply@tracemill.io>
+  maintainer: PCB TraceMill contributors <noreply@tracemill.io>
   synopsis: PCB Gerber to G-code CAM studio
-  artifactName: ${productName}-${version}-${arch}.${ext}
+  artifactName: PCB-TraceMill-${version}-${arch}.${ext}
 npmRebuild: false
 publish: null

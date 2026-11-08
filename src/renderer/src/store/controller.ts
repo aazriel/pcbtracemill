@@ -363,7 +363,7 @@ async function browse(kind: BrowseKind, eda: EdaTool): Promise<void> {
   }
   let files: DroppedFile[] = []
   if (window.tracemill && kind === 'folder') {
-    // TraceMill's own folder browser: unlike the Windows one it shows the files inside
+    // PCB TraceMill's own folder browser: unlike the Windows one it shows the files inside
     const path = await pickFolder(exts, info.short)
     if (!path) return
     const opened = await window.tracemill.readFolder(path, [...exts, 'zip'])
@@ -777,7 +777,7 @@ export async function saveProject(saveAs = false): Promise<void> {
         defaultName: (saveAs ? s.filePath : null) ?? planned ?? name,
         path: direct,
         content: text,
-        filters: [{ name: 'TraceMill project', extensions: ['tmill'] }]
+        filters: [{ name: 'PCB TraceMill project', extensions: ['tmill'] }]
       })
     } catch (e) {
       useUi.getState().toast('error', e instanceof Error ? e.message : String(e))
