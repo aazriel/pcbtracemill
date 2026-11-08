@@ -23,6 +23,7 @@ import {
   ClearMarginFigure,
   CutSideFigure,
   ExtraClearanceFigure,
+  SmartClearanceFigure,
   IslandFigure,
   OverlapFigure,
   TabsFigure
@@ -837,6 +838,8 @@ function IsolationParamsSmart({
         <FieldShell
           label="One middle groove in gaps up to"
           description="Gaps up to this wide get ONE groove down their middle instead of a pass along each side, so a slightly wide groove eats the gap, not your traces. 1 mm is a good start."
+          help={<SmartClearanceFigure maxGap={ip.smartMaxGap ?? 1} />}
+          helpWide
         >
           <div className="flex items-center gap-2">
             <div className={cn('shrink-0 rounded-md p-1', flashSmart)}>
