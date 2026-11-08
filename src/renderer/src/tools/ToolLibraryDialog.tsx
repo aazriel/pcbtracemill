@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as Tabs from '@radix-ui/react-tabs'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import {
@@ -208,6 +208,14 @@ function ToolLibraryBody({
     else finish()
   }
 
+  // stable handlers for the list rows, so typing in the editor does not redraw every tool card
+  const handlers = useRef({ selectTool, pick })
+  useEffect(() => {
+    handlers.current = { selectTool, pick }
+  })
+  const onRowClick = useCallback((t: Tool) => handlers.current.selectTool(t), [])
+  const onRowDoubleClick = useCallback((t: Tool) => handlers.current.pick(t), [])
+
   // ── list for the current tab
   const listFor = (tb: ToolTab): Tool[] => {
     const q = search.trim().toLowerCase()
@@ -389,8 +397,8 @@ function ToolLibraryBody({
                     isNewId={isNew ? (draft?.id ?? null) : null}
                     stepKind={stepKind}
                     recs={recs}
-                    onClick={selectTool}
-                    onDoubleClick={pick}
+                    onClick={onRowClick}
+                    onDoubleClick={onRowDoubleClick}
                     emptyText={
                       search
                         ? 'No tool matches your search.'
@@ -646,35 +654,66 @@ function ToolList({
   return (
     <div className="-mr-2 min-h-0 flex-1 overflow-y-auto pr-2">
       <div className="flex flex-col gap-1.5 pb-2">
-        {list.map((t) => {
-          const allowed = stepKind ? isToolAllowed(stepKind, t) : null
-          const rec = recs.get(t.id)
-          const card = (
-            <ToolCard
-              key={t.id}
-              tool={t}
-              active={t.id === activeId}
-              chosen={t.id === chosenId}
-              unsaved={t.id === isNewId}
-              recommended={!!rec?.recommended}
-              incompatible={allowed ? !allowed.ok : false}
-              reason={stepKind ? (rec?.reason ?? undefined) : undefined}
-              onClick={() => onClick(t)}
-              onDoubleClick={() => onDoubleClick(t)}
-            />
-          )
-          if (allowed && !allowed.ok && stepKind)
-            return (
-              <Tooltip key={t.id} side="right" content={`${stepNeedsText(stepKind)}.`}>
-                {card}
-              </Tooltip>
-            )
-          return card
-        })}
+        {list.map((t) => (
+          <ToolRow
+            key={t.id}
+            tool={t}
+            active={t.id === activeId}
+            chosen={t.id === chosenId}
+            unsaved={t.id === isNewId}
+            stepKind={stepKind}
+            rec={recs.get(t.id)}
+            onClick={onClick}
+            onDoubleClick={onDoubleClick}
+          />
+        ))}
       </div>
     </div>
   )
 }
+
+/** One tool card; redrawn only when its own props change. */
+const ToolRow = memo(function ToolRow({
+  tool: t,
+  active,
+  chosen,
+  unsaved,
+  stepKind,
+  rec,
+  onClick,
+  onDoubleClick
+}: {
+  tool: Tool
+  active: boolean
+  chosen: boolean
+  unsaved: boolean
+  stepKind: StepKind | null
+  rec: { recommended: boolean; reason: string } | undefined
+  onClick: (t: Tool) => void
+  onDoubleClick: (t: Tool) => void
+}): React.JSX.Element {
+  const allowed = stepKind ? isToolAllowed(stepKind, t) : null
+  const card = (
+    <ToolCard
+      tool={t}
+      active={active}
+      chosen={chosen}
+      unsaved={unsaved}
+      recommended={!!rec?.recommended}
+      incompatible={allowed ? !allowed.ok : false}
+      reason={stepKind ? (rec?.reason ?? undefined) : undefined}
+      onClick={() => onClick(t)}
+      onDoubleClick={() => onDoubleClick(t)}
+    />
+  )
+  if (allowed && !allowed.ok && stepKind)
+    return (
+      <Tooltip side="right" content={`${stepNeedsText(stepKind)}.`}>
+        {card}
+      </Tooltip>
+    )
+  return card
+})
 
 function CreateMenu({
   onCreate,

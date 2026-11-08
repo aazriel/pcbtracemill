@@ -163,18 +163,15 @@ export function IsolationAdvice({
     >
       <div className="flex gap-1.5">
         <Info className="mt-px size-3.5 shrink-0 text-sky-400" />
-        <div className="flex flex-col gap-1">
-          {info?.clearance == null ? (
-            <span>All gaps 1.5 mm or wider: easy.</span>
-          ) : (
-            plan.notes.map((n) => <span key={n}>{n}</span>)
-          )}
+        <span>
+          {info?.clearance == null ? 'All gaps 1.5 mm or wider: easy.' : plan.notes.join(' ')}
           {info && info.tiny > 0 && (
             <span className="text-slate-400">
-              {info.tiny} place{info.tiny === 1 ? '' : 's'} under 0.1 mm: no bit fits (copper meant to touch).
+              {' '}
+              {info.tiny} spot{info.tiny === 1 ? '' : 's'} under 0.1 mm skipped.
             </span>
           )}
-        </div>
+        </span>
       </div>
       {added >= EXTRA_PASS_NOTICE_S && (
         <div className="flex gap-1.5 text-amber-200" data-testid="isolation-pass-time">

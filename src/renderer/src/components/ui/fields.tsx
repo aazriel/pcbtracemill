@@ -233,11 +233,14 @@ export function Switch({
   description,
   help,
   helpWide,
-  disabled
+  disabled,
+  hideLabel
 }: {
   checked: boolean
   onChange: (v: boolean) => void
   label: string
+  /** Only the switch (the label is still used for accessibility). */
+  hideLabel?: boolean
   description?: ReactNode
   help?: ReactNode
   /** The (?) holds an illustration: make the tooltip wider. */
@@ -246,12 +249,14 @@ export function Switch({
 }): React.JSX.Element {
   return (
     <div className="flex items-start justify-between gap-3">
-      <div className="min-w-0">
-        <div className="flex items-center gap-1.5 text-xs font-medium text-slate-300">
-          <span>{label}</span>
-          <FieldHelp label={label} description={description} help={help} wide={helpWide} />
+      {!hideLabel && (
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5 text-xs font-medium text-slate-300">
+            <span>{label}</span>
+            <FieldHelp label={label} description={description} help={help} wide={helpWide} />
+          </div>
         </div>
-      </div>
+      )}
       <SwitchPrimitive.Root
         checked={checked}
         disabled={disabled}
