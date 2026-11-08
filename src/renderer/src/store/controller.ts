@@ -32,8 +32,14 @@ import {
   type MaterialIssue
 } from '@core/cam'
 import { summarizeLayerStatus } from '@core/import'
-import { serializeProject, deserializeProject, UNNAMED_PROJECT } from '@core/project'
-import { rememberProjectName, suggestProjectName } from './projectNames'
+import { serializeProject, deserializeProject, projectFileBase, UNNAMED_PROJECT } from '@core/project'
+import {
+  projectNameTaken,
+  projectPathFor,
+  projectSavedAt,
+  refreshProjectFiles,
+  suggestProjectName
+} from './projectNames'
 import { bboxIsEmpty } from '@core/geometry'
 import * as Comlink from 'comlink'
 import { analysisWorker, camWorker } from '@workers/index'
@@ -225,10 +231,7 @@ export function browseAndImport(directory = false): Promise<void> {
 export async function resolveEda(eda: EdaTool, name?: string): Promise<void> {
   const ui = useUi.getState()
   useProject.getState().setEdaTool(eda)
-  if (name) {
-    useProject.getState().setName(name)
-    rememberProjectName(name)
-  }
+  if (name) useProject.getState().setName(name)
   const files = ui.pendingImport
   const kind = ui.pendingBrowse
   ui.set({ pendingImport: null, pendingBrowse: null })
@@ -667,12 +670,7 @@ export async function regenerate(): Promise<void> {
 }
 
 function safeName(n: string): string {
-  return (
-    n
-      .trim()
-      .replace(/[^a-z0-9_-]+/gi, '_')
-      .replace(/^_+|_+$/g, '') || 'board'
-  )
+  return projectFileBase(n)
 }
 
 // Regenerate whenever CAM-relevant inputs change.
@@ -739,6 +737,8 @@ export async function saveProject(saveAs = false): Promise<void> {
   const s = useProject.getState()
   ensureDefaults()
   let text: string
+  // the first save goes straight to the project folder chosen at import (when the name is free there)
+  if (!s.filePath) await refreshProjectFiles()
   try {
     if (s.name === UNNAMED_PROJECT) useProject.getState().setName(suggestProjectName())
     text = serializeProject(toProject(useProject.getState()))
@@ -748,19 +748,29 @@ export async function saveProject(saveAs = false): Promise<void> {
   }
   const projectName = useProject.getState().name
   const name = `${safeName(projectName)}.tmill`
+  let saved: string | null = null
   if (window.tracemill) {
-    const path = await window.tracemill.saveFile({
-      defaultName: saveAs || !s.filePath ? name : s.filePath,
-      path: !saveAs && s.filePath ? s.filePath : undefined,
-      content: text,
-      filters: [{ name: 'TraceMill project', extensions: ['tmill'] }]
-    })
-    if (!path) return
-    useProject.getState().setFilePath(path)
+    const planned = s.filePath ? null : projectPathFor(projectName)
+    const direct = saveAs
+      ? undefined
+      : (s.filePath ?? (planned && !projectNameTaken(projectName) ? planned : undefined))
+    try {
+      saved = await window.tracemill.saveFile({
+        defaultName: (saveAs ? s.filePath : null) ?? planned ?? name,
+        path: direct,
+        content: text,
+        filters: [{ name: 'TraceMill project', extensions: ['tmill'] }]
+      })
+    } catch (e) {
+      useUi.getState().toast('error', e instanceof Error ? e.message : String(e))
+      return
+    }
+    if (!saved) return
+    useProject.getState().setFilePath(saved)
+    projectSavedAt(saved)
   } else downloadText(name, text)
-  rememberProjectName(projectName)
   useProject.getState().markClean()
-  useUi.getState().toast('success', 'Project saved.')
+  useUi.getState().toast('success', saved ? `Project saved: ${saved}` : 'Project saved.')
 }
 
 export async function openProject(): Promise<void> {

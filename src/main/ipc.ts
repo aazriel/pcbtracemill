@@ -199,6 +199,30 @@ export function registerIpc(): void {
       )
     return dir
   })
+  // where new projects are saved: the folder chosen last, else Documents
+  ipcMain.handle(
+    'projects:folder',
+    () => (store.get('projectFolder', '') as string) || app.getPath('documents')
+  )
+  ipcMain.handle('projects:pickFolder', async (e, start?: string) => {
+    const win = BrowserWindow.fromWebContents(e.sender)
+    const res = await dialog.showOpenDialog(win!, {
+      title: 'Where to save the project',
+      defaultPath: start || undefined,
+      properties: ['openDirectory', 'createDirectory']
+    })
+    return res.canceled || !res.filePaths[0] ? null : res.filePaths[0]
+  })
+  // the project files (.tmill, names without the extension) in a folder; [] when it is missing
+  ipcMain.handle('projects:list', async (_e, dir: string) => {
+    try {
+      return (await fs.readdir(dir))
+        .filter((f) => f.toLowerCase().endsWith('.tmill'))
+        .map((f) => f.slice(0, -'.tmill'.length))
+    } catch {
+      return []
+    }
+  })
   ipcMain.handle('project:open', async (e) => {
     const win = BrowserWindow.fromWebContents(e.sender)
     const res = await dialog.showOpenDialog(win!, {

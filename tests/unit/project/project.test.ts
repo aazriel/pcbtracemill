@@ -5,6 +5,7 @@ import {
   deserializeProject,
   newProjectName,
   nextProjectName,
+  projectFileBase,
   serializeProject
 } from '@core/project'
 import type { Project } from '@core/model/types'
@@ -159,5 +160,8 @@ describe('project names', () => {
     expect(nextProjectName(['amp', 'my_pcb 1'])).toBe('my_pcb')
     expect(nextProjectName(['Amp'], 'amp')).toBe('amp 1')
     expect(nextProjectName(['amp'], 'filter')).toBe('filter')
+    // compared as file names: "my_pcb 1" is saved as my_pcb_1.tmill
+    expect(nextProjectName(['my_pcb', 'my_pcb_1'])).toBe('my_pcb 2')
+    expect(projectFileBase(' my pcb 1 ')).toBe('my_pcb_1')
   })
 })
