@@ -107,12 +107,7 @@ const mm = (v: number): string => `${r3(v)} mm`
 /** " (12 places; most gaps are 0.4 mm)" */
 function where(info: ClearanceInfo | null): string {
   if (!info) return ''
-  const n = `${info.atClearance} place${info.atClearance === 1 ? '' : 's'}`
-  const most =
-    info.typical !== null && info.clearance !== null && info.typical > info.clearance + 0.02
-      ? `; most gaps are ${mm(info.typical)}`
-      : ''
-  return ` (${n}${most})`
+  return ` (${info.atClearance} place${info.atClearance === 1 ? '' : 's'})`
 }
 
 /**
@@ -140,13 +135,11 @@ export function planIsolation(
   if (pass !== null && pass > EXTRA_PASS_LIMIT_S) passes = 1
 
   if (c !== null && c < TIGHT_CLEARANCE - 1e-9)
-    notes.push(`Narrowest gap ${mm(c)}${where(info)}: tight, hard to mill. Auto-level the board.`)
-  else if (c !== null) notes.push(`Narrowest gap ${mm(c)}${where(info)}: easy to mill.`)
-  if (tooWide) notes.push(`This bit cuts ${mm(width)}, wider than the ${mm(c ?? 0)} gaps: use a finer V-bit.`)
-  notes.push(
-    `Depth ${mm(cutDepth)}. Gaps up to ${mm(SMART_MAX_GAP)}: one groove in the middle. Wider: ${passes} pass${passes > 1 ? 'es' : ''}, ${mm(SMART_EXTRA_CLEARANCE)} off the copper.`
-  )
-  if (passes === 1 && pass !== null) notes.push(`A 2nd pass would add about ${roughDuration(pass)}.`)
+    notes.push(`Narrowest gap ${mm(c)}${where(info)}: tight, auto-level the board.`)
+  else if (c !== null) notes.push(`Narrowest gap ${mm(c)}${where(info)}: easy.`)
+  if (tooWide) notes.push(`This bit cuts ${mm(width)}, wider than the gaps: use a finer V-bit.`)
+  notes.push(`Depth ${mm(cutDepth)}.`)
+  if (passes === 1 && pass !== null) notes.push(`2nd pass: +${roughDuration(pass)}.`)
   return {
     passes,
     overlap,

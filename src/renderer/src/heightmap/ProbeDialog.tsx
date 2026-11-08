@@ -780,17 +780,6 @@ export function ProbeDialog({
                   </p>
                 )}
               </div>
-              <NumberField
-                label="Maximum probe depth"
-                unit="mm"
-                min={0.1}
-                max={20}
-                step={0.5}
-                value={Math.abs(cfg.probeDepth)}
-                onChange={(v) => patch({ probeDepth: -Math.abs(v) })}
-                description="How far below zero it searches before giving up (an error on most controllers)."
-                {...fig(HELP['autolevel.probeDepth']?.body, <ProbeDepthFigure depth={cfg.probeDepth} />)}
-              />
               <div className="flex flex-col gap-2 rounded-md border border-slate-800 bg-slate-950/40 p-2">
                 <button
                   type="button"
@@ -805,7 +794,8 @@ export function ProbeDialog({
                   )}
                   Advanced
                   <span className="ml-1 font-normal text-slate-500">
-                    speed {cfg.probeFeed} mm/min · lift {cfg.clearanceZ} mm
+                    depth {Math.abs(cfg.probeDepth)} mm · speed {cfg.probeFeed} mm/min · lift {cfg.clearanceZ}{' '}
+                    mm
                     {machine?.postProcessor === 'mach3' && mach3Recorder === 'variables'
                       ? cfg.retouch
                         ? ` · re-touch ${cfg.retouchLift ?? MACH3_RETOUCH_LIFT} mm`
@@ -815,6 +805,65 @@ export function ProbeDialog({
                 </button>
                 {advancedOpen && (
                   <div className="flex flex-col gap-2" data-testid="probe-advanced-body">
+                    <NumberField
+                      label="Maximum probe depth"
+                      unit="mm"
+                      min={0.1}
+                      max={20}
+                      step={0.5}
+                      value={Math.abs(cfg.probeDepth)}
+                      onChange={(v) => patch({ probeDepth: -Math.abs(v) })}
+                      description="How far below zero it searches before giving up (an error on most controllers)."
+                      {...fig(
+                        HELP['autolevel.probeDepth']?.body,
+                        <ProbeDepthFigure depth={cfg.probeDepth} />
+                      )}
+                    />
+                    {machine?.postProcessor === 'mach3' && (
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-1.5 text-xs font-medium text-slate-300">
+                          Mach3 records the points with
+                          <HelpTip title="How Mach3 records the points">
+                            <b>G-code variables</b> (normal): plain G-code, no file and nothing to install.
+                            Each point is touched once at the probe speed (a second, slow touch can be
+                            switched on under Advanced); the height is read with G92 and kept in Mach3
+                            variables #500…. The corrected files read them – so do not close Mach3 between
+                            probing and milling. Works also when your motion controller never tells Mach3
+                            where the probe tripped.
+                            <br />
+                            <b>Digitize file</b>: Mach3’s own M40 / M41 write every touch into a file that you
+                            load into TraceMill. Only correct if your motion controller reports the probe
+                            position.
+                            <br />
+                            <b>TraceMill macros</b>: two small macro files (M401 / M402) that you copy into
+                            Mach3 once; they write the DRO position to a file.
+                          </HelpTip>
+                        </div>
+                        <Segmented
+                          stretch
+                          value={mach3Recorder}
+                          onChange={setMach3Recorder}
+                          options={[
+                            { value: 'variables', label: 'Variables' },
+                            { value: 'digitize', label: 'Digitize file' },
+                            { value: 'macros', label: 'Macros' }
+                          ]}
+                        />
+                        {mach3Recorder === 'variables' && (
+                          <p className="text-[11px] leading-snug text-slate-400">
+                            No file to load: the heights stay in Mach3 until it is closed. Probe, then mill in
+                            the same Mach3 session.
+                          </p>
+                        )}
+                        {mach3Recorder === 'macros' && (
+                          <p className="text-[11px] leading-snug text-slate-400">
+                            Save the macros with <b>Mach3 macros…</b> below, copy them into
+                            Mach3/macros/&lt;your profile&gt;/ and restart Mach3 once. Results go to{' '}
+                            {MACH3_PROBE_FILE}.
+                          </p>
+                        )}
+                      </div>
+                    )}
                     <NumberField
                       label="Probe speed (fast touch)"
                       unit="mm/min"
@@ -872,48 +921,6 @@ export function ProbeDialog({
                   </div>
                 )}
               </div>
-              {machine?.postProcessor === 'mach3' && (
-                <div className="flex flex-col gap-1">
-                  <div className="flex items-center gap-1.5 text-xs font-medium text-slate-300">
-                    Mach3 records the points with
-                    <HelpTip title="How Mach3 records the points">
-                      <b>G-code variables</b> (normal): plain G-code, no file and nothing to install. Each
-                      point is touched once at the probe speed (a second, slow touch can be switched on under
-                      Advanced); the height is read with G92 and kept in Mach3 variables #500…. The corrected
-                      files read them – so do not close Mach3 between probing and milling. Works also when
-                      your motion controller never tells Mach3 where the probe tripped.
-                      <br />
-                      <b>Digitize file</b>: Mach3’s own M40 / M41 write every touch into a file that you load
-                      into TraceMill. Only correct if your motion controller reports the probe position.
-                      <br />
-                      <b>TraceMill macros</b>: two small macro files (M401 / M402) that you copy into Mach3
-                      once; they write the DRO position to a file.
-                    </HelpTip>
-                  </div>
-                  <Segmented
-                    stretch
-                    value={mach3Recorder}
-                    onChange={setMach3Recorder}
-                    options={[
-                      { value: 'variables', label: 'G-code variables' },
-                      { value: 'digitize', label: 'Digitize file' },
-                      { value: 'macros', label: 'TraceMill macros' }
-                    ]}
-                  />
-                  {mach3Recorder === 'variables' && (
-                    <p className="text-[11px] leading-snug text-slate-400">
-                      No file to load: the heights stay in Mach3 until it is closed. Probe, then mill in the
-                      same Mach3 session.
-                    </p>
-                  )}
-                  {mach3Recorder === 'macros' && (
-                    <p className="text-[11px] leading-snug text-slate-400">
-                      Save the macros with <b>Mach3 macros…</b> below, copy them into Mach3/macros/&lt;your
-                      profile&gt;/ and restart Mach3 once. Results go to {MACH3_PROBE_FILE}.
-                    </p>
-                  )}
-                </div>
-              )}
               {warnings.length > 0 && (
                 <div className="flex flex-col gap-1 rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-[11px] text-amber-200">
                   {warnings.map((w) => (

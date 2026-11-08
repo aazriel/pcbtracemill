@@ -84,8 +84,7 @@ describe('isolation plan from the clearance (D-031)', () => {
     // the passes in open areas keep 0.1 mm from the copper
     expect(p.extraClearance).toBe(0.1)
     expect(p.centred).toBe(true)
-    expect(p.notes[0]).toMatch(/tight, hard to mill/)
-    expect(p.notes.join(' ')).toMatch(/one groove in the middle/)
+    expect(p.notes[0]).toMatch(/tight, auto-level/)
   })
 
   it('a groove wider than the gap is reported, not centred', () => {
@@ -104,7 +103,7 @@ describe('isolation plan from the clearance (D-031)', () => {
     // 10 m of copper outline at 50 mm/min ≈ 3.7 h per pass
     const slow = planIsolation(vbit, info(0.8, 10000), cu)
     expect(slow.passes).toBe(1)
-    expect(slow.notes.join(' ')).toMatch(/2nd pass would add about 3 h/)
+    expect(slow.notes.join(' ')).toMatch(/2nd pass: \+3 h/)
   })
 
   it('overlap follows the tool type', () => {

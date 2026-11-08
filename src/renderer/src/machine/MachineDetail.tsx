@@ -336,7 +336,7 @@ export function MachineDetail({
 
   return (
     <div className="flex flex-col" data-testid="machine-detail">
-      <div className="sticky top-0 z-10 flex items-start gap-3 border-b border-slate-800 bg-slate-900/95 p-3 backdrop-blur">
+      <div className="sticky top-0 z-10 flex items-start gap-3 border-b border-slate-800 bg-slate-900 p-3">
         <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-slate-800 text-sky-300">
           <MachineIcon machine={machine} className="size-5" />
         </div>

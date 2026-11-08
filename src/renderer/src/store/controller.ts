@@ -838,6 +838,7 @@ declare global {
       resolveEda: typeof resolveEda
       resolveDuplicates: typeof resolveDuplicates
       applyRecipe: typeof applyRecipe
+      loadProjectText: typeof loadProjectText
       regenerate: typeof regenerate
       project: typeof useProject
       ui: typeof useUi
@@ -849,6 +850,7 @@ window.__tm = {
   resolveEda,
   resolveDuplicates,
   applyRecipe,
+  loadProjectText,
   regenerate,
   project: useProject,
   ui: useUi

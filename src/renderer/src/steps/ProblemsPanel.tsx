@@ -69,7 +69,7 @@ export function ProblemsPanel(): React.JSX.Element | null {
 
   return (
     <div
-      className="absolute bottom-3 right-3 z-10 flex max-h-[min(60vh,460px)] w-[330px] flex-col rounded-xl border border-amber-500/40 bg-slate-900/95 shadow-2xl backdrop-blur"
+      className="absolute bottom-3 right-3 z-10 flex max-h-[min(60vh,460px)] w-[330px] flex-col rounded-xl border border-amber-500/40 bg-slate-900 shadow-2xl"
       data-testid="problems-panel"
     >
       <header className="flex items-start gap-2 border-b border-slate-800 px-3 py-2">

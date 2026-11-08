@@ -149,7 +149,7 @@ export function App(): React.JSX.Element {
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-40 bg-transparent text-[11px] text-slate-400 outline-none focus:text-slate-100"
+                className="w-48 rounded bg-transparent text-xs font-semibold text-sky-200 outline-none hover:bg-slate-800/60 focus:bg-slate-800 focus:text-white"
                 aria-label="Project name"
                 title="Project name (used for file names)"
               />

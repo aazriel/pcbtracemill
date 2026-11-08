@@ -42,22 +42,27 @@ export function EdaDialog({
       }
     >
       {askName && (
-        <label className="mb-4 flex flex-col gap-1 text-sm" data-testid="project-name-field">
-          <span className="font-medium text-slate-200">Project name</span>
+        <label
+          className="mb-5 flex flex-col gap-1.5 rounded-lg border-2 border-sky-500/60 bg-sky-500/10 p-3"
+          data-testid="project-name-field"
+        >
+          <span className="text-base font-bold text-sky-100">Name your project</span>
           <input
             value={name}
+            autoFocus
+            onFocus={(e) => e.target.select()}
             onChange={(e) => setName(e.target.value)}
-            className="rounded-md border border-slate-700 bg-slate-950 px-2 py-1.5 text-slate-100 outline-none focus:border-sky-500"
+            className="rounded-md border border-sky-500/70 bg-slate-950 px-3 py-2 text-lg font-semibold text-white outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-500/40"
             data-testid="project-name"
             aria-label="Project name"
           />
-          <span className="text-[11px] text-slate-500">
+          <span className="text-xs text-slate-300">
             {usedBefore ? (
               <>
                 You used this name before.{' '}
                 <button
                   type="button"
-                  className="text-sky-400 hover:underline"
+                  className="font-semibold text-sky-300 hover:underline"
                   onClick={() => setName(suggestProjectName(trimmed))}
                 >
                   Use "{suggestProjectName(trimmed)}"

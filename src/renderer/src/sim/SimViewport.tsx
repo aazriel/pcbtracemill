@@ -460,7 +460,7 @@ export function SimViewport(): React.JSX.Element {
         </div>
       )}
       <div
-        className="absolute bottom-3 right-3 flex flex-col gap-1 rounded-lg border border-slate-700/80 bg-slate-900/85 p-1 shadow-lg backdrop-blur"
+        className="absolute bottom-3 right-3 flex flex-col gap-1 rounded-lg border border-slate-700/80 bg-slate-900/95 p-1 shadow-lg"
         onPointerDown={(e) => e.stopPropagation()}
         onDoubleClick={(e) => e.stopPropagation()}
       >

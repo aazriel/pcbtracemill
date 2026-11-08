@@ -28,7 +28,7 @@ export function Dialog({
   return (
     <DialogPrimitive.Root open={open} onOpenChange={(o) => (dismissable || o ? onOpenChange(o) : undefined)}>
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm data-[state=open]:animate-in" />
+        <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/70 data-[state=open]:animate-in" />
         <DialogPrimitive.Content
           onInteractOutside={(e) => {
             // a click on a toast (its X) is not a click outside the dialog
