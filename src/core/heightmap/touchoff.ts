@@ -72,7 +72,7 @@ export function addZTouchOff(gcode: string, o: TouchOffOptions): string {
       // by that offset when G92.1 ran, and the probe stopped above the copper. G92 Z0 replaces
       // any old offset anyway.
       out.push(
-        `M0 ${c('Z TOUCH-OFF: set Z zero ROUGHLY on the copper - a sheet of paper is enough - then clip the probe to the bit and press Cycle Start. The probe searches down to ${n(TOUCH_OFF_REACH)} mm below that zero')}`
+        `M0 ${c(`Z TOUCH-OFF: set Z zero ROUGHLY on the copper - a sheet of paper is enough - then clip the probe to the bit and press Cycle Start. The probe searches down to ${n(TOUCH_OFF_REACH)} mm below that zero`)}`
       )
       out.push(`G0 Z${n(o.safeZ)}`)
       out.push(`G0 X${n(o.x)} Y${n(o.y)}`)
