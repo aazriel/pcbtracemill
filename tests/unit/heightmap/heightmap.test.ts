@@ -199,7 +199,7 @@ describe('applyHeightMap', () => {
     const out = applyHeightMap(prog, map, { maxSegmentLength: 1 })
     const lines = out.split('\n')
     expect(lines[0]).toBe('%')
-    expect(lines[1]).toMatch(/^\(TraceMill: auto-levelled with 5x4 height map/)
+    expect(lines[1]).toMatch(/^\(PCB TraceMill: auto-levelled with 5x4 height map/)
     expect(lines).toContain('G0 Z5')
     expect(lines).toContain('G0 X0 Y10')
     expect(lines).toContain('G1 X0 Y10 Z-0.3 F100 (plunge)')

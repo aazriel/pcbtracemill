@@ -1,10 +1,10 @@
 {
   "name": "tracemill",
-  "productName": "TraceMill",
-  "version": "0.1.0",
-  "description": "TraceMill - PCB Gerber to G-Code CAM Studio",
+  "productName": "PCB TraceMill",
+  "version": "0.1.1",
+  "description": "PCB TraceMill - Gerber to G-code for milling PCBs on a hobby CNC",
   "author": {
-    "name": "TraceMill contributors",
+    "name": "PCB TraceMill contributors",
     "email": "noreply@tracemill.io"
   },
   "license": "MIT",

@@ -111,7 +111,7 @@ const finite = (v: unknown): v is number => typeof v === 'number' && Number.isFi
 const fmt = (v: number): string => String(Math.round(v * 100) / 100)
 
 /** Validates the material against the board. Returns an empty list when everything is fine. */
-/** Largest copper-clad sheet TraceMill works with (mm, each side). */
+/** Largest copper-clad sheet PCB TraceMill works with (mm, each side). */
 export const MAX_STOCK_SIZE = 300
 
 export function validateMaterial(m: Material, bbox: BBox): MaterialIssue[] {

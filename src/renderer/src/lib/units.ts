@@ -1,5 +1,5 @@
 /**
- * Display units. Everything in TraceMill is stored and computed in millimetres; the project setting
+ * Display units. Everything in PCB TraceMill is stored and computed in millimetres; the project setting
  * `units` only changes what is shown and typed.
  */
 import type { DisplayUnits } from '@core/model/types'

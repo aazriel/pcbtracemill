@@ -90,7 +90,7 @@ const RESULT_INFO: Record<string, { title: string; body: string }> = {
   },
   mach3: {
     title: 'Mach3 / Mach4',
-    body: 'Plain G-code, nothing to install and no file: every point is touched twice (fast, then slowly) and the height is kept in a Mach3 variable (#500…). The corrected files read those heights, so run them in the same Mach3 session. Other ways (digitize file, TraceMill macros) can be chosen on the next page.'
+    body: 'Plain G-code, nothing to install and no file: every point is touched twice (fast, then slowly) and the height is kept in a Mach3 variable (#500…). The corrected files read those heights, so run them in the same Mach3 session. Other ways (digitize file, PCB TraceMill macros) can be chosen on the next page.'
   },
   generic: {
     title: 'Other controllers',
@@ -179,7 +179,7 @@ function IntroPage({
           <li>
             You can probe with the <b>milling bit itself</b> (0.1 mm tip) – keep the probe speed slow. Clean
             the copper first: where it doesn’t conduct (oxide, lacquer), the tip is pushed into the board and
-            breaks. After a bit change TraceMill finds Z zero again at point 1.
+            breaks. After a bit change PCB TraceMill finds Z zero again at point 1.
           </li>
           <li>Remove the clip from the bit before you start milling.</li>
           {machine && !machine.supportsProbing && (
@@ -496,7 +496,7 @@ export function ProbeDialog({
       toast(
         'success',
         isMach3 && mach3Recorder === 'macros'
-          ? 'Probe program saved. It needs the TraceMill Mach3 macros M401 / M402 – save them with "Mach3 macros…" if you have not yet.'
+          ? 'Probe program saved. It needs the PCB TraceMill Mach3 macros M401 / M402 – save them with "Mach3 macros…" if you have not yet.'
           : isMach3 && mach3Recorder === 'variables'
             ? `Probe program saved. Run it in Mach3 – the heights stay in Mach3, there is no file to load. Then press “Probing done” (step 2)${dropped ? ' and save the corrected files again: the grid changed, so the old height map was removed' : ''}.`
             : 'Probe program saved. Run it on your machine, then import the results (step 2).'
@@ -873,11 +873,11 @@ export function ProbeDialog({
                             where the probe tripped.
                             <br />
                             <b>Digitize file</b>: Mach3’s own M40 / M41 write every touch into a file that you
-                            load into TraceMill. Only correct if your motion controller reports the probe
+                            load into PCB TraceMill. Only correct if your motion controller reports the probe
                             position.
                             <br />
-                            <b>TraceMill macros</b>: two small macro files (M401 / M402) that you copy into
-                            Mach3 once; they write the DRO position to a file.
+                            <b>PCB TraceMill macros</b>: two small macro files (M401 / M402) that you copy
+                            into Mach3 once; they write the DRO position to a file.
                           </HelpTip>
                         </div>
                         <Segmented

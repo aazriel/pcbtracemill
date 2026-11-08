@@ -130,7 +130,7 @@ export function App(): React.JSX.Element {
   }, [])
 
   useEffect(() => {
-    document.title = `${dirty ? '• ' : ''}${name} — TraceMill`
+    document.title = `${dirty ? '• ' : ''}${name} — PCB TraceMill`
   }, [name, dirty])
 
   // Keep the Settings menu showing the current design program.
@@ -145,7 +145,7 @@ export function App(): React.JSX.Element {
           <div className="flex items-center gap-2">
             <img src="./icon.svg" alt="" className="size-7" />
             <div className="leading-tight">
-              <div className="text-sm font-bold tracking-wide">TraceMill</div>
+              <div className="text-sm font-bold tracking-wide">PCB TraceMill</div>
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -186,7 +186,7 @@ export function App(): React.JSX.Element {
                 />
               </div>
             </Tooltip>
-            <Tooltip content="Help: how TraceMill works, shortcuts and a glossary (F1)" side="bottom">
+            <Tooltip content="Help: how PCB TraceMill works, shortcuts and a glossary (F1)" side="bottom">
               <Button
                 size="icon"
                 variant="ghost"
@@ -212,7 +212,7 @@ export function App(): React.JSX.Element {
                 <FilePlus2 />
               </Button>
             </Tooltip>
-            <Tooltip content="Open a saved TraceMill project (.tmill)" side="bottom">
+            <Tooltip content="Open a saved PCB TraceMill project (.tmill)" side="bottom">
               <Button
                 size="icon"
                 variant="ghost"

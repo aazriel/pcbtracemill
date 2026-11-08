@@ -47,7 +47,7 @@ export function loadProjectFolder(): Promise<void> {
   return loaded
 }
 
-/** Reads the project files of the save folder again (they may have changed outside TraceMill). */
+/** Reads the project files of the save folder again (they may have changed outside PCB TraceMill). */
 export async function refreshProjectFiles(): Promise<void> {
   await loadProjectFolder()
   if (state.folder) setState({ ...state, files: await filesIn(state.folder) })

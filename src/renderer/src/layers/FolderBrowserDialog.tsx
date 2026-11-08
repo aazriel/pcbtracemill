@@ -13,7 +13,7 @@ interface FolderPickState {
 const usePick = create<FolderPickState>()(() => ({ request: null }))
 
 /**
- * Asks the user for a folder with TraceMill's own browser. Unlike the Windows folder picker it
+ * Asks the user for a folder with PCB TraceMill's own browser. Unlike the Windows folder picker it
  * also lists the files in each folder (they cannot be chosen), so the user can see the PCB files
  * are there. Resolves to the folder path, or null when cancelled.
  */

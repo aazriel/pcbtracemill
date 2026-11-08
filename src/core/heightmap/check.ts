@@ -141,7 +141,7 @@ export function checkProbePoints(
 export const MACH3_DIGITIZE_HINT =
   'Mach3: if you saw the bit stop on the copper at different heights, the probing itself worked but Mach3 ' +
   'recorded the wrong numbers in its digitize file (M40 / M41) – this happens with some motion controllers. ' +
-  'If it keeps happening, make a new probe program with “Mach3 records with: TraceMill macros”: they wait ' +
+  'If it keeps happening, make a new probe program with “Mach3 records with: PCB TraceMill macros”: they wait ' +
   'until the machine has stopped and write the real position.'
 
 /** What to check when the results are rejected – shown under the errors. */

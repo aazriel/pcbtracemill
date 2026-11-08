@@ -528,7 +528,7 @@ export function SideIllustration({ side }: { side: 'top' | 'bottom' }): React.JS
       <g transform={bottom ? 'translate(160 0) scale(-1 1)' : undefined}>
         <rect x="10" y="9" width="140" height="46" rx="3" fill={FR4} stroke={COPPER} />
         <text x="80" y="37" textAnchor="middle" fontSize="13" fill={COPPER} fontWeight="700">
-          TraceMill
+          PCB TraceMill
         </text>
       </g>
       <text x="158" y="28" fontSize="9" fill="#e2e8f0" fontWeight="600">

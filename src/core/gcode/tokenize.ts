@@ -1,5 +1,5 @@
 /**
- * Line tokenizer for RS-274 / NIST style G-code as written by TraceMill posts and common
+ * Line tokenizer for RS-274 / NIST style G-code as written by PCB TraceMill posts and common
  * hobby controllers (Mach3, GRBL, LinuxCNC). Pure TypeScript, no DOM.
  */
 

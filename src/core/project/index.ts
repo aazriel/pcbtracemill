@@ -1,6 +1,6 @@
 import type { Project } from '../model/types'
 
-/** File extension of TraceMill project files (without dot). */
+/** File extension of PCB TraceMill project files (without dot). */
 export const PROJECT_FILE_EXT = 'tmill'
 /** Current .tmill format version. */
 export const PROJECT_VERSION = 1 as const
@@ -59,7 +59,7 @@ export function serializeProject(p: Project): string {
 
 class ProjectError extends Error {
   constructor(msg: string) {
-    super(`This is not a valid TraceMill project: ${msg}`)
+    super(`This is not a valid PCB TraceMill project: ${msg}`)
     this.name = 'ProjectError'
   }
 }
@@ -124,7 +124,7 @@ export function deserializeProject(text: string): Project {
     throw new ProjectError('missing or invalid "version".')
   if (p.version > PROJECT_VERSION)
     throw new Error(
-      `This project was saved by a newer TraceMill (format version ${p.version}); this version reads up to ${PROJECT_VERSION}. Please update TraceMill.`
+      `This project was saved by a newer PCB TraceMill (format version ${p.version}); this version reads up to ${PROJECT_VERSION}. Please update PCB TraceMill.`
     )
   while ((p.version as number) < PROJECT_VERSION) {
     const v = p.version as number

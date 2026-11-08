@@ -343,14 +343,14 @@ const PAGES: Page[] = [
   {
     eyebrow: 'Welcome',
     title: 'Your PCB, milled at home.',
-    body: 'TraceMill turns the fabrication files of your board into G-code for your CNC router. No CAM experience needed: it picks sensible settings and explains every one of them.',
+    body: 'PCB TraceMill turns the fabrication files of your board into G-code for your CNC router. No CAM experience needed: it picks sensible settings and explains every one of them.',
     art: WelcomeArt,
     tint: 'from-sky-500/25'
   },
   {
     eyebrow: 'Step 1 · Board',
     title: 'Bring in your board.',
-    body: 'Drop the Gerber and drill files from KiCad, Altium, Eagle or EasyEDA (a ZIP or a whole folder is fine). TraceMill recognises each layer and shows the board.',
+    body: 'Drop the Gerber and drill files from KiCad, Altium, Eagle or EasyEDA (a ZIP or a whole folder is fine). PCB TraceMill recognises each layer and shows the board.',
     art: BoardArt,
     tint: 'from-amber-500/25'
   },

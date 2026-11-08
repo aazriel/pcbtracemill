@@ -84,7 +84,7 @@ export const TOOL_FIELD_HELP: Record<ToolFieldKey, FieldHelp> = {
   type: {
     label: 'Tool type',
     description:
-      'What kind of cutter this is. TraceMill uses it to decide which jobs the tool is suitable for and how wide it cuts.'
+      'What kind of cutter this is. PCB TraceMill uses it to decide which jobs the tool is suitable for and how wide it cuts.'
   },
   number: {
     label: 'Tool number',
@@ -117,7 +117,7 @@ export const TOOL_FIELD_HELP: Record<ToolFieldKey, FieldHelp> = {
   'geometry.fluteLength': {
     label: 'Cutting length',
     description:
-      'How much of the bit, measured from the tip, actually has cutting edges. TraceMill will not let a step cut deeper than this, because the smooth part above would rub and burn.',
+      'How much of the bit, measured from the tip, actually has cutting edges. PCB TraceMill will not let a step cut deeper than this, because the smooth part above would rub and burn.',
     unit: 'mm'
   },
   'geometry.flutes': {

@@ -257,7 +257,7 @@ export function StepsPanel(): React.JSX.Element {
         <div className="mb-2 rounded-lg border border-dashed border-slate-700 p-3 text-center text-xs leading-relaxed text-slate-400">
           <Wand2 className="mx-auto mb-1.5 size-6 text-sky-400" />
           The milling operations, run from top to bottom. Click <b className="text-slate-200">Recipe</b> and
-          TraceMill plans the job from your layers (recommended), or{' '}
+          PCB TraceMill plans the job from your layers (recommended), or{' '}
           <b className="text-slate-200">Add step</b> to build it yourself.
         </div>
       )}
@@ -346,7 +346,7 @@ export function StepsPanel(): React.JSX.Element {
         </div>
       )}
       <div className="mt-2 grid grid-cols-2 gap-2">
-        <Tooltip content="Let TraceMill plan the whole job for you: it picks the steps, their order and the tools from your layers.">
+        <Tooltip content="Let PCB TraceMill plan the whole job for you: it picks the steps, their order and the tools from your layers.">
           <Button variant="secondary" className="h-9 text-sm" onClick={runRecipe} data-testid="recipe">
             <Wand2 /> Recipe
           </Button>

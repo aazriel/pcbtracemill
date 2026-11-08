@@ -108,7 +108,7 @@ export function GenerationFooter(): React.JSX.Element {
             if (v && useUi.getState().camStale) scheduleRegenerate()
           }}
           description="Updates the G-code after every change. Turn off while you make many changes, then press Generate."
-          help="When on, TraceMill recalculates the toolpaths and G-code a moment after each change you make. When off, nothing is recalculated until you press “Generate G-code”."
+          help="When on, PCB TraceMill recalculates the toolpaths and G-code a moment after each change you make. When off, nothing is recalculated until you press “Generate G-code”."
         />
       </div>
       <div className="text-[11px]" data-testid="generation-status">

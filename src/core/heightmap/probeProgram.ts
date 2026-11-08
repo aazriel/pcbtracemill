@@ -7,7 +7,7 @@ type ProbeDialect = 'grbl' | 'linuxcnc' | 'mach3' | 'generic'
 /** File name LinuxCNC writes probe results to (relative to the LinuxCNC config directory). */
 export const LINUXCNC_PROBE_FILE = 'probe-results.txt'
 
-/** Where the TraceMill Mach3 macros write the probe results (editable at the top of the macros). */
+/** Where the PCB TraceMill Mach3 macros write the probe results (editable at the top of the macros). */
 export const MACH3_PROBE_FILE = 'C:/Mach3/TraceMill-probe.txt'
 
 /** First Mach3 variable that holds a height (cell k of the grid is #(MACH3_VAR_BASE + k)). */
@@ -29,7 +29,7 @@ const VAR_REF = 497
 const VAR_DONE = 499
 
 /**
- * The height map of a Mach3 G-code-only probe run: TraceMill never sees the heights, they stay in
+ * The height map of a Mach3 G-code-only probe run: PCB TraceMill never sees the heights, they stay in
  * Mach3 variables and the corrected files read them (D-025).
  */
 export function mach3VariablesHeightMap(cfg: ProbeGridConfig): HeightMap {
@@ -52,7 +52,7 @@ const CRLF = String.fromCharCode(13, 10)
 
 export function mach3ProbeMacros(file = MACH3_PROBE_FILE): { name: string; text: string }[] {
   const head = (what: string): string[] => [
-    `' TraceMill - ${what}`,
+    `' PCB TraceMill - ${what}`,
     "' Copy into the folder Mach3/macros/<your profile, e.g. Mach3Mill>/ and restart Mach3.",
     `Const ResultFile = "${file}"`
   ]
@@ -61,10 +61,10 @@ export function mach3ProbeMacros(file = MACH3_PROBE_FILE): { name: string; text:
       name: 'M401.m1s',
       text:
         [
-          ...head('M401: start a new probe results file (used by the TraceMill probe program).'),
+          ...head('M401: start a new probe results file (used by the PCB TraceMill probe program).'),
           'Open ResultFile For Output As #1',
           'Close #1',
-          'Message "TraceMill probing: results go to " & ResultFile'
+          'Message "PCB TraceMill probing: results go to " & ResultFile'
         ].join(CRLF) + CRLF
     },
     {
@@ -93,13 +93,13 @@ export function mach3ProbeMacros(file = MACH3_PROBE_FILE): { name: string; text:
  * Generate a serpentine grid probing program for auto-levelling.
  *
  * The program never changes work offsets (no G92 / G10): the operator zeroes Z on the copper
- * at the first probe point before running it, and TraceMill makes the height map relative to
+ * at the first probe point before running it, and PCB TraceMill makes the height map relative to
  * that first point. Output is always metric (G21) regardless of the machine's output units.
  */
 export interface ProbeProgramOptions {
   /**
    * How Mach3 records the points: its built-in digitize file (M40 / M41 macros that ship with most
-   * Mach3 installs, default) or the TraceMill macros M401 / M402 – only for setups where the digitize
+   * Mach3 installs, default) or the PCB TraceMill macros M401 / M402 – only for setups where the digitize
    * file records wrong numbers.
    */
   mach3Recorder?: Mach3Recorder
@@ -110,8 +110,8 @@ export interface ProbeProgramOptions {
  *  - `variables` (default): no file at all. Each touch is read in G-code through the G92 offset
  *    (#5213) and kept in Mach3 variables #500…; the corrected files read them (D-025). Works with
  *    motion controllers that never report the probe trip position (#2000-#2002 stay stale).
- *  - `digitize`: Mach3's own M40 / M41 digitize file, imported into TraceMill.
- *  - `macros`: the TraceMill macros M401 / M402 write the DRO position to a file.
+ *  - `digitize`: Mach3's own M40 / M41 digitize file, imported into PCB TraceMill.
+ *  - `macros`: the PCB TraceMill macros M401 / M402 write the DRO position to a file.
  */
 export type Mach3Recorder = 'variables' | 'digitize' | 'macros'
 
@@ -147,7 +147,7 @@ export function generateProbeProgram(
   const L: string[] = []
 
   if (dialect === 'linuxcnc') L.push('%')
-  L.push(c(`TraceMill auto-level probe program - ${dialect} - ${probe}`))
+  L.push(c(`PCB TraceMill auto-level probe program - ${dialect} - ${probe}`))
   L.push(
     c(
       `Grid ${cfg.countX} x ${cfg.countY} = ${pts.length} points, X${n(cfg.minX)}..${n(cfg.maxX)} Y${n(cfg.minY)}..${n(cfg.maxY)}, spacing ${fmtNum(dx, 2)} x ${fmtNum(dy, 2)} mm`
@@ -176,12 +176,14 @@ export function generateProbeProgram(
     )
   )
   L.push(c('After a bit change Z0 must be at the copper of the first point again.'))
-  L.push(c('TraceMill corrected files can find it with the probe - set Z only roughly then.'))
+  L.push(c('PCB TraceMill corrected files can find it with the probe - set Z only roughly then.'))
   if (dialect === 'grbl') {
     L.push(
       c('RESULTS: GRBL prints [PRB:x,y,z:1] for every point. Save the sender console log and import it.')
     )
-    L.push(c('GRBL reports machine coordinates. TraceMill aligns them to this grid using the first point.'))
+    L.push(
+      c('GRBL reports machine coordinates. PCB TraceMill aligns them to this grid using the first point.')
+    )
     L.push(c('GRBL raises an ALARM if the probe never touches - nothing is damaged, check the clip.'))
   } else if (dialect === 'linuxcnc') {
     L.push(
@@ -191,7 +193,7 @@ export function generateProbeProgram(
     if (vars) {
       L.push(c('RESULTS: no file. Every height is kept in Mach3 variables'))
       L.push(c(`#${MACH3_VAR_BASE}-#${MACH3_VAR_BASE + cfg.countX * cfg.countY - 1} until Mach3 is closed.`))
-      L.push(c('The corrected TraceMill files read them - run them in the same Mach3 session.'))
+      L.push(c('The corrected PCB TraceMill files read them - run them in the same Mach3 session.'))
       L.push(c('Do not close Mach3 between probing and milling, or probe again.'))
       L.push(
         c(
@@ -201,8 +203,8 @@ export function generateProbeProgram(
         )
       )
     } else if (macros) {
-      L.push(c('RESULTS: needs the TraceMill macros M401.m1s and M402.m1s in C:/Mach3/macros/<profile>/'))
-      L.push(c('Save them from the TraceMill probe dialog. M401 starts the file, M402 after every G31'))
+      L.push(c('RESULTS: needs the PCB TraceMill macros M401.m1s and M402.m1s in C:/Mach3/macros/<profile>/'))
+      L.push(c('Save them from the PCB TraceMill probe dialog. M401 starts the file, M402 after every G31'))
       L.push(c(`waits for the machine to stop and writes the DRO X,Y,Z to ${MACH3_PROBE_FILE}`))
       L.push(c('Import that file.'))
     } else {
@@ -224,7 +226,7 @@ export function generateProbeProgram(
   if (dialect === 'mach3') L.push('G91.1')
   if (vars) {
     // Each height is read through G92 and cleared again with G92.1 - exactly as measured on a
-    // user's Mach3. Clearing an old G92 offset (e.g. from a TraceMill touch-off) can move Z0.
+    // user's Mach3. Clearing an old G92 offset (e.g. from a PCB TraceMill touch-off) can move Z0.
     L.push('G92.1 (clear any G92 offset)')
     L.push(
       `M0 ${c('Check the Z DRO: if it changed, zero Z on the copper at point 1 again with Zero Z, then press Cycle Start')}`
@@ -235,7 +237,7 @@ export function generateProbeProgram(
   if (vars) {
     L.push(`#${VAR_DONE}=0 (heights not complete yet)`)
   } else if (dialect === 'mach3')
-    L.push(macros ? 'M401 (TraceMill: start a new results file)' : 'M40 (open digitize file)')
+    L.push(macros ? 'M401 (PCB TraceMill: start a new results file)' : 'M40 (open digitize file)')
   // Mach3 G-code variables: (optionally lift and touch again slowly,) read the height through G92
   // into #v, clear G92
   const retouch = (v: number): void => {
@@ -252,7 +254,7 @@ export function generateProbeProgram(
   pts.forEach((p, i) => {
     L.push(`G0 X${n(p.x)} Y${n(p.y)}${i === 0 ? ' (first point = height reference)' : ''}`)
     L.push(`${probe} Z${n(depth)} F${fmtNum(feed, 1)}`)
-    if (macros) L.push('M402 (TraceMill: write where the probe stopped)')
+    if (macros) L.push('M402 (PCB TraceMill: write where the probe stopped)')
     if (vars) retouch(MACH3_VAR_BASE + p.iy * cfg.countX + p.ix)
     const next = pts[i + 1]
     if (next) {

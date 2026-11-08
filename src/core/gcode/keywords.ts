@@ -67,13 +67,13 @@ export const gcodeLanguageKeywords: GcodeLanguageKeywords = {
     { code: 'M30', description: 'Program end and rewind' },
     { code: 'M40', description: 'Mach3 (custom macro): open digitize file' },
     { code: 'M41', description: 'Mach3 (custom macro): close digitize file' },
-    { code: 'M401', description: 'TraceMill Mach3 macro: start a new probe results file' },
-    { code: 'M402', description: 'TraceMill Mach3 macro: wait until stopped, write the probed X,Y,Z' }
+    { code: 'M401', description: 'PCB TraceMill Mach3 macro: start a new probe results file' },
+    { code: 'M402', description: 'PCB TraceMill Mach3 macro: wait until stopped, write the probed X,Y,Z' }
   ],
   words: [
     { code: 'X', description: 'X axis coordinate' },
     { code: 'Y', description: 'Y axis coordinate' },
-    { code: 'Z', description: 'Z axis coordinate (Z0 = copper surface in TraceMill)' },
+    { code: 'Z', description: 'Z axis coordinate (Z0 = copper surface in PCB TraceMill)' },
     { code: 'I', description: 'Arc centre X offset' },
     { code: 'J', description: 'Arc centre Y offset' },
     { code: 'R', description: 'Arc radius, or canned-cycle retract plane' },

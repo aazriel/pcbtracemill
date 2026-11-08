@@ -282,8 +282,8 @@ export function applyHeightMap(gcode: string, map: HeightMap, opts: ApplyHeightM
   const c = map.config
   const note =
     vars !== undefined
-      ? `TraceMill: auto-levelled with the ${c.countX}x${c.countY} heights the TraceMill probe program left in Mach3 variables #${vars}-#${vars + c.countX * c.countY - 1}, max segment ${fmtNum(maxSeg, 3)} mm, applied below Z${fmtNum(below, 3)} mm`
-      : `TraceMill: auto-levelled with ${c.countX}x${c.countY} height map, range ${fmtNum(st.range, 3)} mm, max segment ${fmtNum(maxSeg, 3)} mm, applied below Z${fmtNum(below, 3)} mm`
+      ? `PCB TraceMill: auto-levelled with the ${c.countX}x${c.countY} heights the PCB TraceMill probe program left in Mach3 variables #${vars}-#${vars + c.countX * c.countY - 1}, max segment ${fmtNum(maxSeg, 3)} mm, applied below Z${fmtNum(below, 3)} mm`
+      : `PCB TraceMill: auto-levelled with ${c.countX}x${c.countY} height map, range ${fmtNum(st.range, 3)} mm, max segment ${fmtNum(maxSeg, 3)} mm, applied below Z${fmtNum(below, 3)} mm`
   const header = usesSemicolon && !usesParens ? `; ${note}` : `(${note})`
   let insertAt = 0
   while (insertAt < out.length && out[insertAt].trim() === '%') insertAt++

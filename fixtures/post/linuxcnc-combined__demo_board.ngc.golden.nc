@@ -1,5 +1,5 @@
 %
-(TraceMill G-code - linuxcnc post)
+(PCB TraceMill G-code - linuxcnc post)
 (Project: demo board)
 (File: demo_board.ngc)
 (Machine: LinuxCNC mill)

@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PCB TraceMill – free PCB milling software: Gerber to G-code for hobby CNC (Mach3, GRBL, LinuxCNC)</title>
+  <meta name="description" content="PCB TraceMill is free, open-source software that turns Gerber and drill files from KiCad, EasyEDA, Altium or Eagle into ready-to-run G-code for your hobby CNC router: isolation milling, drilling, cutout with tabs, double-sided boards, 3D simulation and auto-levelling." />
+  <meta name="keywords" content="PCB milling, Gerber to G-code, isolation milling, CNC PCB, Mach3 PCB, GRBL PCB, LinuxCNC, auto-level, height map, KiCad CNC, FlatCAM alternative, PCB prototyping, V-bit" />
+  <link rel="canonical" href="https://aazriel.github.io/pcbtracemill/" />
+  <link rel="icon" type="image/png" href="img/icon.png" />
+  <meta name="theme-color" content="#0b1220" />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="PCB TraceMill" />
+  <meta property="og:title" content="PCB TraceMill – mill your own PCBs on a hobby CNC" />
+  <meta property="og:description" content="Free PCB milling software: Gerber & drill files to G-code for Mach3, GRBL and LinuxCNC, with a realistic 3D preview and auto-levelling." />
+  <meta property="og:url" content="https://aazriel.github.io/pcbtracemill/" />
+  <meta property="og:image" content="https://aazriel.github.io/pcbtracemill/img/og.jpg" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="PCB TraceMill – mill your own PCBs on a hobby CNC" />
+  <meta name="twitter:description" content="Free PCB milling software: Gerber to G-code, 3D simulation and auto-levelling." />
+  <meta name="twitter:image" content="https://aazriel.github.io/pcbtracemill/img/og.jpg" />
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "PCB TraceMill",
+    "applicationCategory": "DesignApplication",
+    "operatingSystem": "Windows",
+    "description": "Free, open-source PCB milling software that turns Gerber and Excellon drill files into G-code for hobby CNC routers (Mach3, GRBL, LinuxCNC), with isolation milling, drilling, cutout, double-sided alignment, 3D simulation and auto-levelling.",
+    "url": "https://aazriel.github.io/pcbtracemill/",
+    "downloadUrl": "https://github.com/aazriel/pcbtracemill/releases",
+    "softwareVersion": "0.1.1",
+    "license": "https://opensource.org/licenses/MIT",
+    "screenshot": "https://aazriel.github.io/pcbtracemill/img/simulation.jpg",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      { "@type": "Question", "name": "Is PCB TraceMill free?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. PCB TraceMill is free and open source under the MIT license." } },
+      { "@type": "Question", "name": "Which CNC controllers does PCB TraceMill support?", "acceptedAnswer": { "@type": "Answer", "text": "Mach3 (and Mach4), GRBL senders such as Candle, UGS, bCNC and CNCjs, LinuxCNC, and a generic G-code output." } },
+      { "@type": "Question", "name": "Which PCB design programs work with PCB TraceMill?", "acceptedAnswer": { "@type": "Answer", "text": "Any program that exports Gerber RS-274X (X1/X2) and Excellon drill files: KiCad, EasyEDA, Altium, Eagle, Fusion Electronics and others." } },
+      { "@type": "Question", "name": "What is auto-levelling and do I need it?", "acceptedAnswer": { "@type": "Answer", "text": "Copper is only 0.035 mm thick and no board is perfectly flat. Auto-levelling probes the real board surface and bends the G-code to follow it, so the cut depth stays even. For fine traces it makes the difference between a working board and a scrapped one." } },
+      { "@type": "Question", "name": "Which bit should I use for PCB isolation milling?", "acceptedAnswer": { "@type": "Answer", "text": "Best results come from a tapered end mill, then a pyramid bit, then a V-bit, all with a 0.1 mm tip and 10 to 20 degrees. Use the speeds PCB TraceMill sets." } }
+    ]
+  }
+  </script>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="nav">
+    <div class="wrap nav-in">
+      <a class="brand" href="#top"><img src="img/icon.png" alt="" width="28" height="28" /> PCB TraceMill</a>
+      <nav class="links">
+        <a href="#features">Features</a>
+        <a href="#how">How it works</a>
+        <a href="#setup">Board setup</a>
+        <a href="#videos">Videos</a>
+        <a href="#faq">FAQ</a>
+        <a href="https://github.com/aazriel/pcbtracemill" rel="noopener">GitHub</a>
+      </nav>
+      <a class="btn btn-sm btn-green" href="#download">Download</a>
+    </div>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <div class="wrap hero-in">
+        <div class="hero-text">
+          <p class="eyebrow">Free &amp; open source · PCB milling</p>
+          <h1>Mill your own circuit boards on a hobby CNC</h1>
+          <p class="lead">
+            PCB TraceMill turns the Gerber and drill files from <b>KiCad, EasyEDA, Altium or Eagle</b> into safe,
+            ready-to-run G-code for <b>Mach3, GRBL and LinuxCNC</b> – with a realistic 3D preview and
+            auto-levelling for an even cut depth.
+          </p>
+          <div class="cta">
+            <a class="btn btn-green" id="dl-hero" href="https://github.com/aazriel/pcbtracemill/releases/download/v0.1.1/PCB-TraceMill-Setup-0.1.1.exe">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 19h16" /></svg>
+              Download for Windows
+            </a>
+            <a class="btn btn-ghost" href="https://github.com/aazriel/pcbtracemill" rel="noopener">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 19c-4 1.5-4-2-6-2.5m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6 0 0 0-1.3-3.2 4.2 4.2 0 0 0-.1-3.2s-1.1-.3-3.5 1.3a12 12 0 0 0-6.2 0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2 0 0 0-.1 3.2A4.6 4.6 0 0 0 4 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21" /></svg>
+              Source on GitHub
+            </a>
+          </div>
+          <p class="fine">Version 0.1.1 · Windows 10/11 (64-bit) · macOS &amp; Linux coming soon</p>
+        </div>
+        <figure class="hero-shot">
+          <img src="img/simulation.jpg" width="1600" height="960" alt="PCB TraceMill 3D simulation of a milled multimeter PCB, showing isolation grooves cut into the copper" />
+        </figure>
+      </div>
+    </section>
+
+    <section class="strip">
+      <div class="wrap strip-in">
+        <span>KiCad</span><span>EasyEDA</span><span>Altium</span><span>Eagle</span><span class="dot">→</span>
+        <span>Mach3</span><span>GRBL</span><span>LinuxCNC</span>
+      </div>
+    </section>
+
+    <section id="features" class="section">
+      <div class="wrap">
+        <h2>Everything from copper to cut-out</h2>
+        <p class="sub">One app for the whole board – and it explains every setting in plain words.</p>
+        <div class="grid">
+          <article class="card"><h3>Isolation milling</h3><p>Grooves around every trace, with <b>smart clearance</b>: one middle groove in narrow gaps, extra passes where there is room. Cut depth chosen from the measured copper gaps.</p></article>
+          <article class="card"><h3>Drilling &amp; hole milling</h3><p>Holes grouped by drill size, big holes milled with an end mill – gently spiralling down.</p></article>
+          <article class="card"><h3>Cut-out with tabs</h3><p>The board outline is cut out with holding tabs, so the board stays in place until the very end.</p></article>
+          <article class="card"><h3>Double-sided boards</h3><p>Alignment pins and a clear “flip the board” step make both sides line up.</p></article>
+          <article class="card"><h3>Realistic 3D simulation</h3><p>Watch the job being milled in shiny copper before you cut. See every groove, hole and tab – and spot problems for free.</p></article>
+          <article class="card"><h3>Auto-levelling</h3><p>Probe the real board surface and PCB TraceMill bends the G-code to follow it. On Mach3 the heights stay in its variables – no file to copy.</p></article>
+          <article class="card"><h3>Problem finder</h3><p>Places a bit cannot reach are shown on the board with one click, so nothing is silently skipped.</p></article>
+          <article class="card"><h3>Your tools, remembered</h3><p>A ready tool library (V-bits, end mills, drills, corn bits) plus your own bits, kept between projects.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section id="how" class="section alt">
+      <div class="wrap">
+        <h2>Four steps, left to right</h2>
+        <p class="sub">The app walks you through the job in four stages.</p>
+        <ol class="steps">
+          <li>
+            <div class="step-text"><span class="num">1</span><h3>Board</h3><p>Drop in your Gerber and drill files (or a ZIP). PCB TraceMill recognises every layer and shows the board in real colours.</p></div>
+            <a href="img/board.png"><img src="img/board.png" loading="lazy" width="1600" height="960" alt="PCB TraceMill Board stage: imported Gerber layers of a multimeter PCB" /></a>
+          </li>
+          <li>
+            <div class="step-text"><span class="num">2</span><h3>Manufacture</h3><p>Pick your machine and material, press <b>Recipe</b>, and you get a complete job: isolation, drilling and cut-out, with suitable bits and speeds.</p></div>
+            <a href="img/manufacture.png"><img src="img/manufacture.png" loading="lazy" width="1600" height="960" alt="PCB TraceMill Manufacture stage: toolpaths for isolation, drilling and cut-out" /></a>
+          </li>
+          <li>
+            <div class="step-text"><span class="num">3</span><h3>Simulation</h3><p>See the finished board in 3D before a single chip flies. Scrub the timeline, follow the tool, move the light.</p></div>
+            <a href="img/simulation.jpg"><img src="img/simulation.jpg" loading="lazy" width="1600" height="960" alt="PCB TraceMill 3D simulation of the finished board" /></a>
+          </li>
+          <li>
+            <div class="step-text"><span class="num">4</span><h3>Export</h3><p>Probe the board for an even depth, then save the G-code files – one per step or per tool – ready for your controller.</p></div>
+            <a href="img/export.png"><img src="img/export.png" loading="lazy" width="1600" height="960" alt="PCB TraceMill Export stage with auto-levelling and the G-code file list" /></a>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <section id="setup" class="section">
+      <div class="wrap two">
+        <div>
+          <h2>An even cut depth, every time</h2>
+          <p class="sub left">Copper is only 0.035 mm thick. The software is half the story – the other half is how the board sits on the machine. PCB TraceMill comes with an animated <b>board setup guide</b> learned from real test runs:</p>
+          <ul class="ticks">
+            <li><b>Centre the board</b> on the sheet – the middle is the flattest part.</li>
+            <li><b>Solder a ground point</b> on a corner for the probe clip.</li>
+            <li><b>Masking tape on the board and on the table, glue between</b>, press together.</li>
+            <li><b>Wait about 30 minutes</b> for the tape to settle, then probe – and mill right after.</li>
+            <li><b>Use the speeds PCB TraceMill sets</b>: fast cuts push the board and snap 0.1 mm tips.</li>
+            <li>Best bits: <b>tapered end mill</b>, then <b>pyramid bit</b>, then <b>V-bit</b> (0.1 mm, 10–20°).</li>
+          </ul>
+        </div>
+        <div class="stack">
+          <img src="img/sim-close.jpg" loading="lazy" width="1180" height="717" alt="Close-up of isolation grooves in the PCB TraceMill simulation" />
+          <img src="img/guide.png" loading="lazy" alt="PCB TraceMill board setup guide: tape it down" />
+        </div>
+      </div>
+    </section>
+
+    <section id="videos" class="section alt">
+      <div class="wrap">
+        <h2>See it in action</h2>
+        <p class="sub">Short clips of real boards being made with PCB TraceMill.</p>
+        <!-- To add a clip: copy one <div class="video"> and put the YouTube id in the src:
+             <div class="video"><iframe src="https://www.youtube-nocookie.com/embed/VIDEO_ID" title="..." loading="lazy" allowfullscreen></iframe></div> -->
+        <div class="videos">
+          <div class="video soon"><span>Video coming soon</span></div>
+          <div class="video soon"><span>Video coming soon</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="download" class="section">
+      <div class="wrap center">
+        <h2>Download PCB TraceMill</h2>
+        <p class="sub">Free for everyone. No account, no ads.</p>
+        <div class="dl">
+          <a class="dl-card" href="https://github.com/aazriel/pcbtracemill/releases/download/v0.1.1/PCB-TraceMill-Setup-0.1.1.exe">
+            <b>Windows</b><span>10 / 11 · 64-bit installer</span><em>Download</em>
+          </a>
+          <div class="dl-card off"><b>macOS</b><span>Apple Silicon &amp; Intel</span><em>Coming soon</em></div>
+          <div class="dl-card off"><b>Linux</b><span>AppImage · .deb</span><em>Coming soon</em></div>
+        </div>
+        <p class="fine">
+          Windows may show “Windows protected your PC” because the installer is not code-signed yet:
+          click <b>More info → Run anyway</b>.
+          <a href="https://github.com/aazriel/pcbtracemill/releases">All releases</a>
+        </p>
+      </div>
+    </section>
+
+    <section id="faq" class="section alt">
+      <div class="wrap narrow">
+        <h2>Questions</h2>
+        <details><summary>Is PCB TraceMill free?</summary><p>Yes – free and open source under the MIT license. The code is on <a href="https://github.com/aazriel/pcbtracemill">GitHub</a>.</p></details>
+        <details><summary>Which CNC controllers are supported?</summary><p>Mach3 (and Mach4), GRBL senders such as Candle, UGS, bCNC and CNCjs, LinuxCNC, and a generic G-code output for others.</p></details>
+        <details><summary>Which PCB design programs work?</summary><p>Any that export Gerber RS-274X (X1/X2) and Excellon drill files: KiCad, EasyEDA, Altium, Eagle, Fusion Electronics and more.</p></details>
+        <details><summary>What is auto-levelling, and do I need it?</summary><p>No board is perfectly flat, and copper is only 0.035 mm thick. Auto-levelling touches the board at many points and bends the G-code to follow the real surface, so the cut depth stays even. For fine traces it is the difference between a working board and a scrapped one.</p></details>
+        <details><summary>Do I need to install macros in Mach3?</summary><p>No. By default the probe program is plain G-code and Mach3 keeps the heights in its own variables; the corrected files read them directly.</p></details>
+        <details><summary>Which bit should I use?</summary><p>Best results: a tapered end mill, then a pyramid bit, then a V-bit – all with a 0.1 mm tip and 10–20°. You can probe with the same bit; just keep the speeds PCB TraceMill sets.</p></details>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <div class="wrap foot-in">
+      <span>© 2026 PCB TraceMill contributors · MIT license</span>
+      <span><a href="https://github.com/aazriel/pcbtracemill">GitHub</a> · <a href="https://github.com/aazriel/pcbtracemill/issues">Report a problem</a> · <a href="https://github.com/aazriel/pcbtracemill/releases">Releases</a></span>
+    </div>
+  </footer>
+</body>
+</html>

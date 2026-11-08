@@ -1,4 +1,4 @@
-(TraceMill auto-level probe program - grbl - G38.2)
+(PCB TraceMill auto-level probe program - grbl - G38.2)
 (Grid 3 x 2 = 6 points, X0..20 Y0..10, spacing 10 x 10 mm)
 (Probe feed 20 mm/min, max depth Z-2, lift 0.5 mm above each touch)
 (The bit lifts only a little above each touch - if a point does NOT touch, stop the machine.)
@@ -9,9 +9,9 @@
 (SETUP: zero X/Y as for milling and zero Z on the copper at the first point X0 Y0)
 (This program does not change work offsets. Heights are relative to the first probed point.)
 (After a bit change Z0 must be at the copper of the first point again.)
-(TraceMill corrected files can find it with the probe - set Z only roughly then.)
+(PCB TraceMill corrected files can find it with the probe - set Z only roughly then.)
 (RESULTS: GRBL prints [PRB:x,y,z:1] for every point. Save the sender console log and import it.)
-(GRBL reports machine coordinates. TraceMill aligns them to this grid using the first point.)
+(GRBL reports machine coordinates. PCB TraceMill aligns them to this grid using the first point.)
 (GRBL raises an ALARM if the probe never touches - nothing is damaged, check the clip.)
 G21
 G90 G94 G17

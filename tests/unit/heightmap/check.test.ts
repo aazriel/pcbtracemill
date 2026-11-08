@@ -82,7 +82,7 @@ describe('Mach3 digitize-file failures', () => {
     const r = importProbeLog(new Array(90).fill(line).join('\n'))
     expect(r.map).toBeNull()
     expect(r.errors[0]).toMatch(/same point \(X53\.575 Y238\.415 Z11\.36\), 90 times/)
-    expect(r.errors[1]).toMatch(/TraceMill macros/)
+    expect(r.errors[1]).toMatch(/PCB TraceMill macros/)
   })
 
   it('adds the Mach3 hint to the max-depth error of a digitize file', () => {
