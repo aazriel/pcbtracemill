@@ -490,3 +490,103 @@ export function TabsFigure({ tabs }: { tabs: number }): ReactNode {
     </Scene>
   )
 }
+
+/**
+ * Smart clearance, top view of two traces with a narrow gap: on the left one groove along each
+ * trace (the normal passes), on the right one groove down the middle. Then the cut comes out a bit
+ * wider than planned: along the edges that eats the traces (red), in the middle only the gap.
+ */
+export function SmartClearanceFigure({ maxGap }: { maxGap: number }): ReactNode {
+  const dur = '6s'
+  const RED = '#ef4444'
+  const aY = [30, 58]
+  const bY = [74, 102]
+  const grow = 3
+  // [y0, y1, cut from, cut to] as fractions of the loop
+  const panel = (x0: number, smart: boolean): ReactNode => {
+    const x1 = x0 + 150
+    const grooves: [number, number, number, number][] = smart
+      ? [[62, 70, 0, 0.4]]
+      : [
+          [58, 65, 0, 0.2],
+          [67, 74, 0.2, 0.4]
+        ]
+    // the extra width of a slightly wide cut: [y0, y1, eats a trace?]
+    const extra: [number, number, boolean][] = smart
+      ? [
+          [62 - grow, 62, false],
+          [70, 70 + grow, false]
+        ]
+      : [
+          [58 - grow, 58, true],
+          [74, 74 + grow, true],
+          [65, 67, false]
+        ]
+    const wide = { values: '0;0;1;1;0', keyTimes: '0;0.5;0.62;0.94;1', dur, repeatCount: 'indefinite' }
+    return (
+      <g>
+        <rect x={x0} y={22} width={150} height={88} fill={COPPER} />
+        <rect x={x0} y={aY[0]} width={150} height={aY[1] - aY[0]} fill={TRACE} />
+        <rect x={x0} y={bY[0]} width={150} height={bY[1] - bY[0]} fill={TRACE} />
+        <Label x={x0 + 6} y={aY[0] + 17} color="#3b2410" size={9}>
+          trace
+        </Label>
+        <Label x={x0 + 6} y={bY[0] + 17} color="#3b2410" size={9}>
+          trace
+        </Label>
+        {grooves.map(([y0, y1, t0, t1], i) => (
+          <g key={i}>
+            <rect x={x0} y={y0} width={0} height={y1 - y0} fill={FR4}>
+              <animate
+                attributeName="width"
+                values="0;0;150;150"
+                keyTimes={`0;${kt(t0)};${kt(t1)};1`}
+                dur={dur}
+                repeatCount="indefinite"
+              />
+            </rect>
+            <circle r={(y1 - y0) / 2 + 1} cy={(y0 + y1) / 2} fill="rgba(226,232,240,0.3)" stroke="#e2e8f0">
+              <animate
+                attributeName="cx"
+                values={`${x0};${x0};${x1};${x1}`}
+                keyTimes={`0;${kt(t0)};${kt(t1)};1`}
+                dur={dur}
+                repeatCount="indefinite"
+              />
+              <animate
+                attributeName="opacity"
+                values="0;0;1;1;0;0"
+                keyTimes={`0;${kt(t0)};${kt(t0 + 0.001)};${kt(t1)};${kt(t1 + 0.001)};1`}
+                dur={dur}
+                repeatCount="indefinite"
+              />
+            </circle>
+          </g>
+        ))}
+        {extra.map(([y0, y1, bad], i) => (
+          <rect key={i} x={x0} y={y0} width={150} height={y1 - y0} fill={bad ? RED : FR4} opacity={0}>
+            <animate attributeName="opacity" {...wide} />
+          </rect>
+        ))}
+        <Label x={x0 + 75} y={14} anchor="middle" color="#e2e8f0" size={10.5}>
+          {smart ? 'Smart: 1 groove in the middle' : 'Normal: 1 groove per trace'}
+        </Label>
+        <g opacity={0}>
+          <animate attributeName="opacity" {...wide} />
+          <Label x={x0 + 75} y={126} anchor="middle" color={smart ? '#86efac' : '#fca5a5'} size={10}>
+            {smart ? 'cut a bit wide: gap only, traces OK' : 'cut a bit wide: eats both traces'}
+          </Label>
+        </g>
+      </g>
+    )
+  }
+  return (
+    <Scene
+      height={136}
+      caption={`Gaps up to ${r2(maxGap)} mm get ONE groove down their middle instead of one along each trace. A V-bit always cuts a little wider than planned (board not flat, worn tip): in the middle that only widens the gap, along the edges it thins your traces. Wider gaps are still cut along each trace.`}
+    >
+      {panel(4, false)}
+      {panel(166, true)}
+    </Scene>
+  )
+}

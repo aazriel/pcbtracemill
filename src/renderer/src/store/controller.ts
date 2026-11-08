@@ -711,6 +711,7 @@ export function startNewProject(): void {
   timer = null
   gapCache.clear()
   useProject.getState().reset()
+  addUserTools() // the saved tools belong in every project
   useProject.temporal.getState().clear()
   useUi.getState().set({
     confirmNew: false,

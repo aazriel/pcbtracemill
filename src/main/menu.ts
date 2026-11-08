@@ -1,8 +1,13 @@
 import { Menu, BrowserWindow, app, ipcMain, type MenuItemConstructorOptions } from 'electron'
 import type { MenuCommand, MenuState } from '../shared/ipc-types'
 
+/**
+ * Sends a menu command to the app window. Not only to the focused window: Electron can report none
+ * (remote desktop, focus in a native dialog), and the command was then silently dropped.
+ */
 function send(cmd: MenuCommand): void {
-  BrowserWindow.getFocusedWindow()?.webContents.send('menu', cmd)
+  const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows().find((w) => !w.isDestroyed())
+  win?.webContents.send('menu', cmd)
 }
 
 /** Design programs offered in Settings → Design program (ids match the renderer's EdaTool). */
