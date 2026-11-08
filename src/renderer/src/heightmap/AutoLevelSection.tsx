@@ -191,8 +191,13 @@ export function AutoLevelSection({
             title={varsMode || isVarsMap ? 'Run it in Mach3' : 'Run it, then load the results'}
             done={!!map}
             failed={failed && !map}
+            disabled={!al.probeSaved && !map}
           >
-            {varsMode && !isVarsMap ? (
+            {!al.probeSaved && !map ? (
+              <p className="text-[11px] text-slate-500" data-testid="probe-run-wait">
+                Make the probe program first (step 1). Then this step shows what to do with it.
+              </p>
+            ) : varsMode && !isVarsMap ? (
               <>
                 <p className="text-[11px] text-slate-500">
                   Mach3 keeps every height in its variables – there is no file to load. When the probe program
