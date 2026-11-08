@@ -19,7 +19,7 @@ import type {
 } from '@core/model/types'
 import { computeBoardBBox } from '@core/model/board'
 import { DEFAULT_MACHINE_ID, MACHINE_PRESETS, refreshPresetHeights } from '@core/machines'
-import { refreshStarterFeeds, STARTER_TOOLS } from '@core/tools'
+import { refreshStarterFeeds, STARTER_TOOLS, withStarterTools } from '@core/tools'
 import { withUserTools } from '@renderer/tools/toolLibrary'
 import {
   combinedClearance,
@@ -138,7 +138,10 @@ export function ensureDefaults(): void {
   if (!p.machine) p.setMachine(MACHINE_PRESETS.find((m) => m.id === DEFAULT_MACHINE_ID) ?? MACHINE_PRESETS[0])
   else refreshMachineHeights()
   if (!p.tools.length) p.setTools(STARTER_TOOLS.map((t) => ({ ...t })))
-  else refreshToolFeeds()
+  else {
+    addStarterTools()
+    refreshToolFeeds()
+  }
   addUserTools()
   syncMaterialToBoard()
 }
@@ -150,6 +153,20 @@ export function ensureDefaults(): void {
 export function addUserTools(): void {
   const p = useProject.getState()
   const next = withUserTools(p.tools)
+  if (next === p.tools) return
+  const t = useProject.temporal.getState()
+  t.pause()
+  useProject.setState({ tools: next })
+  t.resume()
+}
+
+/**
+ * A project without any built-in tool gets them back (a new project briefly had only the saved
+ * tools, so its recipe found no drill or cutout bit). Not an edit: no undo step.
+ */
+function addStarterTools(): void {
+  const p = useProject.getState()
+  const next = withStarterTools(p.tools)
   if (next === p.tools) return
   const t = useProject.temporal.getState()
   t.pause()
@@ -805,6 +822,7 @@ export async function loadProjectText(content: string, path: string | null): Pro
     if (fresh.parsed) parsed[l.id] = fresh.parsed
   }
   useProject.getState().loadProject(project, parsed, path)
+  addStarterTools()
   refreshToolFeeds()
   refreshMachineHeights()
   addUserTools()

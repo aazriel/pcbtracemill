@@ -323,6 +323,17 @@ function buildStarterTools(): Tool[] {
 export const STARTER_TOOLS: Tool[] = buildStarterTools()
 
 /**
+ * `tools` with the starter tools in front when it has no built-in tool at all (built-ins cannot be
+ * deleted, so that list is broken: e.g. a new project that got only the saved tools, which then had
+ * no tool for drilling or the cutout). Returns the same array when nothing is missing.
+ */
+export function withStarterTools(tools: Tool[]): Tool[] {
+  if (tools.some((t) => t.builtIn)) return tools
+  const have = new Set(tools.map((t) => t.id))
+  return [...STARTER_TOOLS.filter((t) => !have.has(t.id)).map((t) => ({ ...t })), ...tools]
+}
+
+/**
  * Starter V-bits that still carry the old (too fast) feeds get the current ones; tools the user
  * edited are left alone. Returns the same array when nothing changed.
  */
