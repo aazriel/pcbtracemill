@@ -1,4 +1,5 @@
 import { X } from 'lucide-react'
+import { Branch } from '@radix-ui/react-dismissable-layer'
 import { useUi } from '@renderer/store/ui'
 import { cn } from '@renderer/lib/utils'
 
@@ -7,7 +8,8 @@ export function Toasts(): React.JSX.Element {
   const dismiss = useUi((s) => s.dismissToast)
   const hold = useUi((s) => s.holdToast)
   return (
-    <div
+    // a Branch: clicks on a toast (its X) do not count as clicks outside an open dialog
+    <Branch
       className="pointer-events-none fixed bottom-4 right-4 z-[200] flex w-96 flex-col gap-2"
       role="status"
       data-toasts
@@ -37,6 +39,6 @@ export function Toasts(): React.JSX.Element {
           </button>
         </div>
       ))}
-    </div>
+    </Branch>
   )
 }
