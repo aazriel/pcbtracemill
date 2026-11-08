@@ -332,7 +332,7 @@ export function ParamsSection({
       )
       const extraField = (
         <NumberField
-          label={ip.smart ? 'Extra clearance (wider gaps)' : 'Extra clearance'}
+          label={ip.smart ? `Extra clearance (gaps over ${ip.smartMaxGap ?? 1} mm)` : 'Extra clearance'}
           unit="mm"
           min={0}
           step={0.05}
@@ -341,7 +341,7 @@ export function ParamsSection({
           onChange={(v) => setParam(update, 'isolation', { extraClearance: v })}
           description={
             ip.smart
-              ? 'Open areas: keeps the passes this far from the copper, so a slightly wide groove does not eat a thin trace.'
+              ? `Still used with smart clearance, but only where copper is more than ${ip.smartMaxGap ?? 1} mm apart: the passes stay this far from it. Narrower gaps get the middle groove and ignore this.`
               : 'Moves the first pass further away from the copper, leaving a wider gap.'
           }
           {...fig(help('isolation.extraClearance'), <ExtraClearanceFigure extra={ip.extraClearance} />)}

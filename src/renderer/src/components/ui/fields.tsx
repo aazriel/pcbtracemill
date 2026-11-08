@@ -107,7 +107,13 @@ export function NumberField({
   // Local text state lets users type "0." or "-" without being clobbered.
   const [text, setText] = useState(fmt(shownValue))
   useEffect(() => {
-    setText((t) => (Math.abs(Number(t) - shownValue) < 1e-9 ? t : fmt(shownValue)))
+    setText((t) =>
+      Math.abs(Number(t) - shownValue) < 1e-9 ||
+      // typed over the limit and the limit was applied: keep what was typed (with its message)
+      (shownMax !== undefined && Number(t) > shownMax && Math.abs(shownValue - shownMax) < 1e-9)
+        ? t
+        : fmt(shownValue)
+    )
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shownValue])
   const commit = (t: string): void => {
@@ -122,16 +128,28 @@ export function NumberField({
     if (v !== n) setText(fmt(v))
     onChange(v / f)
   }
+  // a typed value outside the limits is not applied: say so instead of silently keeping the old one
+  const typed = Number(text)
+  const unitText = conv.unit ? ` ${conv.unit}` : ''
+  const rangeError =
+    text.trim() === '' || !Number.isFinite(typed)
+      ? undefined
+      : shownMax !== undefined && typed > shownMax
+        ? `At most ${fmt(shownMax)}${unitText}.`
+        : shownMin !== undefined && typed < shownMin
+          ? `At least ${fmt(shownMin)}${unitText}.`
+          : undefined
+  const err = rangeError ?? shell.error
   return (
-    <FieldShell {...shell}>
+    <FieldShell {...shell} error={err}>
       <div className="relative">
         <input
           type="number"
           className={cn(
             inputCls,
             conv.unit && 'pr-12',
-            shell.error && 'border-rose-500',
-            !shell.error && shell.warning && 'border-amber-500'
+            err && 'border-rose-500',
+            !err && shell.warning && 'border-amber-500'
           )}
           value={text}
           step={shownStep}
@@ -142,13 +160,11 @@ export function NumberField({
           onChange={(e) => {
             setText(e.target.value)
             const n = Number(e.target.value)
-            if (
-              e.target.value.trim() !== '' &&
-              Number.isFinite(n) &&
-              (shownMin === undefined || n >= shownMin) &&
-              (shownMax === undefined || n <= shownMax)
-            )
-              onChange(n / f)
+            if (e.target.value.trim() === '' || !Number.isFinite(n)) return
+            // over the limit: use the limit meanwhile (the field says so); under it the user is
+            // probably still typing ("0." on the way to "0.25"), so the old value stays
+            if (shownMax !== undefined && n > shownMax) onChange(shownMax / f)
+            else if (shownMin === undefined || n >= shownMin) onChange(n / f)
           }}
           onBlur={(e) => commit(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && commit((e.target as HTMLInputElement).value)}

@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Gauge, NotebookPen, Ruler, Tag } from 'lucide-react'
 import type { StepKind, Tool, ToolType } from '@core/model/types'
+import { toolNameClash } from './toolLibrary'
 import { TOOL_FIELD_HELP, TOOL_TYPE_INFO, createTool, type ToolFieldKey } from '@core/tools'
 import { defaultCutDepth } from '@core/cam'
 import { NumberField, SelectField, TextField } from '@renderer/components/ui/fields'
@@ -128,6 +129,7 @@ export function ToolEditor({
     onChange({ ...draft, geometry: { ...g, ...patch } })
   const setFeeds = (patch: Partial<Tool['feeds']>): void => onChange({ ...draft, feeds: { ...f, ...patch } })
   const numberClash = otherTools.find((t) => t.id !== draft.id && t.number === draft.number)
+  const nameClash = readOnly ? undefined : toolNameClash(otherTools, draft)
   const chipLoad = f.spindleRpm > 0 && g.flutes > 0 ? f.feedXY / (f.spindleRpm * g.flutes) : 0
   const depthMatters = draft.type === 'vbit' || draft.type === 'ball'
   const cone = draft.type === 'vbit' ? coneLength(draft) : 0
@@ -231,6 +233,13 @@ export function ToolEditor({
               value={draft.name}
               onChange={(name) => onChange({ ...draft, name })}
               error={fe.name}
+              warning={
+                nameClash
+                  ? nameClash.builtIn
+                    ? `A built-in tool is already called "${nameClash.name}". Choose another name.`
+                    : `A tool named "${nameClash.name}" already exists. Saving asks to replace it.`
+                  : null
+              }
               placeholder="e.g. V-bit 30° 0.1 mm"
             />
             <SelectField<ToolType>

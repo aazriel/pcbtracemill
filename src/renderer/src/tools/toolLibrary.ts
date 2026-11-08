@@ -74,3 +74,19 @@ export function withUserTools(tools: Tool[]): Tool[] {
   const missing = library.filter((t) => !have.has(t.id))
   return missing.length ? [...tools, ...missing.map((t) => ({ ...t }))] : tools
 }
+
+/** Another tool with the same name as `t` (names are unique, ignoring case and outer spaces). */
+export function toolNameClash(tools: Tool[], t: Tool): Tool | undefined {
+  const n = t.name.trim().toLowerCase()
+  if (!n) return undefined
+  return tools.find((x) => x.id !== t.id && x.name.trim().toLowerCase() === n)
+}
+
+/** `name`, or "name 2", "name 3"… when another tool already has it. */
+export function uniqueToolName(tools: Tool[], name: string): string {
+  const used = new Set(tools.map((t) => t.name.trim().toLowerCase()))
+  if (!used.has(name.trim().toLowerCase())) return name
+  let i = 2
+  while (used.has(`${name} ${i}`.toLowerCase())) i++
+  return `${name} ${i}`
+}
