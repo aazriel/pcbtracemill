@@ -10,7 +10,8 @@ import {
   Pentagon,
   ShieldAlert,
   Save,
-  Square
+  Square,
+  Pin
 } from 'lucide-react'
 import type { Path, ProbeGridConfig } from '@core/model/types'
 import { HELP } from '@core/help'
@@ -189,6 +190,29 @@ function IntroPage({
           )}
         </ul>
       </div>
+      <div
+        className="rounded-lg border border-sky-500/40 bg-sky-500/10 p-3 text-sm text-sky-100"
+        data-testid="probe-hold-board"
+      >
+        <div className="mb-1 flex items-center gap-2 font-semibold text-sky-300">
+          <Pin className="size-4" /> For an even cut depth – keep the board still
+        </div>
+        <ul className="list-disc space-y-0.5 pl-5 text-xs leading-relaxed">
+          <li>
+            The height map is only right while the board stays exactly as it was probed. Tape slowly lets go
+            and a corner can rise 0.5 mm or more in half an hour – then one side is cut too deep and the other
+            barely scratched.
+          </li>
+          <li>
+            Hold the <b>corners</b> down (clamps, screws or a holder), put the board in the <b>middle</b> of
+            the sheet, and start milling <b>right after</b> probing.
+          </li>
+          <li>
+            Watch the first points: if the bit doesn’t go down to the copper, the controller missed that
+            touch. Stop and run the probe program again.
+          </li>
+        </ul>
+      </div>
       <p className="text-sm text-slate-300">{HELP['autolevel.probing']?.body} Here is the whole process:</p>
       <ol className="flex flex-col gap-2">
         <IntroStep n={1} title="Connect the probe" art={<ConnectIllustration />}>
@@ -224,7 +248,15 @@ function IntroPage({
               {k === dialect && ' (your machine)'}: {v.body}
             </span>
           ))}
-          Then come back here and use <b>2. Import probe results</b>.
+          {dialect === 'mach3' ? (
+            <>
+              Then come back here and press <b>Probing done</b> (with the default Mach3 variables).
+            </>
+          ) : (
+            <>
+              Then come back here and use <b>Load probe results</b>.
+            </>
+          )}
         </IntroStep>
       </ol>
       <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-700 bg-slate-900 p-3 text-sm text-slate-200">
