@@ -151,3 +151,8 @@ Isolation option `IsolationParams.smart` (+ `smartMaxGap`, default 1 mm; recomme
 - Tool names are unique (case and outer spaces ignored). The library warns at the name field; saving under a taken name asks to replace that tool, which keeps its id (and its steps) and takes the new values. New and duplicated tools get a free name ("… 2").
 - A number typed over a field's maximum is not silently ignored: the field says "At most …" and the maximum is used while typing (the material width typed as 500 used to leave 50, the last valid keystroke).
 - Manufacture has its own "Highlight traces" switch, off by default (session only); the Board stage keeps the project setting.
+
+## D-036 Board in the middle of the material
+Probing tests on a Mach3 machine (2026-11-08) showed the board changing shape after it was probed: a corner taped near the sheet edge rose or settled by 0.03-0.08 mm (once 1.2 mm when the tape let go) while the middle stayed within the touch spread. Auto-levelling corrects the shape that was measured, not a shape that changes later, so the board goes where the sheet is flattest and moves least: the middle.
+- The default material already centres the board (board + 2.5 mm each side). New: typing another stock size keeps the board centred on every axis where it was centred (`resizeKeepingCentre`); an axis the user placed elsewhere keeps its offset. Before, a bigger sheet left the board 2.5 mm from the front-left corner.
+- The placement section says why: green "Centred - recommended" when it is, an amber tip to centre it when not. The centre quick-placement button says it is the recommended spot.
