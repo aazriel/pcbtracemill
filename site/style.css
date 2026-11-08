@@ -99,6 +99,7 @@ a.dl-card { border-color: rgba(16, 185, 129, 0.5); }
 a.dl-card:hover { text-decoration: none; background: rgba(16, 185, 129, 0.08); }
 .dl-card.off { opacity: 0.55; }
 .dl-card.off em { color: var(--muted); }
+code { background: #1e293b; color: var(--head); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
 
 details { border: 1px solid var(--line); border-radius: 10px; padding: 14px 18px; margin-bottom: 10px; background: var(--bg); }
 summary { cursor: pointer; color: var(--head); font-weight: 600; }

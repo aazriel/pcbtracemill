@@ -29,7 +29,7 @@
     "@type": "SoftwareApplication",
     "name": "PCB TraceMill",
     "applicationCategory": "DesignApplication",
-    "operatingSystem": "Windows",
+    "operatingSystem": "Windows, macOS, Linux",
     "description": "Free, open-source PCB milling software that turns Gerber and Excellon drill files into G-code for hobby CNC routers (Mach3, GRBL, LinuxCNC), with isolation milling, drilling, cutout, double-sided alignment, 3D simulation and auto-levelling.",
     "url": "https://aazriel.github.io/pcbtracemill/",
     "downloadUrl": "https://github.com/aazriel/pcbtracemill/releases",
@@ -91,7 +91,7 @@
               Source on GitHub
             </a>
           </div>
-          <p class="fine">Version 0.1.1 · Windows 10/11 (64-bit) · macOS &amp; Linux coming soon</p>
+          <p class="fine">Version 0.1.1 · Also for <a href="#download">macOS and Linux</a></p>
         </div>
         <figure class="hero-shot">
           <img src="img/simulation.jpg" width="1600" height="960" alt="PCB TraceMill 3D simulation of a milled multimeter PCB, showing isolation grooves cut into the copper" />
@@ -190,12 +190,16 @@
           <a class="dl-card" href="https://github.com/aazriel/pcbtracemill/releases/download/v0.1.1/PCB-TraceMill-Setup-0.1.1.exe">
             <b>Windows</b><span>10 / 11 · 64-bit installer</span><em>Download</em>
           </a>
-          <div class="dl-card off"><b>macOS</b><span>Apple Silicon &amp; Intel</span><em>Coming soon</em></div>
-          <div class="dl-card off"><b>Linux</b><span>AppImage · .deb</span><em>Coming soon</em></div>
+          <a class="dl-card" href="https://github.com/aazriel/pcbtracemill/releases/download/v0.1.1/PCB-TraceMill-0.1.1-universal.dmg"><b>macOS</b><span>Apple Silicon &amp; Intel · .dmg</span><em>Download</em></a>
+          <a class="dl-card" href="https://github.com/aazriel/pcbtracemill/releases/download/v0.1.1/PCB-TraceMill-0.1.1-x86_64.AppImage"><b>Linux</b><span>AppImage · any distribution</span><em>Download</em></a>
         </div>
         <p class="fine">
           Windows may show “Windows protected your PC” because the installer is not code-signed yet:
-          click <b>More info → Run anyway</b>.
+          click <b>More info → Run anyway</b>.<br />
+          macOS: the app is not notarised yet – right-click it and choose <b>Open</b>, or if it says it is damaged,
+          run <code>xattr -cr "/Applications/PCB TraceMill.app"</code> in Terminal once.<br />
+          Linux: make the AppImage executable (<code>chmod +x</code>) and run it, or install the
+          <a href="https://github.com/aazriel/pcbtracemill/releases/download/v0.1.1/PCB-TraceMill-0.1.1-amd64.deb">.deb package</a> on Ubuntu / Debian.
           <a href="https://github.com/aazriel/pcbtracemill/releases">All releases</a>
         </p>
       </div>
