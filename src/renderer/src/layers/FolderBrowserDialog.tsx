@@ -6,8 +6,18 @@ import { Dialog } from '@renderer/components/ui/dialog'
 import { Button } from '@renderer/components/ui/button'
 import { cn } from '@renderer/lib/utils'
 
+interface FolderPickRequest {
+  extensions: string[]
+  program: string
+  resolve: (path: string | null) => void
+  /** Folder shown first (null: the home folder). */
+  start?: string | null
+  /** Choosing where projects are saved (instead of a folder to import). */
+  saveTo?: boolean
+}
+
 interface FolderPickState {
-  request: { extensions: string[]; program: string; resolve: (path: string | null) => void } | null
+  request: FolderPickRequest | null
 }
 
 const usePick = create<FolderPickState>()(() => ({ request: null }))
@@ -17,10 +27,18 @@ const usePick = create<FolderPickState>()(() => ({ request: null }))
  * also lists the files in each folder (they cannot be chosen), so the user can see the PCB files
  * are there. Resolves to the folder path, or null when cancelled.
  */
-export function pickFolder(extensions: string[], program: string): Promise<string | null> {
+export function pickFolder(extensions: string[], program: string, start?: string | null): Promise<string | null> {
   return new Promise((resolve) => {
     usePick.getState().request?.resolve(null)
-    usePick.setState({ request: { extensions, program, resolve } })
+    usePick.setState({ request: { extensions, program, resolve, start } })
+  })
+}
+
+/** The same browser, for choosing where new projects are saved (shows the .tmill projects inside). */
+export function pickSaveFolder(start: string | null): Promise<string | null> {
+  return new Promise((resolve) => {
+    usePick.getState().request?.resolve(null)
+    usePick.setState({ request: { extensions: ['tmill'], program: '', resolve, start, saveTo: true } })
   })
 }
 
@@ -47,13 +65,17 @@ export function FolderBrowserDialog(): React.JSX.Element | null {
   const [error, setError] = useState<string | null>(null)
   const api = window.tracemill
 
-  const go = async (path: string | null): Promise<void> => {
+  const go = async (path: string | null, fallBack = false): Promise<void> => {
     if (!api) return
     setLoading(true)
     setError(null)
     try {
       setListing(await api.listFolder(path))
     } catch {
+      if (fallBack && path) {
+        setLoading(false)
+        return go(null)
+      }
       setError('This folder cannot be opened.')
     } finally {
       setLoading(false)
@@ -62,13 +84,15 @@ export function FolderBrowserDialog(): React.JSX.Element | null {
 
   useEffect(() => {
     if (!request || !api) return
-    void go(null)
+    // a folder that no longer exists falls back to the home folder
+    void go(request.start ?? null, true)
     void api.folderPlaces().then(setPlaces)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [request])
 
   if (!request) return null
-  const exts = new Set([...request.extensions, 'zip'])
+  const saveTo = !!request.saveTo
+  const exts = new Set(saveTo ? request.extensions : [...request.extensions, 'zip'])
   const finish = (path: string | null): void => {
     request.resolve(path)
     usePick.setState({ request: null })
@@ -80,15 +104,21 @@ export function FolderBrowserDialog(): React.JSX.Element | null {
     <Dialog
       open
       onOpenChange={(o) => !o && finish(null)}
-      title="Import a folder"
-      description={`Open the folder that holds your ${request.program} fabrication files, then press “Import this folder”. Files are shown so you can see what is inside; matching ones are highlighted.`}
+      title={saveTo ? 'Where to save your projects' : 'Import a folder'}
+      description={
+        saveTo
+          ? 'Open the folder new projects should be saved in, then press “Save projects here”. Projects already in a folder are highlighted.'
+          : `Open the folder that holds your ${request.program} fabrication files, then press “Import this folder”. Files are shown so you can see what is inside; matching ones are highlighted.`
+      }
       className="w-[min(94vw,880px)]"
       bodyClassName="flex h-[60vh] gap-3 overflow-hidden"
       footer={
         <>
           <span className="mr-auto text-xs text-slate-400" data-testid="folder-browser-count">
             {listing &&
-              (matching.length
+              (saveTo
+                ? `${matching.length} project${matching.length === 1 ? '' : 's'} in this folder`
+                : matching.length
                 ? `${matching.length} matching file${matching.length === 1 ? '' : 's'} in this folder (sub-folders are included too)`
                 : 'No matching files directly in this folder (sub-folders are still searched)')}
           </span>
@@ -100,7 +130,7 @@ export function FolderBrowserDialog(): React.JSX.Element | null {
             disabled={!listing}
             data-testid="folder-browser-import"
           >
-            <FolderOpen /> Import this folder
+            <FolderOpen /> {saveTo ? 'Save projects here' : 'Import this folder'}
           </Button>
         </>
       }
@@ -190,7 +220,13 @@ export function FolderBrowserDialog(): React.JSX.Element | null {
                   match ? 'text-emerald-200' : 'text-slate-500'
                 )}
                 title={
-                  match ? 'Will be imported with this folder' : 'Not a fabrication file; it will be skipped'
+                  saveTo
+                    ? match
+                      ? 'A PCB TraceMill project'
+                      : undefined
+                    : match
+                      ? 'Will be imported with this folder'
+                      : 'Not a fabrication file; it will be skipped'
                 }
                 aria-disabled
               >
