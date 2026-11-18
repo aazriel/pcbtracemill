@@ -22,6 +22,7 @@ import { cn } from '@renderer/lib/utils'
 import { useProject } from '@renderer/store/project'
 import { useUi } from '@renderer/store/ui'
 import { saveMany, type ExportFile } from '@renderer/export/exportFiles'
+import { SavedNote } from '@renderer/export/SavedNote'
 import { WarpIllustration } from './ProbeIllustrations'
 import { TouchOffFigure } from './ProbeFigures'
 import { FORMAT_LABELS, importProbeResults } from './importProbe'
@@ -93,7 +94,6 @@ export function AutoLevelSection({
   const machine = useProject((s) => s.machine)
   const setHeightMap = useProject((s) => s.setHeightMap)
   const material = useProject((s) => s.material)
-  const toast = useUi((s) => s.toast)
   const al = useAutoLevel()
   const [saving, setSaving] = useState(false)
   const r = useMemo(() => (map ? mapRange(map) : null), [map])
@@ -112,12 +112,13 @@ export function AutoLevelSection({
       const list = corrected.length ? corrected : files
       const res = await saveMany(list.map((f) => ({ name: f.file.name, text: f.text })))
       if (res === null) return
-      toast(
-        'success',
-        typeof res === 'string'
-          ? `Saved ${list.length} corrected file(s) to ${res}`
-          : `Downloading ${list.length} file(s)…`
-      )
+      useUi
+        .getState()
+        .saved(
+          typeof res === 'string'
+            ? `Saved ${list.length} corrected file${list.length === 1 ? '' : 's'} to ${res}`
+            : `Downloading ${list.length} file(s)…`
+        )
     } finally {
       setSaving(false)
     }
@@ -357,6 +358,7 @@ export function AutoLevelSection({
               {levelling || saving ? <Loader2 className="animate-spin" /> : <Save />}
               Save {corrected.length || ''} corrected G-code file{corrected.length === 1 ? '' : 's'}
             </Button>
+            <SavedNote />
           </Step>
         </ol>
 

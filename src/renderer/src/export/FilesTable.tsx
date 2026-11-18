@@ -26,6 +26,7 @@ import { Dialog } from '@renderer/components/ui/dialog'
 import { useAutoLevel } from '@renderer/heightmap/state'
 import { GcodePreviewDialog } from './GcodePreviewDialog'
 import { saveMany, saveOne, type ExportFile } from './exportFiles'
+import { SavedNote } from './SavedNote'
 
 function SideBadge({ side }: { side: 'top' | 'bottom' }): React.JSX.Element {
   return (
@@ -120,7 +121,7 @@ export function FilesTable({
   const stale = useUi((s) => s.camStale)
   const generating = useUi((s) => s.generating)
   const camError = useUi((s) => s.camError)
-  const toast = useUi((s) => s.toast)
+  const saved = useUi((s) => s.saved)
   const steps = useProject((s) => s.steps)
   const tools = useProject((s) => s.tools)
   const [preview, setPreview] = useState<ExportFile | null>(null)
@@ -154,13 +155,15 @@ export function FilesTable({
   const saveAll = async (): Promise<void> => {
     const r = await saveMany(files.map((f) => ({ name: f.file.name, text: f.text })))
     if (r === null) return
-    toast(
-      'success',
-      typeof r === 'string' ? `Saved ${files.length} file(s) to ${r}` : `Downloading ${files.length} file(s)…`
+    saved(
+      typeof r === 'string'
+        ? `Saved ${files.length} file${files.length === 1 ? '' : 's'} to ${r}`
+        : `Downloading ${files.length} file(s)…`
     )
   }
   const saveSingle = async (f: ExportFile): Promise<void> => {
-    if (await saveOne(f.file.name, f.text)) toast('success', `Saved ${f.file.name}`)
+    const r = await saveOne(f.file.name, f.text)
+    if (r) saved(typeof r === 'string' ? `Saved ${r}` : `Downloading ${f.file.name}…`)
   }
 
   if (!cam?.files.length) {
@@ -203,6 +206,9 @@ export function FilesTable({
           Save {files.length} G-code file{files.length === 1 ? '' : 's'}
           {files.some((f) => f.levelled) && ' (height-corrected)'}
         </Button>
+      </div>
+      <div className="-mt-1 flex justify-end">
+        <SavedNote />
       </div>
 
       {stale && (

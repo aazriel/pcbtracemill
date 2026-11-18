@@ -51,6 +51,8 @@ export interface UiState {
   importing: boolean
   skippedFiles: { name: string; reason: string }[]
   toasts: Toast[]
+  /** The last G-code save that worked, shown next to the save buttons ("Saved 3 files to …"). */
+  lastSaved: { text: string; at: number } | null
   /** App preference (Settings -> Advanced): steps can skip parts of the board. */
   advancedSkip: boolean
   /** Step currently highlighted in Manufacture (e.g. to show its toolpath). */
@@ -64,7 +66,9 @@ export interface UiState {
   /** Measured copper spacing per copper layer id, filled in the background after import (D-031). */
   clearance: Record<string, ClearanceInfo | null>
   set(patch: Partial<UiState>): void
-  toast(level: Toast['level'], message: string): void
+  toast(level: Toast['level'], message: string, ms?: number): void
+  /** A save worked: a toast that stays longer, and the note next to the save buttons. */
+  saved(message: string): void
   /** Mouse over a toast: it stays until the mouse leaves (then 3 s more). */
   holdToast(id: number, hold: boolean): void
   dismissToast(id: number): void
@@ -75,6 +79,8 @@ const toastTimers = new Map<number, ReturnType<typeof setTimeout>>()
 
 /** 3 s (errors 6 s); the mouse over a toast keeps it open. */
 export const TOAST_MS = 3000
+/** Saves are confirmed for longer: the native dialog has just closed and the eye is elsewhere. */
+export const SAVED_TOAST_MS = 7000
 export function toastDuration(level: Toast['level']): number {
   return level === 'error' ? 2 * TOAST_MS : TOAST_MS
 }
@@ -110,16 +116,25 @@ export const useUi = create<UiState>()((set) => ({
   importing: false,
   skippedFiles: [],
   toasts: [],
+  lastSaved: null,
   selectedStepId: null,
   problemStepId: null,
   problemFocus: null,
   confirmNew: false,
   clearance: {},
   set: (patch) => set(patch),
-  toast: (level, message) => {
+  toast: (level, message, ms) => {
     const id = ++toastId
     set((s) => ({ toasts: [...s.toasts.slice(-2), { id, level, message }] }))
-    startToastTimer(id, toastDuration(level), set)
+    startToastTimer(id, ms ?? toastDuration(level), set)
+  },
+  saved: (message) => {
+    const id = ++toastId
+    set((s) => ({
+      toasts: [...s.toasts.slice(-2), { id, level: 'success', message: `✓ ${message}` }],
+      lastSaved: { text: message, at: Date.now() }
+    }))
+    startToastTimer(id, SAVED_TOAST_MS, set)
   },
   holdToast: (id, hold) => {
     if (hold) {
