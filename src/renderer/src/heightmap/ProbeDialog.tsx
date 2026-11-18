@@ -498,13 +498,14 @@ export function ProbeDialog({
       void window.tracemill
         ?.settingsSet(PROBE_CFG_SETTINGS_KEY, { cfg: live, side: al.measuredSide })
         .catch(() => undefined)
-      toast(
-        'success',
-        isMach3 && mach3Recorder === 'macros'
+      const where = typeof ok === 'string' ? ` to ${ok}` : ''
+      useUi.getState().saved(
+        (isMach3 && mach3Recorder === 'macros'
           ? 'Probe program saved. It needs the PCB TraceMill Mach3 macros M401 / M402 – save them with "Mach3 macros…" if you have not yet.'
           : isMach3 && mach3Recorder === 'variables'
             ? `Probe program saved. Run it in Mach3 – the heights stay in Mach3, there is no file to load. Then press “Probing done” (step 2)${dropped ? ' and save the corrected files again: the grid changed, so the old height map was removed' : ''}.`
             : 'Probe program saved. Run it on your machine, then import the results (step 2).'
+        ).replace('Probe program saved', `Probe program saved${where}`)
       )
       if (machine.postProcessor !== 'mach3' || mach3Recorder !== 'macros') onOpenChange(false)
     } catch (e) {
@@ -550,8 +551,7 @@ export function ProbeDialog({
             onClick={() =>
               void saveMany(mach3ProbeMacros().map((m) => ({ name: m.name, text: m.text }))).then((r) => {
                 if (r !== null)
-                  toast(
-                    'success',
+                  useUi.getState().saved(
                     typeof r === 'string'
                       ? `Saved M401.m1s and M402.m1s to ${r}. They must be in Mach3/macros/<your profile>/ – restart Mach3 once.`
                       : 'Downloading M401.m1s and M402.m1s…'

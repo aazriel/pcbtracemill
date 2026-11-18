@@ -305,8 +305,11 @@ function showSaveError(e: unknown): void {
   useUi.getState().toast('error', `Not saved: ${msg}`)
 }
 
-/** Save one file: native "Save as" in the desktop app, browser download otherwise. */
-export async function saveOne(name: string, text: string): Promise<boolean> {
+/**
+ * Save one file: native "Save as" in the desktop app (returns the path), browser download
+ * otherwise (true); false when cancelled or failed.
+ */
+export async function saveOne(name: string, text: string): Promise<string | boolean> {
   if (window.tracemill) {
     try {
       const path = await window.tracemill.saveFile({
@@ -314,7 +317,7 @@ export async function saveOne(name: string, text: string): Promise<boolean> {
         content: text,
         filters: gcodeFileFilters(useProject.getState().machine)
       })
-      return !!path
+      return path || false
     } catch (e) {
       showSaveError(e)
       return false

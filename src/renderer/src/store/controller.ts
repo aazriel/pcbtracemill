@@ -788,7 +788,7 @@ export async function saveProject(saveAs = false): Promise<void> {
     projectSavedAt(saved)
   } else downloadText(name, text)
   useProject.getState().markClean()
-  useUi.getState().toast('success', saved ? `Project saved: ${saved}` : 'Project saved.')
+  useUi.getState().saved(saved ? `Project saved: ${saved}` : 'Project saved.')
 }
 
 export async function openProject(): Promise<void> {
