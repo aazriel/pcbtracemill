@@ -12,6 +12,7 @@ import { lengthValue, unitLabel, useUnits } from '@renderer/lib/units'
 import { Button } from '@renderer/components/ui/button'
 import { Tooltip } from '@renderer/components/ui/tooltip'
 import { cn } from '@renderer/lib/utils'
+import { RenderQuality } from './quality'
 import { SimGL, sunDirection, type SimToolShape } from './SimGL'
 import { simEngine, toolStateAt, useSim, type ToolState } from './engine'
 import { drawTool, drawTrail, toStock, type OverlayView } from './overlay'
@@ -38,6 +39,8 @@ declare global {
     __tmSim?: {
       engine: typeof simEngine
       state: typeof useSim
+      /** The adaptive render resolution (for measuring). */
+      quality: RenderQuality
       /** Centre the view on a stock point (mm) with a zoom in px/mm (top view). */
       setView(cx: number, cy: number, zoom: number): void
       /** Sets the 3D orbit camera (angles in degrees). */
@@ -101,6 +104,7 @@ export function SimViewport(): React.JSX.Element {
   const sizeRef = useRef({ w: 1, h: 1 })
   const userMoved = useRef(false)
   const dirty = useRef({ gl: true, ov: true })
+  const quality = useRef(new RenderQuality())
   const [glError, setGlError] = useState<string | null>(null)
   const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null)
 
@@ -272,14 +276,17 @@ export function SimViewport(): React.JSX.Element {
         if (s.view3d) dirty.current.gl = true
       }
       const camB = s.view3d ? basis(o) : null
-      if (gl && (dirty.current.gl || simEngine.glDirty)) {
+      // lower resolution while the picture keeps changing, full resolution once it is still
+      const changed = dirty.current.gl || simEngine.glDirty
+      const drawDpr = gl ? quality.current.frame(now, dpr, changed, spinning || (s.playing && changed)) : null
+      if (gl && drawDpr !== null) {
         dirty.current.gl = false
         simEngine.glDirty = false
         const tool =
           camB && s.showTool && ts && ts.side === s.side && ts.toolId && s.data
             ? toolShape(s.data.tools.get(ts.toolId)?.tool ?? null, ts, spin)
             : null
-        gl.draw(v, w, h, dpr, {
+        gl.draw(v, w, h, drawDpr, {
           side: s.side,
           showDesign: s.showDesign,
           camera: camB,
@@ -321,6 +328,7 @@ export function SimViewport(): React.JSX.Element {
     window.__tmSim = {
       engine: simEngine,
       state: useSim,
+      quality: quality.current,
       setView: (cx, cy, zoom) => {
         viewRef.current = { cx, cy, zoom }
         userMoved.current = true

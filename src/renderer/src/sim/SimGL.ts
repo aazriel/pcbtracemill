@@ -244,7 +244,8 @@ bool marchField(vec3 ro, vec3 rd, out vec3 hit) {
         if (under(ro, rd, b)) break;
         a = b;
       }
-      for (int k = 0; k < 14; k++) {
+      // 9 halvings of a half-cell step: ~0.0001 mm, far below a pixel (14 cost 30 % more per pixel)
+      for (int k = 0; k < 9; k++) {
         float m = 0.5 * (a + b);
         if (under(ro, rd, m)) b = m; else a = m;
       }
