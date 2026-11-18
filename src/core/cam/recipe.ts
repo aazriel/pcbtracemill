@@ -32,27 +32,47 @@ const DRILL_UNDERSIZE_TOLERANCE = 0.05
 const MAX_HOLE = 100
 
 const byDiameter = (a: Tool, b: Tool): number => a.geometry.diameter - b.geometry.diameter
+/** The user's own tools come before the starter kit: they made them for their own bits. */
+const ownFirst = (a: Tool, b: Tool): number => Number(a.builtIn) - Number(b.builtIn)
+/** Diameters this close count as the same bit size (own tool preferred), mm. */
+const SAME_SIZE = 0.05
 const r3 = (v: number): number => Math.round(v * 1000) / 1000
 
-/** Preferred isolation tool: V-bit 30°/0.1, then finest V-bit, then smallest flat, then smallest ball. */
+/**
+ * Preferred isolation tool: a V-bit (the user's own first), 30°/0.1 first, then the finest tip; then
+ * the smallest flat, then the smallest ball (own first at the same size).
+ */
 export function pickIsolationTool(tools: Tool[]): Tool | null {
-  const exact = tools.find(
-    (t) =>
-      t.type === 'vbit' && t.geometry.tipAngle === 30 && Math.abs((t.geometry.tipDiameter ?? 0) - 0.1) < 1e-6
-  )
-  if (exact) return exact
+  const exact = (t: Tool): number =>
+    t.geometry.tipAngle === 30 && Math.abs((t.geometry.tipDiameter ?? 0) - 0.1) < 1e-6 ? 0 : 1
   const vbits = tools
     .filter((t) => t.type === 'vbit')
     .sort(
       (a, b) =>
+        ownFirst(a, b) ||
+        exact(a) - exact(b) ||
         (a.geometry.tipDiameter ?? 0) - (b.geometry.tipDiameter ?? 0) ||
         Math.abs((a.geometry.tipAngle ?? 60) - 30) - Math.abs((b.geometry.tipAngle ?? 60) - 30)
     )
   if (vbits.length) return vbits[0]
-  const flat = tools.filter((t) => t.type === 'flat').sort(byDiameter)
-  if (flat.length) return flat[0]
-  const ball = tools.filter((t) => t.type === 'ball').sort(byDiameter)
-  return ball[0] ?? null
+  for (const type of ['flat', 'ball'] as const) {
+    const pool = tools.filter((t) => t.type === type).sort(byDiameter)
+    if (pool.length) return sameSizeOwn(pool, pool[0])
+  }
+  return null
+}
+
+/** `best`, or the user's own tool of the same type and (nearly) the same diameter. */
+function sameSizeOwn(pool: Tool[], best: Tool): Tool {
+  if (!best.builtIn) return best
+  return (
+    pool.find(
+      (t) =>
+        !t.builtIn &&
+        t.type === best.type &&
+        Math.abs(t.geometry.diameter - best.geometry.diameter) <= SAME_SIZE + 1e-9
+    ) ?? best
+  )
 }
 
 /** Cutout tool: corn bit 1.0–2.0 mm (closest to 1.5), else flat in that range, else any corn/flat. */
@@ -64,7 +84,7 @@ export function pickCutoutTool(tools: Tool[]): Tool | null {
     tools.filter((t) => t.type === 'flat' && inRange(t)),
     tools.filter((t) => t.type === 'corn' || t.type === 'flat')
   ]) {
-    if (pool.length) return [...pool].sort((a, b) => score(a) - score(b))[0]
+    if (pool.length) return [...pool].sort((a, b) => ownFirst(a, b) || score(a) - score(b))[0]
   }
   return null
 }
@@ -74,13 +94,16 @@ export function pickAlignmentTool(tools: Tool[], pinDiameter: number): Tool | nu
   const drill = tools
     .filter((t) => t.type === 'drill' && Math.abs(t.geometry.diameter - pinDiameter) <= 0.1)
     .sort(
-      (a, b) => Math.abs(a.geometry.diameter - pinDiameter) - Math.abs(b.geometry.diameter - pinDiameter)
+      (a, b) =>
+        ownFirst(a, b) ||
+        Math.abs(a.geometry.diameter - pinDiameter) - Math.abs(b.geometry.diameter - pinDiameter)
     )[0]
   if (drill) return drill
   const mills = tools
     .filter((t) => t.type === 'flat' && t.geometry.diameter < pinDiameter * 0.8)
     .sort(byDiameter)
-  return mills[mills.length - 1] ?? null
+  const big = mills[mills.length - 1]
+  return big ? sameSizeOwn(mills, big) : null
 }
 
 /** Hole-milling tool: largest flat (then corn) no bigger than 75% of the smallest hole to mill. */
@@ -89,7 +112,7 @@ export function pickHoleMillTool(tools: Tool[], smallestHole: number): Tool | nu
     const fits = tools
       .filter((t) => t.type === type && t.geometry.diameter <= smallestHole * 0.75)
       .sort(byDiameter)
-    if (fits.length) return fits[fits.length - 1]
+    if (fits.length) return sameSizeOwn(fits, fits[fits.length - 1])
   }
   return null
 }
@@ -112,7 +135,9 @@ export function groupHolesByDrill(
   const groups = new Map<string, DrillGroup>()
   const toMill: number[] = []
   for (const d of [...new Set(diameters.map(r3))].sort((a, b) => a - b)) {
-    const drill = drills.find((t) => t.geometry.diameter >= d - DRILL_UNDERSIZE_TOLERANCE)
+    const smallest = drills.find((t) => t.geometry.diameter >= d - DRILL_UNDERSIZE_TOLERANCE)
+    // the user's own drill of that size, if they have one
+    const drill = smallest && sameSizeOwn(drills, smallest)
     if (!drill) {
       toMill.push(d)
       continue
@@ -196,10 +221,9 @@ export function recipe(ctx: RecipeContext): CamStep[] {
     }
     if (!hasData) {
       // Not parsed yet: one generic drill step the user can refine.
-      const drill = tools
-        .filter((t) => t.type === 'drill')
-        .sort(byDiameter)
-        .find((t) => t.geometry.diameter >= 0.8)
+      const drills = tools.filter((t) => t.type === 'drill').sort(byDiameter)
+      const first = drills.find((t) => t.geometry.diameter >= 0.8)
+      const drill = first && sameSizeOwn(drills, first)
       steps.push(mk('drill', firstSide, ids, drill ?? null))
     } else {
       const { groups, toMill } = groupHolesByDrill(diameters, tools)
