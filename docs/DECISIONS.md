@@ -169,3 +169,9 @@ Files can be left out of probing one by one (`settings.autoLevelSkipSteps`, by s
 ## D-038 Cutout: always outside, tabs behind a switch
 The cut side choice is gone: the cutout always runs outside the outline (offset of the board shape by the tool radius). Growing the board shape shrinks its holes, so internal cut-outs are cut from inside the hole – there is no case where "inside" is right, and it ate into the board. Old projects with `outside: false` are cut outside too (the field is kept and ignored).
 Tabs are a group of their own in the step editor behind "Hold the board with tabs" (`CutoutParams.tabsOn`, missing = on); switching off keeps the count, width and height for later. `cutoutTabCount` is the number really used.
+
+## D-039 Old projects open, newer projects are refused
+Every .tmill now records the app version that saved it (`app`, from package.json through `__APP_VERSION__` / `APP_VERSION` in src/shared/version.ts) and the format version is 2. Opening:
+- an older project (format 1, or `app` older than the running app): migrated and opened; every setting added later is optional and its missing value means the old behaviour (e.g. `CutoutParams.tabsOn` missing = on, `autoLevelSkipSteps` missing = every file probed);
+- a project from a newer app (`app` newer, or a format version above this build's): refused with `NewerProjectError` – "saved by PCB TraceMill X … Install PCB TraceMill X or newer". 0.1.x builds read only format 1, so they refuse every project saved from 0.1.2 on with their own "saved by a newer PCB TraceMill" message.
+Rule for future changes: a new field is optional with a backward-compatible default; a change an older build would misread needs a format bump and a migration.

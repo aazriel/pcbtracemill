@@ -32,7 +32,14 @@ import {
   type MaterialIssue
 } from '@core/cam'
 import { summarizeLayerStatus } from '@core/import'
-import { serializeProject, deserializeProject, projectFileBase, UNNAMED_PROJECT } from '@core/project'
+import {
+  serializeProject,
+  deserializeProject,
+  NewerProjectError,
+  projectFileBase,
+  UNNAMED_PROJECT
+} from '@core/project'
+import { APP_VERSION } from '@shared/version'
 import {
   projectNameTaken,
   projectPathFor,
@@ -759,7 +766,7 @@ export async function saveProject(saveAs = false): Promise<void> {
   if (!s.filePath) await refreshProjectFiles()
   try {
     if (s.name === UNNAMED_PROJECT) useProject.getState().setName(suggestProjectName())
-    text = serializeProject(toProject(useProject.getState()))
+    text = serializeProject(toProject(useProject.getState()), APP_VERSION)
   } catch (e) {
     useUi.getState().toast('error', e instanceof Error ? e.message : String(e))
     return
@@ -809,13 +816,16 @@ export async function openProject(): Promise<void> {
     useUi.getState().set({ stage: 'board' })
     useUi.getState().toast('success', `Opened "${project.name}".`)
   } catch (e) {
-    useUi.getState().toast('error', e instanceof Error ? e.message : String(e))
+    // a project from a newer version: say which version to install, and keep it on screen
+    useUi
+      .getState()
+      .toast('error', e instanceof Error ? e.message : String(e), e instanceof NewerProjectError ? 20000 : undefined)
   }
 }
 
 /** Loads .tmill text into the stores (re-parsing every layer) and starts a regeneration. Throws on bad input. */
 export async function loadProjectText(content: string, path: string | null): Promise<Project> {
-  const project = deserializeProject(content)
+  const project = deserializeProject(content, APP_VERSION)
   const parsed: Record<string, ParsedLayer> = {}
   for (const l of project.layers) {
     const fresh = await camWorker().parseOne(l.fileName, l.rawText, project.settings.edaTool, l.id, l.order)

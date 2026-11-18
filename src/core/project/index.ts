@@ -2,8 +2,11 @@ import type { Project } from '../model/types'
 
 /** File extension of PCB TraceMill project files (without dot). */
 export const PROJECT_FILE_EXT = 'tmill'
-/** Current .tmill format version. */
-export const PROJECT_VERSION = 1 as const
+/**
+ * Current .tmill format version. 2: the file records the app version that saved it (`app`), and an
+ * older app refuses a project from a newer one (D-039). Version 1 builds (0.1.x) refuse version 2.
+ */
+export const PROJECT_VERSION = 2 as const
 /** Marker written into every project file so foreign JSON is rejected with a clear message. */
 const FORMAT_MARKER = 'tracemill-project'
 
@@ -47,14 +50,45 @@ export function nextProjectName(used: string[], wanted?: string): string {
   for (let i = 1; ; i++) if (free(`${base} ${i}`)) return `${base} ${i}`
 }
 
-/** Pretty JSON for a .tmill file. Parsed layer caches are stripped; raw file text is kept. */
-export function serializeProject(p: Project): string {
+/**
+ * Pretty JSON for a .tmill file. Parsed layer caches are stripped; raw file text is kept. `app` is
+ * the version of PCB TraceMill that saves it.
+ */
+export function serializeProject(p: Project, app?: string): string {
   const layers = p.layers.map((l) => {
     const copy: Obj = { ...l }
     delete copy.parsed
     return copy
   })
-  return JSON.stringify({ format: FORMAT_MARKER, ...p, version: PROJECT_VERSION, layers }, null, 2) + '\n'
+  const head = app ? { format: FORMAT_MARKER, app } : { format: FORMAT_MARKER }
+  return JSON.stringify({ ...head, ...p, version: PROJECT_VERSION, layers }, null, 2) + '\n'
+}
+
+/** -1 / 0 / 1 for versions such as "0.1.2" (anything after the third number is ignored). */
+export function compareVersions(a: string, b: string): number {
+  const pa = a.split(/[.+-]/).slice(0, 3).map((x) => parseInt(x, 10) || 0)
+  const pb = b.split(/[.+-]/).slice(0, 3).map((x) => parseInt(x, 10) || 0)
+  for (let i = 0; i < 3; i++) {
+    const x = pa[i] ?? 0
+    const y = pb[i] ?? 0
+    if (x !== y) return x < y ? -1 : 1
+  }
+  return 0
+}
+
+/** A project saved by a newer PCB TraceMill than this one. */
+export class NewerProjectError extends Error {
+  constructor(
+    readonly needed: string | null,
+    readonly current: string | null
+  ) {
+    super(
+      needed
+        ? `This project was saved by PCB TraceMill ${needed}${current ? `, but this is ${current}` : ''}. Install PCB TraceMill ${needed} or newer to open it.`
+        : 'This project was saved by a newer PCB TraceMill. Install the latest version to open it.'
+    )
+    this.name = 'NewerProjectError'
+  }
 }
 
 class ProjectError extends Error {
@@ -97,7 +131,10 @@ function reqAll(o: unknown, path: string, spec: Record<string, Parameters<typeof
  * Migrations from version N to N+1. Version 1 is the first released format, so there are none yet;
  * add `2: (p) => {...}` style entries here (keyed by the SOURCE version) when the format changes.
  */
-const MIGRATIONS: Record<number, (p: Obj) => Obj> = {}
+const MIGRATIONS: Record<number, (p: Obj) => Obj> = {
+  // 1 → 2: only `app` is new; every setting added since is optional with the old behaviour as default
+  1: (p) => p
+}
 
 const DEFAULT_SETTINGS = {
   edaTool: null,
@@ -107,8 +144,11 @@ const DEFAULT_SETTINGS = {
   highlightOnHover: true
 }
 
-/** Parse, validate and migrate a .tmill file. Throws an Error with a user-readable message. */
-export function deserializeProject(text: string): Project {
+/**
+ * Parse, validate and migrate a .tmill file. Throws an Error with a user-readable message, and a
+ * {@link NewerProjectError} when the file comes from a newer app than `app` (the running version).
+ */
+export function deserializeProject(text: string, app?: string): Project {
   let raw: unknown
   try {
     raw = JSON.parse(text) as Json
@@ -120,12 +160,12 @@ export function deserializeProject(text: string): Project {
     throw new ProjectError(`unknown file format "${String(raw.format)}".`)
   let p: Obj = { ...raw }
   delete p.format
+  const savedBy = typeof p.app === 'string' ? p.app : null
+  delete p.app
   if (typeof p.version !== 'number' || !Number.isInteger(p.version) || p.version < 1)
     throw new ProjectError('missing or invalid "version".')
-  if (p.version > PROJECT_VERSION)
-    throw new Error(
-      `This project was saved by a newer PCB TraceMill (format version ${p.version}); this version reads up to ${PROJECT_VERSION}. Please update PCB TraceMill.`
-    )
+  if (p.version > PROJECT_VERSION) throw new NewerProjectError(savedBy, app ?? null)
+  if (savedBy && app && compareVersions(savedBy, app) > 0) throw new NewerProjectError(savedBy, app)
   while ((p.version as number) < PROJECT_VERSION) {
     const v = p.version as number
     const m = MIGRATIONS[v]

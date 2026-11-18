@@ -637,7 +637,7 @@ export type DisplayUnits = 'mm' | 'inch'
 
 export interface Project {
   /** File format version for .tmill. */
-  version: 1
+  version: number
   name: string
   layers: ImportedLayer[]
   machine: MachineProfile
