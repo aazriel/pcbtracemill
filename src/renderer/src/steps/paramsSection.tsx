@@ -1,6 +1,7 @@
 /** Kind-specific parameter section of the Step editor (isolation, clearing, cutout, drilling...). */
 import { Check, Minus, Settings2, X } from 'lucide-react'
 import type { CamStep, CutDirection, StepParams, ValidationIssue } from '@core/model/types'
+import { cutoutTabCount } from '@core/model/types'
 import { effectiveCutWidth } from '@core/tools'
 import { SMART_EXTRA_CLEARANCE } from '@core/cam'
 import { useProject } from '@renderer/store/project'
@@ -21,7 +22,6 @@ import {
 import { help } from './stepUtils'
 import {
   ClearMarginFigure,
-  CutSideFigure,
   ExtraClearanceFigure,
   SmartClearanceFigure,
   IslandFigure,
@@ -475,6 +475,7 @@ export function ParamsSection({
     }
     case 'cutout': {
       const c = p.cutout
+      const tabsOn = cutoutTabCount(c) > 0
       const perimeter = bboxIsEmpty(boardBox)
         ? 0
         : 2 * (boardBox.maxX - boardBox.minX + boardBox.maxY - boardBox.minY)
@@ -483,112 +484,113 @@ export function ParamsSection({
       const heightSuggested = Math.round((material?.thickness ?? 1.6) * 0.3 * 10) / 10
       return (
         <Grid
-          row
           how={
-            <Figure caption="The bit follows the dashed line all the way around; the yellow tabs stay uncut so the board stays attached until you snap it free.">
+            <Figure caption="The bit follows the dashed line just outside the board edge all the way around (holes inside the board are cut from inside the hole), so the board keeps its exact size; the yellow tabs stay uncut so the board stays attached until you snap it free.">
               <CutoutDiagram
-                tabs={c.tabs}
+                tabs={tabsOn ? c.tabs : 0}
                 tabWidth={c.tabWidth}
-                outside={c.outside}
+                outside
                 toolDiameter={tool?.geometry.diameter ?? 1.5}
               />
             </Figure>
           }
         >
-          <FieldShell
-            label="Cut side"
-            description="Outside keeps the board at its exact designed size; inside makes it slightly smaller."
-            {...fig(help('cutout.outside'), <CutSideFigure outside={c.outside} />)}
+          <div
+            className="col-span-full flex flex-col gap-3 rounded-lg border border-slate-800 bg-slate-950/40 p-3"
+            data-testid="cutout-tabs"
           >
-            <div>
-              <Segmented
-                stretch
-                value={c.outside ? 'outside' : 'inside'}
-                onChange={(v) => setParam(update, 'cutout', { outside: v === 'outside' })}
-                options={[
-                  { value: 'outside', label: 'Outside' },
-                  { value: 'inside', label: 'Inside' }
-                ]}
-              />
-            </div>
-          </FieldShell>
-          <div className="flex flex-col gap-1">
-            <NumberField
-              label="Tabs"
-              min={0}
-              max={20}
-              step={1}
-              value={c.tabs}
-              onChange={(v) => setParam(update, 'cutout', { tabs: Math.round(v) })}
-              description="Small uncut bridges that hold the board in the sheet. 2–4 is typical."
-              {...fig(`${help('cutout.tabs')} ${help('concept.tabs')}`, <TabsFigure tabs={c.tabs} />)}
-              error={err(/number of tabs/i)}
-              warning={warn(/without tabs/i)}
+            <Switch
+              label="Hold the board with tabs"
+              checked={tabsOn}
+              onChange={(v) =>
+                setParam(update, 'cutout', v && c.tabs === 0 ? { tabsOn: true, tabs: tabsSuggested } : { tabsOn: v })
+              }
+              description="Small uncut bridges keep the board in the sheet until you snap it free. Without them the board can break loose at the end of the cut."
+              {...fig(`${help('cutout.tabs')} ${help('concept.tabs')}`, <TabsFigure tabs={tabsOn ? c.tabs : 0} />)}
             />
-            <Suggest
-              value={tabsSuggested}
-              current={c.tabs}
-              why={`About one tab per 40 mm of outline (this board's outline is about ${Math.round(perimeter)} mm).`}
-              onUse={() => setParam(update, 'cutout', { tabs: tabsSuggested })}
-            />
+            {tabsOn ? (
+              <div className="grid grid-cols-1 items-start gap-x-3 gap-y-4 sm:grid-cols-3">
+                <div className="flex flex-col gap-1">
+                  <NumberField
+                    label="Tabs"
+                    min={1}
+                    max={20}
+                    step={1}
+                    value={c.tabs}
+                    onChange={(v) => setParam(update, 'cutout', { tabs: Math.round(v) })}
+                    description="How many bridges around the outline. 2–4 is typical."
+                    {...fig(`${help('cutout.tabs')} ${help('concept.tabs')}`, <TabsFigure tabs={c.tabs} />)}
+                    error={err(/number of tabs/i)}
+                    warning={warn(/without tabs/i)}
+                  />
+                  <Suggest
+                    value={tabsSuggested}
+                    current={c.tabs}
+                    why={`About one tab per 40 mm of outline (this board's outline is about ${Math.round(perimeter)} mm).`}
+                    onUse={() => setParam(update, 'cutout', { tabs: tabsSuggested })}
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <NumberField
+                    label="Tab width"
+                    unit="mm"
+                    min={0}
+                    step={0.5}
+                    value={c.tabWidth}
+                    onChange={(v) => setParam(update, 'cutout', { tabWidth: v })}
+                    description="Length of each bridge along the outline."
+                    {...fig(
+                      help('cutout.tabWidth'),
+                      <TabHeightFigure
+                        measure="width"
+                        tabWidth={c.tabWidth}
+                        tabHeight={c.tabHeight}
+                        thickness={material?.thickness ?? 1.6}
+                      />
+                    )}
+                    error={err(/tab width/i)}
+                    warning={warn(/narrower/i)}
+                  />
+                  <Suggest
+                    value={widthSuggested}
+                    current={c.tabWidth}
+                    unit=" mm"
+                    why="About twice the bit diameter (at least 2 mm): strong enough to hold, easy to snap."
+                    onUse={() => setParam(update, 'cutout', { tabWidth: widthSuggested })}
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <NumberField
+                    label="Tab height"
+                    unit="mm"
+                    min={0}
+                    step={0.1}
+                    value={c.tabHeight}
+                    onChange={(v) => setParam(update, 'cutout', { tabHeight: v })}
+                    description={`How much material is left standing in each tab (board is ${material?.thickness ?? '?'} mm thick).`}
+                    {...fig(
+                      help('cutout.tabHeight'),
+                      <TabHeightFigure tabHeight={c.tabHeight} thickness={material?.thickness ?? 1.6} />
+                    )}
+                    error={err(/tab height/i)}
+                    warning={warn(/tab height/i)}
+                  />
+                  <Suggest
+                    value={heightSuggested}
+                    current={c.tabHeight}
+                    unit=" mm"
+                    why="About a third of the board thickness: holds the board, still breaks off cleanly."
+                    onUse={() => setParam(update, 'cutout', { tabHeight: heightSuggested })}
+                  />
+                </div>
+              </div>
+            ) : (
+              <p className="text-[11px] leading-snug text-amber-300/90">
+                No tabs: the board is cut completely free. Hold it down another way (tape under the board), or
+                it can shift or be hit by the bit at the end.
+              </p>
+            )}
           </div>
-          {c.tabs > 0 && (
-            <>
-              <div className="flex flex-col gap-1">
-                <NumberField
-                  label="Tab width"
-                  unit="mm"
-                  min={0}
-                  step={0.5}
-                  value={c.tabWidth}
-                  onChange={(v) => setParam(update, 'cutout', { tabWidth: v })}
-                  description="Length of each bridge along the outline."
-                  {...fig(
-                    help('cutout.tabWidth'),
-                    <TabHeightFigure
-                      measure="width"
-                      tabWidth={c.tabWidth}
-                      tabHeight={c.tabHeight}
-                      thickness={material?.thickness ?? 1.6}
-                    />
-                  )}
-                  error={err(/tab width/i)}
-                  warning={warn(/narrower/i)}
-                />
-                <Suggest
-                  value={widthSuggested}
-                  current={c.tabWidth}
-                  unit=" mm"
-                  why="About twice the bit diameter (at least 2 mm): strong enough to hold, easy to snap."
-                  onUse={() => setParam(update, 'cutout', { tabWidth: widthSuggested })}
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <NumberField
-                  label="Tab height"
-                  unit="mm"
-                  min={0}
-                  step={0.1}
-                  value={c.tabHeight}
-                  onChange={(v) => setParam(update, 'cutout', { tabHeight: v })}
-                  description={`How much material is left standing in each tab (board is ${material?.thickness ?? '?'} mm thick).`}
-                  {...fig(
-                    help('cutout.tabHeight'),
-                    <TabHeightFigure tabHeight={c.tabHeight} thickness={material?.thickness ?? 1.6} />
-                  )}
-                  error={err(/tab height/i)}
-                  warning={warn(/tab height/i)}
-                />
-                <Suggest
-                  value={heightSuggested}
-                  current={c.tabHeight}
-                  unit=" mm"
-                  why="About a third of the board thickness: holds the board, still breaks off cleanly."
-                  onUse={() => setParam(update, 'cutout', { tabHeight: heightSuggested })}
-                />
-              </div>
-            </>
-          )}
         </Grid>
       )
     }

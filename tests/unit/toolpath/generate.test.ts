@@ -1,4 +1,4 @@
-import type { Move, Path, Toolpath, ToolpathSegment } from '@core/model/types'
+import type { CutoutParams, Move, Path, Toolpath, ToolpathSegment } from '@core/model/types'
 import {
   applyAffine,
   circlePath,
@@ -229,12 +229,12 @@ describe('cutout', () => {
   const edges = r.map((p, i) => ({ path: [p, r[(i + 1) % 4]], width: 0.1 }))
   const inner = rectPath(15, 10, 6, 6)
   const innerEdges = inner.map((p, i) => ({ path: [p, inner[(i + 1) % 4]], width: 0.1 }))
-  const run = (tabs: number, withInner = false): Toolpath => {
+  const run = (tabs: number, withInner = false, extra: Partial<CutoutParams> = {}): Toolpath => {
     const base = step('cutout', ['edge'])
     return generateToolpath({
       step: step('cutout', ['edge'], {
         cutDepth: 1.8,
-        params: { ...base.params, cutout: { tabs, tabWidth: 2, tabHeight: 0.6, outside: true } }
+        params: { ...base.params, cutout: { tabs, tabWidth: 2, tabHeight: 0.6, outside: true, ...extra } }
       }),
       tool: tool('flat', 2, { stepDown: 0.6 }),
       layers: [layer('edge', 'outline', [], { strokes: withInner ? [...edges, ...innerEdges] : edges })],
@@ -254,6 +254,20 @@ describe('cutout', () => {
     expect(b.minX).toBeCloseTo(-1, 2)
     expect(b.maxX).toBeCloseTo(31, 2)
     expect(pathArea(feedPath(tp.segments[0]).slice(0, 200))).not.toBe(0)
+  })
+
+  it('always cuts outside the line, also in old projects that said "inside"', () => {
+    const b = bboxOf(feedPath(run(0, false, { outside: false }).segments[0]))
+    expect(b.minX).toBeCloseTo(-1, 2)
+    expect(b.maxX).toBeCloseTo(31, 2)
+  })
+
+  it('tabs switched off: no tabs, the count is kept for when they are switched on again', () => {
+    const lifts = (tp: Toolpath): number =>
+      tp.segments[0].moves.filter((m, i, all) => i > 0 && m.kind === 'feed' && m.z > all[i - 1].z + 1e-9)
+        .length
+    expect(lifts(run(4, false, { tabsOn: false }))).toBe(0)
+    expect(lifts(run(4, false, { tabsOn: true }))).toBe(8)
   })
 
   it('lifts over tabs on passes deeper than thickness - tabHeight, away from corners', () => {

@@ -364,12 +364,22 @@ export interface ClearParams {
 }
 
 export interface CutoutParams {
-  /** Number of holding tabs. */
+  /** Number of holding tabs (kept while tabs are switched off). */
   tabs: number
   tabWidth: number
   tabHeight: number
-  /** Cut outside (true) or inside the outline line. */
+  /** Hold the board with tabs. Missing (older projects) = on; 0 tabs means none either way. */
+  tabsOn?: boolean
+  /**
+   * Old projects only: the cut always runs outside the outline now (growing the board shape also
+   * cuts internal cut-outs from inside the hole), so this is ignored.
+   */
   outside: boolean
+}
+
+/** Tabs the cutout really leaves: none when switched off. */
+export function cutoutTabCount(p: CutoutParams): number {
+  return p.tabsOn === false ? 0 : p.tabs
 }
 
 export interface DrillParams {

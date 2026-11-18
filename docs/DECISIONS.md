@@ -165,3 +165,7 @@ The Z touch-off before each bit (D-024/D-026) used point 1 of the probe grid for
 - Otherwise: copper still joined to the outer copper, outside the board first (waste), nearest the board centre. None: the file is marked "cannot find Z0 with the probe" and is saved without probing.
 The height correction after each touch-off is taken relative to that point (`applyHeightMap` `refs`: h(x,y) − h(P), also in Mach3 variable formulas), so the depth is right whichever point was touched. `touchOffStepOrder` maps every touch-off in a file (start, then after each M0/M1/M6) to the step that follows, from the file's line metadata.
 Files can be left out of probing one by one (`settings.autoLevelSkipSteps`, by step id so it survives a change of grouping): an unticked file is saved as it is, with neither correction nor touch-off.
+
+## D-038 Cutout: always outside, tabs behind a switch
+The cut side choice is gone: the cutout always runs outside the outline (offset of the board shape by the tool radius). Growing the board shape shrinks its holes, so internal cut-outs are cut from inside the hole – there is no case where "inside" is right, and it ate into the board. Old projects with `outside: false` are cut outside too (the field is kept and ignored).
+Tabs are a group of their own in the step editor behind "Hold the board with tabs" (`CutoutParams.tabsOn`, missing = on); switching off keeps the count, width and height for later. `cutoutTabCount` is the number really used.

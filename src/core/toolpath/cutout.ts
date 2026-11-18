@@ -7,6 +7,7 @@
  * climb = reversed).
  */
 import type { Path, ToolpathSegment, Vec2 } from '../model/types'
+import { cutoutTabCount } from '../model/types'
 import { offset } from '../geometry'
 import { effectiveCutWidth } from '../tools/geometry'
 import { fmt, toWork, type StepContext } from './context'
@@ -101,11 +102,10 @@ export function generateCutout(ctx: StepContext): ToolpathSegment[] {
   const d = effectiveCutWidth(tool, depth)
   const r = d / 2
   const outline = toWork(ctx, shape)
-  const paths = offset(outline, p.outside ? r : -r)
-  if (paths.length === 0) {
-    ctx.warnings.push('The board is too small for this tool when cutting inside the outline.')
-    return []
-  }
+  // always outside the line: the board keeps its size, and the holes inside the board (internal
+  // cut-outs) shrink, so they are cut from inside the hole
+  const paths = offset(outline, r)
+  if (paths.length === 0) return []
   if (depth < material.thickness - 1e-6)
     ctx.warnings.push(
       `Cut depth ${fmt(depth)} mm is less than the stock thickness ${fmt(material.thickness)} mm.`
@@ -121,8 +121,9 @@ export function generateCutout(ctx: StepContext): ToolpathSegment[] {
 
   const depths = depthLevels(depth, tool.feeds.stepDown)
   const tabTop = -(material.thickness - Math.max(0, p.tabHeight))
-  const useTabs = p.tabs > 0 && p.tabHeight > 0 && depths.some((z) => z < tabTop - 1e-9)
-  if (p.tabs > 0 && !useTabs) ctx.warnings.push('Tabs are not needed: no pass reaches below the tab height.')
+  const tabCount = cutoutTabCount(p)
+  const useTabs = tabCount > 0 && p.tabHeight > 0 && depths.some((z) => z < tabTop - 1e-9)
+  if (tabCount > 0 && !useTabs) ctx.warnings.push('Tabs are not needed: no pass reaches below the tab height.')
 
   const segments: ToolpathSegment[] = []
   let pos: Vec2 = { x: 0, y: 0 }
@@ -134,14 +135,14 @@ export function generateCutout(ctx: StepContext): ToolpathSegment[] {
     let lifts: LiftInterval[] = []
     if (useTabs) {
       const gap = Math.max(0, p.tabWidth) + d
-      let count = Math.round(p.tabs)
+      let count = Math.round(tabCount)
       const perim = it.path.reduce(
         (acc, v, i, arr) =>
           acc + Math.hypot(arr[(i + 1) % arr.length].x - v.x, arr[(i + 1) % arr.length].y - v.y),
         0
       )
       while (count > 0 && count * gap > perim * 0.5) count--
-      if (count < p.tabs) ctx.warnings.push(`Only ${count} tab(s) fit on a ${fmt(perim, 1)} mm perimeter.`)
+      if (count < tabCount) ctx.warnings.push(`Only ${count} tab(s) fit on a ${fmt(perim, 1)} mm perimeter.`)
       lifts = placeTabs(it.path, count, gap)
     }
     segments.push(closedLoopSegment(it.path, depths, ctx.cut, lifts, tabTop))
