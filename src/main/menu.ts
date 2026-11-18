@@ -111,6 +111,7 @@ export function buildMenu(): void {
         { label: 'Take the Tour', click: () => send('tour') },
         { label: 'Keyboard & Mouse Shortcuts', click: () => send('shortcuts') },
         { type: 'separator' },
+        { label: 'Check for Updates…', click: () => send('check-updates') },
         { label: `About PCB TraceMill ${app.getVersion()}`, click: () => send('about') }
       ]
     }

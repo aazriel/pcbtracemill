@@ -36,6 +36,7 @@ import {
   analyzeCopperLayers
 } from '@renderer/store/controller'
 import { loadUserTools } from '@renderer/tools/toolLibrary'
+import { checkForUpdates, scheduleUpdateCheck, UpdateBanner } from '@renderer/components/UpdateBanner'
 import { loadProjectFolder } from '@renderer/store/projectNames'
 import { UNNAMED_PROJECT } from '@core/project'
 import { BoardStage } from '@renderer/stages/BoardStage'
@@ -83,6 +84,7 @@ export function App(): React.JSX.Element {
     // first start: the tour (there is no last session yet); afterwards: offer the last session
     void maybeShowTour()
     void checkLastSession()
+    scheduleUpdateCheck()
     void window.tracemill
       ?.settingsGet<boolean>('advancedSkip', false)
       .then((v) => useUi.getState().set({ advancedSkip: !!v }))
@@ -100,6 +102,7 @@ export function App(): React.JSX.Element {
       else if (cmd === 'help') useUi.getState().set({ helpOpen: true, helpTopic: 'start' })
       else if (cmd === 'shortcuts') useUi.getState().set({ helpOpen: true, helpTopic: 'shortcuts' })
       else if (cmd === 'about') useUi.getState().set({ helpOpen: true, helpTopic: 'about' })
+      else if (cmd === 'check-updates') void checkForUpdates(true)
       else if (cmd.startsWith('set-eda:')) void changeEda(cmd.slice('set-eda:'.length) as EdaTool)
       else if (cmd === 'set-units:mm' || cmd === 'set-units:inch')
         useProject.getState().setSettings({ units: cmd === 'set-units:inch' ? 'inch' : 'mm' })
@@ -237,6 +240,7 @@ export function App(): React.JSX.Element {
             </Tooltip>
           </div>
         </header>
+        <UpdateBanner />
         <main className="min-h-0 flex-1">
           {stage === 'board' && <BoardStage />}
           {stage === 'manufacture' && <ManufactureStage />}

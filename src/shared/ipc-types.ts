@@ -64,8 +64,16 @@ export interface TraceMillApi {
   onMenu(cb: (command: MenuCommand) => void): () => void
   /** Tells the main process what the menu bar should show (e.g. the current design program). */
   setMenuState(state: MenuState): void
+  /** Asks GitHub for the latest release (quietly "offline" without internet). */
+  checkForUpdates(): Promise<UpdateCheck>
   platform: string
 }
+
+/** Result of the update check. */
+export type UpdateCheck =
+  | { status: 'new'; current: string; latest: string; url: string }
+  | { status: 'current'; current: string; latest: string }
+  | { status: 'offline'; current: string }
 
 export interface MenuState {
   /** Current design program id, or null while none was chosen. */
@@ -85,6 +93,7 @@ export type MenuCommand =
   | 'tour'
   | 'shortcuts'
   | 'about'
+  | 'check-updates'
   | 'new-project'
   | 'open-project'
   | 'save-project'
