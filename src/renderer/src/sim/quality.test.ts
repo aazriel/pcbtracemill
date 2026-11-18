@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { RenderQuality, SETTLE_MS } from '@renderer/sim/quality'
+import { RenderQuality, SETTLE_MS } from './quality'
 
 /** 20 idle frames at the screen rate, then `n` frames drawn back to back `drawMs` apart. */
 function run(q: RenderQuality, screenMs: number, drawMs: number, n: number, dpr = 2): number {
