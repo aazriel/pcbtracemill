@@ -53,19 +53,41 @@ function save(): void {
   }
 }
 
-/** A tool was saved in the library dialog: keep it for later sessions. */
+/**
+ * A tool was saved in the library dialog: keep it for later sessions. Waits for the saved list to
+ * be loaded, so an early save never replaces the stored tools with a partial list.
+ */
 export function rememberTool(t: Tool): void {
   if (t.builtIn) return
-  const i = library.findIndex((x) => x.id === t.id)
-  library = i >= 0 ? library.map((x, k) => (k === i ? t : x)) : [...library, t]
-  save()
+  void loadUserTools().then(() => {
+    const i = library.findIndex((x) => x.id === t.id)
+    library = i >= 0 ? library.map((x, k) => (k === i ? t : x)) : [...library, t]
+    save()
+  })
+}
+
+/**
+ * Own tools of a project (opened, restored, imported, made anywhere) that the library does not have
+ * yet are kept too, so no tool is lost with an update or a new installation.
+ */
+export function rememberMissingTools(tools: Tool[]): void {
+  if (!tools.some((t) => !t.builtIn)) return
+  void loadUserTools().then(() => {
+    const have = new Set(library.map((t) => t.id))
+    const add = tools.filter((t) => !t.builtIn && !have.has(t.id)).map((t) => ({ ...t, builtIn: false }))
+    if (!add.length) return
+    library = [...library, ...add]
+    save()
+  })
 }
 
 /** A tool was deleted in the library dialog. */
 export function forgetTool(id: string): void {
-  if (!library.some((t) => t.id === id)) return
-  library = library.filter((t) => t.id !== id)
-  save()
+  void loadUserTools().then(() => {
+    if (!library.some((t) => t.id === id)) return
+    library = library.filter((t) => t.id !== id)
+    save()
+  })
 }
 
 /** `tools` plus the saved tools it does not have (same list when nothing is missing). */

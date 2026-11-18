@@ -7,6 +7,7 @@ import {
   Ban,
   ChevronDown,
   Copy,
+  Download,
   Info,
   Library,
   Plus,
@@ -14,6 +15,7 @@ import {
   Search,
   Trash2,
   Undo2,
+  Upload,
   Wrench
 } from 'lucide-react'
 import type { StepKind, Tool, ToolType } from '@core/model/types'
@@ -29,6 +31,7 @@ import { cn, uid } from '@renderer/lib/utils'
 import { ToolCard } from './ToolCard'
 import { ToolEditor } from './ToolEditor'
 import { forgetTool, rememberTool, toolNameClash, uniqueToolName } from './toolLibrary'
+import { exportToolLibrary, importToolLibrary } from './libraryFile'
 import {
   defaultToolName,
   nextToolNumber,
@@ -310,6 +313,25 @@ function ToolLibraryBody({
           <span className="text-slate-400">{draftCompat.message}</span>
         ) : null}
       </div>
+      {!stepKind && (
+        <>
+          <Tooltip content="Save your own tools to a file – for another computer, a new installation or a friend.">
+            <Button variant="ghost" size="sm" data-testid="tools-export" onClick={() => void exportToolLibrary()}>
+              <Upload /> Export tools…
+            </Button>
+          </Tooltip>
+          <Tooltip content="Add the tools from a PCB TraceMill tool library file (.tmtools) or project (.tmill).">
+            <Button
+              variant="ghost"
+              size="sm"
+              data-testid="tools-import"
+              onClick={() => guard(() => void importToolLibrary())}
+            >
+              <Download /> Import tools…
+            </Button>
+          </Tooltip>
+        </>
+      )}
       <Button variant="secondary" data-testid="tool-cancel" onClick={close}>
         {stepKind ? (
           <>
