@@ -179,7 +179,7 @@ function IntroPage({
           <li>
             You can probe with the <b>milling bit itself</b> (0.1 mm tip) – keep the probe speed slow. Clean
             the copper first: where it doesn’t conduct (oxide, lacquer), the tip is pushed into the board and
-            breaks. After a bit change PCB TraceMill finds Z zero again at point 1.
+            breaks. After a bit change PCB TraceMill finds Z zero again by itself, on copper that is still joined to the clip.
           </li>
           <li>Remove the clip from the bit before you start milling.</li>
           {machine && !machine.supportsProbing && (
@@ -241,7 +241,7 @@ function IntroPage({
         <IntroStep n={4} title="Run the probe program" art={<RunIllustration />}>
           The machine visits every grid point, lowers the bit slowly until it touches the copper and remembers
           the height. Don’t move X/Y zero afterwards. When you change bits later, the corrected G-code can
-          find Z zero at point 1 by itself (you only set it roughly).
+          find Z zero by itself (you only set it roughly).
         </IntroStep>
         <IntroStep n={5} title="Save the results" art={<SaveLogIllustration />}>
           <span className="mb-1 block">Your controller creates a list of measured points:</span>
@@ -292,6 +292,9 @@ function IntroPage({
   )
 }
 
+/** Default probe spacing for Mach3 / Mach4. */
+const MACH3_PROBE_SPACING = 15
+
 type GridMode = 'spacing' | 'count'
 type AreaMode = 'board' | 'stock' | 'custom'
 
@@ -320,7 +323,9 @@ export function ProbeDialog({
   const [mode, setMode] = useState<GridMode>('spacing')
   // the grid spacing follows the narrowest copper gap of the job (D-031)
   const clearance = useJobClearance()
-  const recSpacing = recommendedProbeSpacing(clearance?.clearance ?? null)
+  // Mach3 / Mach4: 15 mm by default - denser grids take long and made trouble on real boards
+  const isMach3 = machine?.postProcessor === 'mach3'
+  const recSpacing = isMach3 ? MACH3_PROBE_SPACING : recommendedProbeSpacing(clearance?.clearance ?? null)
   const [spacing, setSpacing] = useState(recSpacing)
   const [cfg, setCfg] = useState<ProbeGridConfig | null>(null)
   const [areaMode, setAreaMode] = useState<AreaMode>('board')
@@ -454,7 +459,7 @@ export function ProbeDialog({
     )
       warnings.push('Part of the probe area is outside the material – the bit would probe into thin air.')
     if (stats && stats.n > 400)
-      warnings.push(`${stats.n} points will take a long time. 10 mm spacing is usually enough.`)
+      warnings.push(`${stats.n} points will take a long time. 15 mm spacing is usually enough.`)
     if (stats && Math.min(stats.dx || Infinity, stats.dy || Infinity) < 3)
       warnings.push('Points closer than 3 mm rarely improve the result.')
     if (cfg.probeFeed > 200)
@@ -779,7 +784,9 @@ export function ProbeDialog({
                     step={1}
                     value={spacing}
                     description={
-                      clearance?.clearance != null
+                      isMach3
+                        ? `${recSpacing} mm is the default for Mach3 / Mach4 – enough detail for a PCB without a long, touchy probing run. Smaller = more detail but slower.`
+                        : clearance?.clearance != null
                         ? `${recSpacing} mm suits this board's ${clearance.clearance} mm copper gaps (10 mm under 0.5 mm gaps, 15 mm under 1.2 mm, 20 mm above). Smaller = more detail but slower.`
                         : `${recSpacing} mm suits wide copper gaps (10 mm under 0.5 mm gaps, 15 mm under 1.2 mm). Smaller = more detail but slower.`
                     }

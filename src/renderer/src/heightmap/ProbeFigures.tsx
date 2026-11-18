@@ -581,7 +581,7 @@ export function TouchOffFigure(): ReactNode {
   return (
     <Scene
       height={160}
-      caption="1. Set Z zero roughly – a sheet of paper under the bit is enough. 2. The program lowers the bit slowly at point 1 until it touches the copper and makes that the exact Z0 – the same spot the height map is measured from."
+      caption="1. Set Z zero roughly – a sheet of paper under the bit is enough. 2. The program lowers the bit slowly (board centre for isolation, a hole for drilling, the cutout line for the cutout) until it touches the copper and makes that the exact Z0 – the height map is taken relative to that spot."
     >
       <BoardSide y={COPPER_Y} thick={34} />
       <line x1={20} x2={W - 20} y1={rough} y2={rough} stroke="#fbbf24" strokeDasharray="4 3" strokeWidth={1}>
@@ -630,7 +630,7 @@ export function TouchOffFigure(): ReactNode {
         />
       </circle>
       <Label x={120} y={18} anchor="middle" color="#cbd5e1" size={10}>
-        point 1 – probe clip on the bit, spindle off
+        touch point – probe clip on the bit, spindle off
       </Label>
     </Scene>
   )

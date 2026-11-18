@@ -77,7 +77,7 @@ function MachineSummary(): React.JSX.Element | null {
         <p className="flex gap-1 text-[11px] text-sky-300/90">
           <Info className="mt-px size-3 shrink-0" />
           Your machine changes bits by hand: the single file pauses at every bit change. Set Z zero again on
-          the copper (at point 1 if you auto-level) before continuing.
+          the copper before continuing (or let the probe find it).
         </p>
       )}
     </div>
@@ -99,9 +99,10 @@ function ProbeZeroSwitch(): React.JSX.Element {
           <>
             For a probe clip on the bit and the copper – no height map needed. Each file stops before every
             bit: you set Z zero <b>roughly</b> (a sheet of paper), clip the probe on and press Start. The bit
-            touches the copper very slowly (F2) near the corner of the board – the same place as point 1 of
-            the probe grid – sets Z0 there and stops so you can remove the clip. Files corrected with a height
-            map use the setting in Auto-level step 3 instead.
+            touches the copper very slowly (F2) – isolation at the board centre, drilling on a hole it is
+            about to drill, the cutout on its own line, always copper still joined to the outer copper where
+            the clip is – sets Z0 there and stops so you can remove the clip. Files unticked in Auto-level
+            step 3 are left alone; files corrected with a height map use the setting there.
           </>
         }
       />
