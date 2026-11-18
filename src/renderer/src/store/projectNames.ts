@@ -6,6 +6,7 @@
  */
 import { useSyncExternalStore } from 'react'
 import { nextProjectName, projectFileBase } from '@core/project'
+import { pickSaveFolder } from '@renderer/layers/FolderBrowserDialog'
 
 const KEY = 'projectFolder'
 
@@ -81,7 +82,9 @@ export async function setProjectFolder(folder: string): Promise<void> {
 
 /** Asks for another save folder. True when one was chosen. */
 export async function pickProjectFolder(): Promise<boolean> {
-  const dir = await window.tracemill?.pickProjectFolder(state.folder ?? undefined)
+  if (!window.tracemill) return false
+  // PCB TraceMill's own folder browser, like "Import a folder" (not the Windows dialog)
+  const dir = await pickSaveFolder(state.folder)
   if (!dir) return false
   await setProjectFolder(dir)
   return true
