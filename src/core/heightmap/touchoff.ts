@@ -1,4 +1,4 @@
-import type { PostProcessorId } from '../model/types'
+import type { PostProcessorId, Vec2 } from '../model/types'
 import { tokenizeLine } from '../gcode/tokenize'
 import { fmtNum } from '../post/format'
 
@@ -19,6 +19,11 @@ export interface TouchOffOptions {
    * also the feed of the final touch of the Mach3 G-code-only probe program.
    */
   slowFeed?: number
+  /**
+   * A different point for each touch-off (the first before the first spindle start, then one after
+   * every M0 / M1 / M6), e.g. from touchOffPoints(). Missing entries use x / y.
+   */
+  points?: (Vec2 | null | undefined)[]
 }
 
 /** The probe starts this far above the rough zero (set on paper) and searches down to this far below it (mm). */
@@ -62,9 +67,10 @@ export function addZTouchOff(gcode: string, o: TouchOffOptions): string {
     if (spindleOn && needed) {
       const s = inch ? 1 / 25.4 : 1
       const n = (v: number): string => fmtNum(v * s, inch ? 4 : 3)
+      const at = o.points?.[count] ?? { x: o.x, y: o.y }
       count++
       out.push(
-        c(`==== Z TOUCH-OFF ${count}: find the copper at point 1 X${n(o.x)} Y${n(o.y)} and set Z0 there ====`)
+        c(`==== Z TOUCH-OFF ${count}: find the copper at X${n(at.x)} Y${n(at.y)} and set Z0 there ====`)
       )
       out.push('M5')
       // No G92.1 here: Mach3 runs the file once while loading it (toolpath preview) and keeps the
@@ -75,7 +81,7 @@ export function addZTouchOff(gcode: string, o: TouchOffOptions): string {
         `M0 ${c(`Z TOUCH-OFF: set Z zero ROUGHLY on the copper - a sheet of paper is enough - then clip the probe to the bit and press Cycle Start. The probe searches down to ${n(TOUCH_OFF_REACH)} mm below that zero`)}`
       )
       out.push(`G0 Z${n(o.safeZ)}`)
-      out.push(`G0 X${n(o.x)} Y${n(o.y)}`)
+      out.push(`G0 X${n(at.x)} Y${n(at.y)}`)
       out.push(`G0 Z${n(TOUCH_OFF_START)}`)
       if (o.dialect === 'mach3')
         out.push(
@@ -85,7 +91,7 @@ export function addZTouchOff(gcode: string, o: TouchOffOptions): string {
       out.push(
         `${probe} Z${n(-TOUCH_OFF_REACH)} F${fmtNum(Math.min(o.feed, o.slowFeed ?? o.feed) * s, 1)} ${c('slow - protects the tip')}`
       )
-      out.push(`${setZero} ${c('Z0 = copper at point 1')}`)
+      out.push(`${setZero} ${c('Z0 = copper at this point')}`)
       out.push(`G0 Z${n(o.safeZ)}`)
       out.push(
         `M0 ${c('Remove the probe clip. If your spindle is switched by hand, switch it on NOW and let it reach full speed - then press Cycle Start to mill')}`

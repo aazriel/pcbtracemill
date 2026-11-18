@@ -6,7 +6,6 @@ import {
   Crosshair,
   Eye,
   Loader2,
-  Mountain,
   Save,
   Trash2,
   Upload,
@@ -28,6 +27,7 @@ import { TouchOffFigure } from './ProbeFigures'
 import { FORMAT_LABELS, importProbeResults } from './importProbe'
 import { mapRange, um } from './geometry'
 import { useAutoLevel } from './state'
+import { ProbeFiles, TouchPointChoice } from './ProbeFiles'
 
 function Step({
   n,
@@ -101,7 +101,6 @@ export function AutoLevelSection({
   const info = al.importInfo
   const failed = !!info && !info.ok
   const corrected = files.filter((f) => f.levelled)
-  const skipped = files.filter((f) => f.levelSkip)
   const on = al.apply && !!map
   // Mach3 G-code-only probing: the heights stay in Mach3, there is nothing to load
   const varsMode = machine?.postProcessor === 'mach3' && al.probeRecorder === 'variables' && !!al.probeCfg
@@ -320,7 +319,7 @@ export function AutoLevelSection({
                 help="Every saved file is rewritten so its Z follows the height map: long moves are split into 1 mm pieces and each piece gets the measured height added. The original design is not changed."
               />
               <Switch
-                label="Find Z zero at point 1 for each bit"
+                label="Find Z zero with the probe before each bit"
                 checked={on && al.touchOff}
                 disabled={!on}
                 onChange={(v) => al.set({ touchOff: v })}
@@ -329,9 +328,11 @@ export function AutoLevelSection({
                   <>
                     Zeroing a V-bit exactly on 0.035 mm copper by hand is very hard. With this on, each
                     corrected file stops before every bit: you set Z zero <b>roughly</b> (a sheet of paper is
-                    enough) and clip the probe to the bit. The program then touches the copper at point 1 very
-                    slowly (F2, so a 0.1 mm V-bit tip survives) at the same point as the height map and sets
-                    the exact Z0 there. Then it stops so you can remove the clip before the spindle starts.
+                    enough) and clip the probe to the bit. The program then touches the copper very slowly (F2,
+                    so a 0.1 mm V-bit tip survives) and sets the exact Z0 there – the height map is taken
+                    relative to that point. Isolation touches the board centre, drilling a hole it is about to
+                    drill, the cutout its own line – always copper that is still joined to the outer copper.
+                    Then it stops so you can remove the clip before the spindle starts.
                     <div className="mt-2">
                       <TouchOffFigure />
                     </div>
@@ -344,22 +345,9 @@ export function AutoLevelSection({
                   the copper itself, then asks you to remove the clip.
                 </p>
               )}
+              {on && al.touchOff && <TouchPointChoice />}
             </div>
-            {on && (
-              <div className="flex flex-col gap-0.5 text-[11px]">
-                <span className="flex items-center gap-1 text-emerald-300">
-                  <Mountain className="size-3" />
-                  {levelling
-                    ? 'Correcting files…'
-                    : `${corrected.length} of ${files.length} file${files.length === 1 ? '' : 's'} corrected`}
-                </span>
-                {skipped.map((f) => (
-                  <span key={f.file.name} className="truncate text-amber-300/90" title={f.levelSkip ?? ''}>
-                    not corrected: {f.file.name} – {f.levelSkip}
-                  </span>
-                ))}
-              </div>
-            )}
+            {on && <ProbeFiles files={files} levelling={levelling} />}
             <Button
               variant="success"
               data-testid="autolevel-save"

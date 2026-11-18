@@ -613,6 +613,12 @@ export interface ProjectSettings {
   autoLevelProbeZero?: boolean
   /** Which side was facing up while the board was probed (the map only fits that side). */
   autoLevelSide?: 'top' | 'bottom'
+  /** Steps whose files are NOT probed (no height correction, no Z touch-off). Missing = all probed. */
+  autoLevelSkipSteps?: string[]
+  /** Where copper steps (isolation, clearing) find Z0 with the probe (D-037). Missing = board centre. */
+  autoLevelTouchPoint?: 'center' | 'point1' | 'custom'
+  /** The custom touch-off point, work coordinates of the probed side, mm. */
+  autoLevelTouchXY?: { x: number; y: number }
   /** Units shown and typed in the app (everything is stored in mm). Missing = mm. */
   units?: DisplayUnits
 }

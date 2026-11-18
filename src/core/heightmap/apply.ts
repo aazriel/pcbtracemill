@@ -1,4 +1,4 @@
-import type { HeightMap } from '../model/types'
+import type { HeightMap, Vec2 } from '../model/types'
 import { arcPoints } from '../geometry'
 import { tokenizeLine, type GcodeWord } from '../gcode/tokenize'
 import { fmtNum } from '../post/format'
@@ -9,6 +9,12 @@ export interface ApplyHeightMapOptions {
   maxSegmentLength?: number
   /** Only moves with Z below this height (mm, program frame) are adjusted. Default 0.5. */
   onlyBelowZ?: number
+  /**
+   * Where Z0 is found with the probe before each bit (one per Z touch-off, see addZTouchOff): the
+   * heights after that touch-off are taken relative to this point instead of point 1. Missing or
+   * null entries keep point 1.
+   */
+  refs?: (Vec2 | null)[]
 }
 
 const INCH = 25.4
@@ -71,13 +77,18 @@ export function applyHeightMap(gcode: string, map: HeightMap, opts: ApplyHeightM
 
   const vars = map.mach3Vars
   const ref = vars !== undefined ? probePointCell(map) : -1
-  const off = (x: number, y: number): Lin => {
+  const height = (x: number, y: number): Lin => {
     if (vars === undefined) return lin(sampleHeight(map, x, y))
     const t = new Map<number, number>()
     // the reference cell (point 1) is 0 by definition
     for (const { cell, w } of heightWeights(map.config, x, y)) if (cell !== ref) t.set(vars + cell, w)
     return lin(0, t)
   }
+  // Z0 found with the probe at another point than point 1: heights relative to that point
+  let refOff: Lin = ZERO
+  let refNeeded = true
+  let refCount = 0
+  const off = (x: number, y: number): Lin => (isZero(refOff) ? height(x, y) : addLin(height(x, y), refOff, -1))
   const decimals = (): number => (scale === 1 ? 4 : 5)
   const f = (mm: number): string => fmtNum(mm / scale, decimals())
   /** A Z value: a plain number, or a Mach3 expression such as [-0.1+[0.25*#512]-[0.5*#513]]. */
@@ -131,6 +142,15 @@ export function applyHeightMap(gcode: string, map: HeightMap, opts: ApplyHeightM
       } else if ([4, 10, 28, 30, 53, 92].includes(g)) nonMotion = true
     }
     if (ms.includes(2) || ms.includes(30)) ended = true
+    {
+      const spindleOn = ms.includes(3) || ms.includes(4)
+      if (spindleOn && refNeeded) {
+        const r = opts.refs?.[refCount++]
+        refOff = r ? height(r.x, r.y) : ZERO
+        refNeeded = false
+      }
+      if (!spindleOn && (ms.includes(0) || ms.includes(1) || ms.includes(6))) refNeeded = true
+    }
     const hasAxis = 'X' in w || 'Y' in w || 'Z' in w
 
     if (!hasAxis || nonMotion || motion === 80) {

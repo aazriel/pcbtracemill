@@ -8,8 +8,10 @@ import {
   applyHeightMap,
   importProbeLog,
   generateProbeProgram,
+  touchOffPoints,
   type ProbeProgramOptions,
-  type TouchOffOptions
+  type TouchOffOptions,
+  type TouchPointRequest
 } from '@core/heightmap'
 import { analyzeClearance, narrowestGap } from '@core/toolpath'
 import type { CamStep, HeightMap, MachineProfile, PolygonSet, ProbeGridConfig } from '@core/model/types'
@@ -27,9 +29,11 @@ const api = {
     generateProbeProgram(cfg, machine, opts),
   importProbe: (text: string, cfg?: ProbeGridConfig) => importProbeLog(text, cfg),
   level: (gcode: string, map: HeightMap, touchOff?: TouchOffOptions) => {
-    const out = applyHeightMap(gcode, map)
+    // with a touch-off at other points than point 1, the heights are taken relative to those points
+    const out = applyHeightMap(gcode, map, { refs: touchOff?.points?.map((p) => p ?? null) })
     return touchOff ? addZTouchOff(out, touchOff) : out
-  }
+  },
+  touchPoints: (req: TouchPointRequest) => touchOffPoints(req)
 }
 
 export type CamWorkerApi = typeof api
