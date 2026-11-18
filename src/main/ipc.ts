@@ -1,5 +1,5 @@
 import { app, dialog, ipcMain, BrowserWindow } from 'electron'
-import { promises as fs, writeFileSync, rmSync, readFileSync } from 'node:fs'
+import { promises as fs, copyFileSync, writeFileSync, rmSync, readFileSync } from 'node:fs'
 import { basename, join, extname, dirname, parse as parsePath } from 'node:path'
 import Store from 'electron-store'
 import type { FolderListing, FolderPlace, OpenedFile, SaveFileRequest } from '../shared/ipc-types'
@@ -74,9 +74,28 @@ async function folderPlaces(): Promise<FolderPlace[]> {
   return out
 }
 
+/**
+ * The first start of a new version copies the settings (the user's tools, machines, folders) to
+ * tracemill-settings.before-<version>.json next to them, so nothing is lost if an update goes wrong.
+ * The settings themselves are never removed by an update or an uninstall (they live in the user's
+ * app-data folder, pinned to "TraceMill" in index.ts).
+ */
+function backupSettingsOnUpdate(): void {
+  const now = app.getVersion()
+  const last = store.get('appVersion', '') as string
+  if (last === now) return
+  try {
+    if (last) copyFileSync(store.path, join(dirname(store.path), `tracemill-settings.before-${now}.json`))
+  } catch {
+    // no settings file yet
+  }
+  store.set('appVersion', now)
+}
+
 export function registerIpc(): void {
   // created here (not at import) so a test profile set with TRACEMILL_USER_DATA is used
   store = new Store({ name: 'tracemill-settings' })
+  backupSettingsOnUpdate()
   ipcMain.handle('folder:list', async (_e, path: string | null) => {
     const start = path || (store.get('lastImportFolder', '') as string) || app.getPath('documents')
     try {

@@ -40,7 +40,10 @@ export function parseToolLibrary(text: string): { tools: Tool[]; skipped: string
   const f = raw as Partial<ToolLibraryFile>
   // a project file holds tools too: take its own tools
   const fromProject =
-    typeof raw === 'object' && raw !== null && Array.isArray((raw as { tools?: unknown }).tools) && !f.format
+    typeof raw === 'object' &&
+    raw !== null &&
+    Array.isArray((raw as { tools?: unknown }).tools) &&
+    (!f.format || (f.format as string) === 'tracemill-project')
   if (!fromProject && f.format !== TOOL_LIBRARY_FORMAT)
     throw new Error('This is not a PCB TraceMill tool library file.')
   if (!fromProject && (typeof f.version !== 'number' || f.version > TOOL_LIBRARY_VERSION))

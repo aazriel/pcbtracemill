@@ -20,7 +20,7 @@ import type {
 import { computeBoardBBox } from '@core/model/board'
 import { DEFAULT_MACHINE_ID, MACHINE_PRESETS, refreshPresetHeights } from '@core/machines'
 import { refreshStarterFeeds, STARTER_TOOLS, withStarterTools } from '@core/tools'
-import { withUserTools } from '@renderer/tools/toolLibrary'
+import { rememberMissingTools, withUserTools } from '@renderer/tools/toolLibrary'
 import {
   combinedClearance,
   createStep,
@@ -700,6 +700,11 @@ function safeName(n: string): string {
 // Regenerate whenever CAM-relevant inputs change.
 let prev: Pick<ProjectState, 'steps' | 'tools' | 'material' | 'machine' | 'layers' | 'parsedVersion'> | null =
   null
+// Every own tool of the project is kept in the tool library (it survives updates and new projects)
+useProject.subscribe((s, prev) => {
+  if (s.tools !== prev.tools) rememberMissingTools(s.tools)
+})
+
 useProject.subscribe((s) => {
   const cur = {
     steps: s.steps,
