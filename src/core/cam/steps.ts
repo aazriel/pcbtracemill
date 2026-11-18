@@ -15,6 +15,7 @@ import type {
   ValidationIssue,
   ValidationLevel
 } from '../model/types'
+import { cutoutTabCount } from '../model/types'
 import { TOOL_TYPE_INFO, validateTool } from '../tools'
 import { defaultOverlap } from './isolationPlan'
 
@@ -107,7 +108,7 @@ export function defaultStepParams(): StepParams {
   return {
     isolation: { passes: 2, overlap: 0.4, direction: 'climb', extraClearance: 0 },
     clear: { overlap: 0.4, direction: 'climb', minIslandArea: 0.05, clearMargin: 0 },
-    cutout: { tabs: 4, tabWidth: 3, tabHeight: 0.5, outside: true },
+    cutout: { tabs: 4, tabWidth: 3, tabHeight: 0.5, tabsOn: true, outside: true },
     drill: { peck: 0, retract: 1, minDiameter: 0, maxDiameter: 100, includeSlots: true },
     holeMill: { minDiameter: 0, maxDiameter: 100, helical: true }
   }
@@ -647,9 +648,9 @@ export function validateStep(step: CamStep, ctx: StepValidationContext): StepVal
     }
     case 'cutout': {
       const c = p.cutout
-      if (!finite(c.tabs) || !Number.isInteger(c.tabs) || c.tabs < 0)
+      if (c.tabsOn !== false && (!finite(c.tabs) || !Number.isInteger(c.tabs) || c.tabs < 0))
         add('params', 'error', 'Number of tabs must be a whole number (0 or more).')
-      else if (c.tabs === 0)
+      else if (cutoutTabCount(c) === 0)
         add(
           'params',
           'warning',

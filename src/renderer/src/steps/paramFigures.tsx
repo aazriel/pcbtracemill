@@ -353,56 +353,6 @@ export function ClearMarginFigure({ margin }: { margin: number }): ReactNode {
   )
 }
 
-/** Top view of a board edge with both options side by side; the chosen one is highlighted. */
-export function CutSideFigure({ outside }: { outside: boolean }): ReactNode {
-  const panel = (px: number, out: boolean): ReactNode => {
-    const on = out === outside
-    const edge = px + 74
-    const g = 26
-    const gx = out ? edge : edge - g
-    return (
-      <g opacity={on ? 1 : 0.4}>
-        <rect x={px} y={24} width={148} height={98} fill={SHEET} />
-        <rect x={px} y={24} width={edge - px} height={98} fill={BOARD} />
-        <Label x={px + 6} y={40} color="#d9f99d" size={9}>
-          board
-        </Label>
-        <Label x={px + 142} y={40} anchor="end" color="#e7d5bd" size={9}>
-          sheet
-        </Label>
-        <rect x={gx} y={24} width={g} height={98} fill="#0b1220" />
-        <line x1={edge} x2={edge} y1={20} y2={126} stroke={YELLOW} strokeWidth={1.5} strokeDasharray="4 3" />
-        {on && (
-          <circle cx={gx + g / 2} cy={24} r={g / 2} fill="rgba(226,232,240,0.35)" stroke="#e2e8f0">
-            <animate attributeName="cy" values="24;122;24" dur="3s" repeatCount="indefinite" />
-          </circle>
-        )}
-        <rect
-          x={px - 2}
-          y={4}
-          width={152}
-          height={136}
-          rx={5}
-          fill="none"
-          stroke={on ? '#38bdf8' : '#334155'}
-        />
-        <Label x={px + 74} y={17} anchor="middle" color={on ? '#e0f2fe' : '#94a3b8'} size={11}>
-          {out ? 'Outside' : 'Inside'}
-        </Label>
-        <Label x={px + 74} y={135} anchor="middle" color={on ? '#bae6fd' : '#64748b'} size={9}>
-          {out ? 'board keeps its exact size' : 'board ends up smaller'}
-        </Label>
-      </g>
-    )
-  }
-  return (
-    <Scene caption="Seen from above at the board edge. The dashed yellow line is the outline from your design; the dark groove is what the bit cuts.">
-      {panel(8, true)}
-      {panel(164, false)}
-    </Scene>
-  )
-}
-
 /** What a tab is: the cut-out from above with its tabs, plus a close-up of one tab from the side. */
 export function TabsFigure({ tabs }: { tabs: number }): ReactNode {
   const n = Math.max(0, Math.min(8, Math.round(tabs) || 0))
