@@ -2,6 +2,9 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import {
   PROJECT_FILE_EXT,
+  PROJECT_VERSION,
+  NewerProjectError,
+  compareVersions,
   deserializeProject,
   newProjectName,
   nextProjectName,
@@ -15,7 +18,7 @@ const GOLDEN = resolve(__dirname, '../../../fixtures/project/sample.golden.tmill
 
 function sampleProject(): Project {
   return {
-    version: 1,
+    version: 2,
     name: 'demo',
     layers: [
       {
@@ -144,6 +147,28 @@ describe('project files', () => {
     const o2 = JSON.parse(serializeProject(sampleProject()))
     o2.heightMap.z = [1]
     expect(() => deserializeProject(JSON.stringify(o2))).toThrow(/grid size/)
+  })
+
+  it('records the app version and refuses a project from a newer app (D-039)', () => {
+    const text = serializeProject(sampleProject(), '0.2.0')
+    expect(JSON.parse(text).app).toBe('0.2.0')
+    // same or older app version that saved it: opens
+    expect(deserializeProject(text, '0.2.0').name).toBe('demo')
+    expect(deserializeProject(text, '0.3.1').name).toBe('demo')
+    // newer: blocked, with the version to install
+    expect(() => deserializeProject(text, '0.1.9')).toThrow(NewerProjectError)
+    expect(() => deserializeProject(text, '0.1.9')).toThrow(/Install PCB TraceMill 0\.2\.0 or newer/)
+    expect(compareVersions('0.10.0', '0.9.9')).toBe(1)
+    expect(compareVersions('1.0.0', '1.0.0')).toBe(0)
+  })
+
+  it('opens a project from an older version (format 1, no app version)', () => {
+    const o = JSON.parse(serializeProject(sampleProject()))
+    o.version = 1
+    delete o.app
+    const p = deserializeProject(JSON.stringify(o), '9.9.9')
+    expect(p.version).toBe(PROJECT_VERSION)
+    expect(p.steps.length).toBe(sampleProject().steps.length)
   })
 
   it('names and extension', () => {

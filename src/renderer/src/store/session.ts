@@ -4,6 +4,7 @@
  */
 import { create } from 'zustand'
 import { serializeProject, UNNAMED_PROJECT } from '@core/project'
+import { APP_VERSION } from '@shared/version'
 import { toProject, useProject } from './project'
 import { useUi, type Stage } from './ui'
 import { loadProjectText } from './controller'
@@ -38,7 +39,7 @@ function snapshot(): string | null {
       stage: useUi.getState().stage,
       filePath: s.filePath,
       dirty: s.dirty,
-      project: serializeProject(toProject(s))
+      project: serializeProject(toProject(s), APP_VERSION)
     }
     return JSON.stringify(file)
   } catch {

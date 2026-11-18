@@ -5,7 +5,7 @@
 import { create, useStore } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
 import { temporal } from 'zundo'
-import { UNNAMED_PROJECT } from '@core/project'
+import { PROJECT_VERSION, UNNAMED_PROJECT } from '@core/project'
 import type {
   CamStep,
   EdaTool,
@@ -297,7 +297,7 @@ export function layersWithParsed(layers: ImportedLayer[]): ImportedLayer[] {
 export function toProject(s: ProjectState): Project {
   if (!s.machine || !s.material) throw new Error('Project is not complete (machine/material missing)')
   return {
-    version: 1,
+    version: PROJECT_VERSION,
     name: s.name,
     layers: s.layers,
     machine: s.machine,
