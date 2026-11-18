@@ -24,6 +24,7 @@ const api: TraceMillApi & { pathForFile(f: File): string } = {
     return () => ipcRenderer.removeListener('menu', h)
   },
   setMenuState: (state) => ipcRenderer.send('menu:state', state),
+  checkForUpdates: () => ipcRenderer.invoke('updates:check'),
   pathForFile: (f: File) => webUtils.getPathForFile(f),
   platform: process.platform
 }

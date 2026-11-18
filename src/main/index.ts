@@ -1,6 +1,7 @@
 import { app, BrowserWindow, shell } from 'electron'
 import { join } from 'node:path'
 import { registerIpc } from './ipc'
+import { registerUpdateIpc } from './updates'
 import { buildMenu } from './menu'
 
 // Automated tests and screenshots run with their own profile so they never touch the user's settings
@@ -35,6 +36,7 @@ function createWindow(): void {
 
 app.whenReady().then(() => {
   registerIpc()
+  registerUpdateIpc()
   buildMenu()
   createWindow()
   app.on('activate', () => {
