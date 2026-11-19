@@ -1,5 +1,6 @@
 /** Step 2 of auto-leveling: pick a probe log, parse it in the CAM worker and store the height map. */
 import { camWorker } from '@workers/index'
+import { pickFiles } from '@renderer/layers/FolderBrowserDialog'
 import { useProject } from '@renderer/store/project'
 import { useUi } from '@renderer/store/ui'
 import { useAutoLevel } from './state'
@@ -16,13 +17,13 @@ export const FORMAT_LABELS: Record<string, string> = {
 
 async function pickFile(): Promise<{ name: string; text: string } | null> {
   if (window.tracemill) {
-    const files = await window.tracemill.openFiles({
-      filters: [
-        { name: 'Probe results', extensions: ['txt', 'csv', 'log', 'nc', 'ngc', 'tap', 'gcode'] },
-        { name: 'All files', extensions: ['*'] }
-      ]
+    const paths = await pickFiles({
+      extensions: ['txt', 'csv', 'log', 'nc', 'ngc', 'tap', 'gcode', 'xyz', 'dig', 'dat', 'tsv'],
+      title: 'Load the probe results',
+      anyFile: true
     })
-    const f = files[0]
+    if (!paths?.length) return null
+    const f = (await window.tracemill.readPaths(paths))[0]
     if (!f) return null
     return { name: f.name, text: f.encoding === 'base64' ? atob(f.data) : f.data }
   }

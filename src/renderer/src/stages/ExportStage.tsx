@@ -14,10 +14,11 @@ import { useUi } from '@renderer/store/ui'
 import { scheduleRegenerate, useStageStatus } from '@renderer/store/controller'
 import { GroupingCards } from '@renderer/export/GroupingCards'
 import { FilesTable } from '@renderer/export/FilesTable'
-import { useExportFiles } from '@renderer/export/exportFiles'
+import { setStepsProbed, useExportFiles, type ExportFile } from '@renderer/export/exportFiles'
 import { AutoLevelSection } from '@renderer/heightmap/AutoLevelSection'
 import { HeightMapDialog } from '@renderer/heightmap/HeightMapDialog'
 import { ProbeDialog } from '@renderer/heightmap/ProbeDialog'
+import { TouchPointMap } from '@renderer/heightmap/TouchPointMap'
 import { PROBE_CFG_SETTINGS_KEY, useAutoLevel } from '@renderer/heightmap/state'
 
 const POST_LABELS: Record<string, string> = {
@@ -85,15 +86,24 @@ function MachineSummary(): React.JSX.Element | null {
 }
 
 /** Probe Z0 before each bit in files that are not height-corrected (no probing of the board needed). */
-function ProbeZeroSwitch(): React.JSX.Element {
+function ProbeZeroSwitch({ files }: { files: ExportFile[] }): React.JSX.Element {
   const probeZero = useAutoLevel((s) => s.probeZero)
   const set = useAutoLevel((s) => s.set)
+  // every file unticked = off; switching it on again ticks them all
+  const anyProbed = !files.length || files.some((f) => f.probeOn)
   return (
     <div data-testid="probe-zero" className="flex flex-col gap-1">
       <Switch
         label="Find Z zero with the probe before each bit"
-        checked={probeZero}
-        onChange={(v) => set({ probeZero: v })}
+        checked={probeZero && anyProbed}
+        onChange={(v) => {
+          if (v && !anyProbed)
+            setStepsProbed(
+              files.flatMap((f) => f.file.stepIds),
+              true
+            )
+          set({ probeZero: v })
+        }}
         helpWide
         help={
           <>
@@ -164,8 +174,11 @@ export function ExportStage(): React.JSX.Element {
 
   return (
     <div className="flex h-full">
-      <aside className="flex w-[340px] shrink-0 flex-col border-r border-slate-800 bg-slate-900/40">
+      <aside className="flex w-[360px] shrink-0 flex-col border-r border-slate-800 bg-slate-900/40">
         <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="border-b border-slate-800 p-3">
+            <TouchPointMap files={files} />
+          </div>
           <PanelSection
             title="Export"
             status={
@@ -182,7 +195,7 @@ export function ExportStage(): React.JSX.Element {
               </p>
               <GroupingCards value={grouping} onChange={setGrouping} />
               <MachineSummary />
-              <ProbeZeroSwitch />
+              <ProbeZeroSwitch files={files} />
             </div>
           </PanelSection>
         </div>

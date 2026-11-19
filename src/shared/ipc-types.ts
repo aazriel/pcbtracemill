@@ -100,5 +100,8 @@ export type MenuCommand =
   | 'save-project-as'
   | 'import-files'
   | 'import-folder'
+  | 'tool-library'
+  | 'export-tools'
+  | 'import-tools'
   | 'undo'
   | 'redo'

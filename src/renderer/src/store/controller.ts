@@ -2,7 +2,7 @@
  * Controller: orchestrates the stores and the workers. UI components call these functions
  * instead of talking to workers directly.
  */
-import { pickFolder } from '@renderer/layers/FolderBrowserDialog'
+import { pickFiles, pickFolder } from '@renderer/layers/FolderBrowserDialog'
 import { useMemo } from 'react'
 import type {
   BBox,
@@ -41,6 +41,7 @@ import {
 } from '@core/project'
 import { APP_VERSION } from '@shared/version'
 import {
+  projectFolder,
   projectNameTaken,
   projectPathFor,
   projectSavedAt,
@@ -379,18 +380,19 @@ async function browse(kind: BrowseKind, eda: EdaTool): Promise<void> {
       data: f.encoding === 'base64' ? Uint8Array.from(atob(f.data), (c) => c.charCodeAt(0)) : f.data
     }))
   } else if (window.tracemill) {
-    const opened = await window.tracemill.openFiles({
-      directory: kind === 'folder',
-      filters:
-        kind === 'zip'
-          ? [{ name: 'ZIP archive', extensions: ['zip'] }]
-          : [
-              { name: `${info.short} fabrication files`, extensions: exts },
-              { name: 'All files', extensions: ['*'] }
-            ],
-      // a folder is read recursively: only take the files this design program produces
-      extensions: kind === 'folder' ? [...exts, 'zip'] : undefined
-    })
+    // PCB TraceMill's own file browser too, not the Windows dialog (D-043)
+    const paths = await pickFiles(
+      kind === 'zip'
+        ? { extensions: ['zip'], title: 'Import a ZIP archive' }
+        : {
+            extensions: [...exts, 'zip'],
+            title: `Choose your ${info.short} fabrication files`,
+            multiple: true,
+            anyFile: true
+          }
+    )
+    if (!paths?.length) return
+    const opened = await window.tracemill.readPaths(paths)
     files = opened.map((f) => ({
       name: f.name,
       data: f.encoding === 'base64' ? Uint8Array.from(atob(f.data), (c) => c.charCodeAt(0)) : f.data
@@ -448,7 +450,13 @@ export async function reimportLayer(id: string): Promise<void> {
   if (!layer) return
   let text = layer.rawText
   if (window.tracemill) {
-    const files = await window.tracemill.openFiles({})
+    const paths = await pickFiles({
+      extensions: [layer.fileName.split('.').pop()?.toLowerCase() ?? 'gbr'],
+      title: `Re-import ${layer.fileName}`,
+      anyFile: true
+    })
+    if (!paths?.length) return
+    const files = await window.tracemill.readPaths(paths)
     if (!files.length) return
     text = files[0].data
   }
@@ -807,10 +815,16 @@ export async function openProject(): Promise<void> {
   let content: string | null = null
   let path: string | null = null
   if (window.tracemill) {
-    const r = await window.tracemill.openProject()
+    const paths = await pickFiles({
+      extensions: ['tmill'],
+      title: 'Open a PCB TraceMill project',
+      start: projectFolder()
+    })
+    if (!paths?.length) return
+    const r = (await window.tracemill.readPaths(paths))[0]
     if (!r) return
-    content = r.content
-    path = r.path
+    content = r.data
+    path = paths[0]
   } else {
     content = await pickTextFile('.tmill')
   }
@@ -824,7 +838,11 @@ export async function openProject(): Promise<void> {
     // a project from a newer version: say which version to install, and keep it on screen
     useUi
       .getState()
-      .toast('error', e instanceof Error ? e.message : String(e), e instanceof NewerProjectError ? 20000 : undefined)
+      .toast(
+        'error',
+        e instanceof Error ? e.message : String(e),
+        e instanceof NewerProjectError ? 20000 : undefined
+      )
   }
 }
 

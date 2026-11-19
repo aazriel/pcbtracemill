@@ -21,7 +21,7 @@ import { StatusCircle } from '@renderer/components/ui/status'
 import { cn } from '@renderer/lib/utils'
 import { useProject } from '@renderer/store/project'
 import { useUi } from '@renderer/store/ui'
-import { saveMany, type ExportFile } from '@renderer/export/exportFiles'
+import { saveMany, setStepsProbed, type ExportFile } from '@renderer/export/exportFiles'
 import { SavedNote } from '@renderer/export/SavedNote'
 import { WarpIllustration } from './ProbeIllustrations'
 import { TouchOffFigure } from './ProbeFigures'
@@ -101,7 +101,17 @@ export function AutoLevelSection({
   const info = al.importInfo
   const failed = !!info && !info.ok
   const corrected = files.filter((f) => f.levelled)
-  const on = al.apply && !!map
+  // every file unticked in step 3 = probing is off (switching it on again ticks them all)
+  const anyProbed = !files.length || files.some((f) => f.probeOn)
+  const on = al.apply && !!map && anyProbed
+  const setApply = (v: boolean): void => {
+    if (v && !anyProbed)
+      setStepsProbed(
+        files.flatMap((f) => f.file.stepIds),
+        true
+      )
+    al.set({ apply: v })
+  }
   // Mach3 G-code-only probing: the heights stay in Mach3, there is nothing to load
   const varsMode = machine?.postProcessor === 'mach3' && al.probeRecorder === 'variables' && !!al.probeCfg
   const isVarsMap = map?.mach3Vars !== undefined
@@ -178,7 +188,7 @@ export function AutoLevelSection({
           </div>
         )}
 
-        <ol className={wide ? 'grid items-start gap-2 lg:grid-cols-3' : 'flex flex-col gap-2'}>
+        <ol className={wide ? 'grid items-stretch gap-2 lg:grid-cols-3' : 'flex flex-col gap-2'}>
           <Step n={1} title="Make the probe program" done={step1}>
             <p className="text-[11px] text-slate-500">
               The machine touches the board at many points and writes down each height.
@@ -316,7 +326,7 @@ export function AutoLevelSection({
                 label="Correct the G-code with the height map"
                 checked={on}
                 disabled={!map}
-                onChange={(v) => al.set({ apply: v })}
+                onChange={setApply}
                 help="Every saved file is rewritten so its Z follows the height map: long moves are split into 1 mm pieces and each piece gets the measured height added. The original design is not changed."
               />
               <Switch
@@ -329,8 +339,8 @@ export function AutoLevelSection({
                   <>
                     Zeroing a V-bit exactly on 0.035 mm copper by hand is very hard. With this on, each
                     corrected file stops before every bit: you set Z zero <b>roughly</b> (a sheet of paper is
-                    enough) and clip the probe to the bit. The program then touches the copper very slowly (F2,
-                    so a 0.1 mm V-bit tip survives) and sets the exact Z0 there – the height map is taken
+                    enough) and clip the probe to the bit. The program then touches the copper very slowly
+                    (F2, so a 0.1 mm V-bit tip survives) and sets the exact Z0 there – the height map is taken
                     relative to that point. Isolation touches the board centre, drilling a hole it is about to
                     drill, the cutout its own line – always copper that is still joined to the outer copper.
                     Then it stops so you can remove the clip before the spindle starts.

@@ -627,8 +627,10 @@ export interface ProjectSettings {
   autoLevelSkipSteps?: string[]
   /** Where copper steps (isolation, clearing) find Z0 with the probe (D-037). Missing = board centre. */
   autoLevelTouchPoint?: 'center' | 'point1' | 'custom'
-  /** The custom touch-off point, work coordinates of the probed side, mm. */
+  /** The custom touch-off point, work coordinates of the probed side, mm (older projects). */
   autoLevelTouchXY?: { x: number; y: number }
+  /** The user's own Z touch-off point of single bits (by step id, work coordinates of its side), mm. */
+  autoLevelStepTouch?: Record<string, Vec2>
   /** Units shown and typed in the app (everything is stored in mm). Missing = mm. */
   units?: DisplayUnits
 }
