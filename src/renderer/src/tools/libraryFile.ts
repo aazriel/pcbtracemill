@@ -8,6 +8,7 @@ import { APP_VERSION } from '@shared/version'
 import { useProject } from '@renderer/store/project'
 import { useUi } from '@renderer/store/ui'
 import { downloadText, pickTextFile } from '@renderer/store/controller'
+import { pickFiles } from '@renderer/layers/FolderBrowserDialog'
 import { loadUserTools, rememberTool, uniqueToolName, userTools } from './toolLibrary'
 import { nextToolNumber, sameTool } from './toolMeta'
 
@@ -61,7 +62,13 @@ export function importToolLibraryText(text: string): { added: number; updated: n
     const same = all.find((x) => x.id === t.id)
     if (same) {
       if (sameTool(same, t)) continue
-      const tool = { ...t, name: uniqueToolName(all.filter((x) => x.id !== t.id), t.name) }
+      const tool = {
+        ...t,
+        name: uniqueToolName(
+          all.filter((x) => x.id !== t.id),
+          t.name
+        )
+      }
       all = all.map((x) => (x.id === t.id ? tool : x))
       p.upsertTool(tool)
       rememberTool(tool)
@@ -85,7 +92,12 @@ export async function importToolLibrary(): Promise<void> {
   const ui = useUi.getState()
   let text: string | null = null
   if (window.tracemill) {
-    const files = await window.tracemill.openFiles({ filters: FILTERS })
+    const paths = await pickFiles({
+      extensions: [TOOL_LIBRARY_EXTENSION, 'json', 'tmill'],
+      title: 'Import tools (.tmtools, or a .tmill project)'
+    })
+    if (!paths?.length) return
+    const files = await window.tracemill.readPaths(paths)
     text = files[0]?.encoding === 'utf8' ? files[0].data : null
     if (files[0] && !text) {
       ui.toast('error', 'This is not a PCB TraceMill tool library file.')

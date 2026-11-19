@@ -70,13 +70,20 @@ describe('Z touch-off points (D-037)', () => {
         // the waste copper outside the board is used instead
         expect(['on a hole it drills', 'copper outside the board']).toContain(p!.where)
         if (p!.where === 'on a hole it drills')
-          expect(tp.segments.some((s) => s.drill && Math.hypot(s.drill.x - p!.x, s.drill.y - p!.y) < 1e-6)).toBe(
-            true
-          )
+          expect(
+            tp.segments.some((s) => s.drill && Math.hypot(s.drill.x - p!.x, s.drill.y - p!.y) < 1e-6)
+          ).toBe(true)
         else expect(pointInPolygonSet(p!, top)).toBe(false)
       }
-      if (tp.stepKind === 'cutout') expect(['on the cutout line', 'copper outside the board']).toContain(p!.where)
-      milledSoFar = [...milledSoFar, milledArea(tp, STARTER_TOOLS.find((t) => t.id === tp.toolId))]
+      if (tp.stepKind === 'cutout')
+        expect(['on the cutout line', 'copper outside the board']).toContain(p!.where)
+      milledSoFar = [
+        ...milledSoFar,
+        milledArea(
+          tp,
+          STARTER_TOOLS.find((t) => t.id === tp.toolId)
+        )
+      ]
     }
     expect([...kinds.values()].some((t) => t.stepKind === 'drill')).toBe(true)
   })
@@ -92,13 +99,41 @@ describe('Z touch-off points (D-037)', () => {
       grid: null
     })
     const iso = res.toolpaths.findIndex((t) => t.stepKind === 'isolate')
-    const isoArea = milledArea(res.toolpaths[iso], STARTER_TOOLS.find((t) => t.id === res.toolpaths[iso].toolId))
+    const isoArea = milledArea(
+      res.toolpaths[iso],
+      STARTER_TOOLS.find((t) => t.id === res.toolpaths[iso].toolId)
+    )
     for (const tp of res.toolpaths.slice(iso + 1)) {
       const p = pts.get(tp.stepId)
       if (!p) continue
       // the point is not inside an isolation groove
       expect(pointInPolygonSet(p, isoArea)).toBe(false)
     }
+  })
+
+  it("a bit's own point is used where the probe can work there, otherwise the automatic one (rejected)", async () => {
+    const { res, material, bbox, top, bottom, stock } = await job()
+    const req = {
+      toolpaths: res.toolpaths,
+      tools: STARTER_TOOLS,
+      material,
+      boardBBox: bbox,
+      boardShape: { top, bottom },
+      grid: null
+    }
+    const auto = touchOffPoints(req)
+    const iso = res.toolpaths.find((t) => t.stepKind === 'isolate')!
+    const cut = res.toolpaths.find((t) => t.stepKind === 'cutout')!
+    // isolation: a corner of the sheet (all copper) is fine
+    const corner = { x: stock.minX + 3, y: stock.minY + 3 }
+    // cutout: the board centre (an isolated island by then) is not
+    const centre = auto.get(iso.stepId)!
+    const pts = touchOffPoints({ ...req, stepPoints: { [iso.stepId]: corner, [cut.stepId]: centre } })
+    expect(pts.get(iso.stepId)).toMatchObject({ ...corner, own: true, stepId: iso.stepId, side: iso.side })
+    const c = pts.get(cut.stepId)!
+    expect(c.own).toBeFalsy()
+    expect(c.rejected).toEqual({ x: centre.x, y: centre.y })
+    expect({ x: c.x, y: c.y }).toEqual({ x: auto.get(cut.stepId)!.x, y: auto.get(cut.stepId)!.y })
   })
 
   it('no copper left → null (the file cannot find Z0 with the probe)', async () => {

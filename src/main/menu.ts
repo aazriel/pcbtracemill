@@ -37,6 +37,10 @@ export function buildMenu(): void {
         { label: 'Import Files…', accelerator: 'CmdOrCtrl+I', click: () => send('import-files') },
         { label: 'Import Folder…', click: () => send('import-folder') },
         { type: 'separator' },
+        { label: 'Tool Library…', click: () => send('tool-library') },
+        { label: 'Export Tools…', click: () => send('export-tools') },
+        { label: 'Import Tools…', click: () => send('import-tools') },
+        { type: 'separator' },
         isMac ? { role: 'close' } : { role: 'quit' }
       ]
     },

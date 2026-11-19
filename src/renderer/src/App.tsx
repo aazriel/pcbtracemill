@@ -1,5 +1,7 @@
-import { useEffect } from 'react'
-import { FilePlus2, FolderOpen, HelpCircle, Redo2, Save, Undo2, Loader2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { FilePlus2, FolderOpen, HelpCircle, Redo2, Save, Undo2, Loader2, Wrench } from 'lucide-react'
+import { ToolLibraryDialog } from '@renderer/tools/ToolLibraryDialog'
+import { exportToolLibrary, importToolLibrary } from '@renderer/tools/libraryFile'
 import type { EdaTool } from '@core/model/types'
 import { TooltipProvider, Tooltip } from '@renderer/components/ui/tooltip'
 import { Button } from '@renderer/components/ui/button'
@@ -46,6 +48,7 @@ import { ExportStage } from '@renderer/stages/ExportStage'
 
 export function App(): React.JSX.Element {
   const stage = useUi((s) => s.stage)
+  const [toolsOpen, setToolsOpen] = useState(false)
   const setUi = useUi((s) => s.set)
   const pending = useUi((s) => s.pendingImport)
   const pendingBrowse = useUi((s) => s.pendingBrowse)
@@ -103,6 +106,9 @@ export function App(): React.JSX.Element {
       else if (cmd === 'shortcuts') useUi.getState().set({ helpOpen: true, helpTopic: 'shortcuts' })
       else if (cmd === 'about') useUi.getState().set({ helpOpen: true, helpTopic: 'about' })
       else if (cmd === 'check-updates') void checkForUpdates(true)
+      else if (cmd === 'tool-library') setToolsOpen(true)
+      else if (cmd === 'export-tools') void exportToolLibrary()
+      else if (cmd === 'import-tools') void importToolLibrary()
       else if (cmd.startsWith('set-eda:')) void changeEda(cmd.slice('set-eda:'.length) as EdaTool)
       else if (cmd === 'set-units:mm' || cmd === 'set-units:inch')
         useProject.getState().setSettings({ units: cmd === 'set-units:inch' ? 'inch' : 'mm' })
@@ -189,6 +195,20 @@ export function App(): React.JSX.Element {
                 />
               </div>
             </Tooltip>
+            <Tooltip
+              content="Tool library: your bits – add, edit, export them to a file or import them from one"
+              side="bottom"
+            >
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={() => setToolsOpen(true)}
+                aria-label="Tool library"
+                data-testid="open-tools"
+              >
+                <Wrench />
+              </Button>
+            </Tooltip>
             <Tooltip content="Help: how PCB TraceMill works, shortcuts and a glossary (F1)" side="bottom">
               <Button
                 size="icon"
@@ -255,6 +275,7 @@ export function App(): React.JSX.Element {
           onPick={(e, n) => void resolveEda(e, n)}
           onClose={cancelEdaChoice}
         />
+        <ToolLibraryDialog open={toolsOpen} onOpenChange={setToolsOpen} />
         <DuplicateDialog pending={duplicates} onResolve={resolveDuplicates} />
         <FolderBrowserDialog />
         <RestoreDialog />

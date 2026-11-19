@@ -110,13 +110,27 @@ function useTouchPoints(withGrid: boolean, free: boolean): { grid: PointMap | nu
   const material = useProject((s) => s.material)
   const choice = useProject((s) => s.settings.autoLevelTouchPoint)
   const custom = useProject((s) => s.settings.autoLevelTouchXY)
+  const stepPoints = useProject((s) => s.settings.autoLevelStepTouch)
   const bbox = useBoardBBox()
   const sceneTop = useWorkScene('top')
   const sceneBottom = useWorkScene('bottom')
   const grid = map?.config
   const key = useMemo(
-    () => [cam, grid, tools, material, choice, custom, bbox, sceneTop, sceneBottom, withGrid, free],
-    [cam, grid, tools, material, choice, custom, bbox, sceneTop, sceneBottom, withGrid, free]
+    () => [
+      cam,
+      grid,
+      tools,
+      material,
+      choice,
+      custom,
+      stepPoints,
+      bbox,
+      sceneTop,
+      sceneBottom,
+      withGrid,
+      free
+    ],
+    [cam, grid, tools, material, choice, custom, stepPoints, bbox, sceneTop, sceneBottom, withGrid, free]
   )
   const [res, setRes] = useState<{ key: unknown[]; grid: PointMap | null; free: PointMap | null } | null>(
     null
@@ -132,7 +146,8 @@ function useTouchPoints(withGrid: boolean, free: boolean): { grid: PointMap | nu
       boardShape: { top: sceneTop?.shape ?? [], bottom: sceneBottom?.shape ?? [] },
       grid: null,
       choice: choice ?? 'center',
-      custom: custom ?? null
+      custom: custom ?? null,
+      stepPoints: stepPoints ?? {}
     }
     void (async () => {
       try {
@@ -146,7 +161,21 @@ function useTouchPoints(withGrid: boolean, free: boolean): { grid: PointMap | nu
     return () => {
       cancelled = true
     }
-  }, [key, cam, material, withGrid, free, tools, bbox, sceneTop, sceneBottom, choice, custom, grid])
+  }, [
+    key,
+    cam,
+    material,
+    withGrid,
+    free,
+    tools,
+    bbox,
+    sceneTop,
+    sceneBottom,
+    choice,
+    custom,
+    stepPoints,
+    grid
+  ])
   return res && res.key === key ? res : { grid: null, free: null }
 }
 
@@ -275,6 +304,15 @@ export function useExportFiles(): { files: ExportFile[]; levelling: boolean; lev
     [base, active, ready, levelled, touching, zeroed, levelPlan]
   )
   return { files, levelling: active && (!ready || !levelPlan), levelError: active ? levelError : null }
+}
+
+/** The user's own Z touch-off point for one bit (step), or back to the automatic point (null). */
+export function setStepTouchPoint(stepId: string, p: { x: number; y: number } | null): void {
+  const s = useProject.getState()
+  const cur = { ...(s.settings.autoLevelStepTouch ?? {}) }
+  if (p) cur[stepId] = { x: Math.round(p.x * 100) / 100, y: Math.round(p.y * 100) / 100 }
+  else delete cur[stepId]
+  s.setSettings({ autoLevelStepTouch: cur })
 }
 
 /** Probe (height-correct + touch off) the files of these steps, or leave them as they are. */

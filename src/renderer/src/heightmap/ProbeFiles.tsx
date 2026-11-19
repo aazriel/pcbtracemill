@@ -3,12 +3,15 @@
  * (D-037).
  */
 import { useState } from 'react'
-import { AlertTriangle, ChevronDown, ChevronRight, Crosshair, Mountain } from 'lucide-react'
+import { AlertTriangle, ChevronDown, ChevronRight, Crosshair, Mountain, Move, RotateCcw } from 'lucide-react'
+import type { TouchPoint } from '@core/heightmap'
 import { NumberField, Segmented } from '@renderer/components/ui/fields'
 import { HelpTip } from '@renderer/components/ui/help'
 import { cn } from '@renderer/lib/utils'
 import { useProject } from '@renderer/store/project'
-import { setStepsProbed, type ExportFile } from '@renderer/export/exportFiles'
+import { setStepsProbed, setStepTouchPoint, type ExportFile } from '@renderer/export/exportFiles'
+import { useUi } from '@renderer/store/ui'
+import { FILE_COLOURS, hoverProps, useTouchUi } from './touchState'
 import { boardProbeArea, useWorkScene } from './geometry'
 import { useAutoLevel } from './state'
 
@@ -42,7 +45,13 @@ function Box({
   )
 }
 
-export function ProbeFiles({ files, levelling }: { files: ExportFile[]; levelling: boolean }): React.JSX.Element {
+export function ProbeFiles({
+  files,
+  levelling
+}: {
+  files: ExportFile[]
+  levelling: boolean
+}): React.JSX.Element {
   const allOn = files.every((f) => f.probeOn)
   const someOn = files.some((f) => f.probeOn)
   const setAll = (on: boolean): void =>
@@ -51,7 +60,10 @@ export function ProbeFiles({ files, levelling }: { files: ExportFile[]; levellin
       on
     )
   return (
-    <div className="flex flex-col gap-1 rounded-md border border-slate-800 bg-slate-950/50 p-2" data-testid="probe-files">
+    <div
+      className="flex flex-col gap-1 rounded-md border border-slate-800 bg-slate-950/50 p-2"
+      data-testid="probe-files"
+    >
       <label className="flex items-center gap-2 text-[11px] font-medium text-slate-200">
         <Box
           checked={allOn}
@@ -68,13 +80,22 @@ export function ProbeFiles({ files, levelling }: { files: ExportFile[]; levellin
         </HelpTip>
       </label>
       <ul className="flex flex-col gap-1 pl-1">
-        {files.map((f) => (
-          <li key={f.file.name} className="flex flex-col gap-0.5" data-testid="probe-file">
+        {files.map((f, i) => (
+          <li
+            key={f.file.name}
+            className="-mx-1 flex flex-col gap-0.5 rounded px-1 py-0.5 hover:bg-slate-800/60"
+            data-testid="probe-file"
+            {...hoverProps(f.file.name)}
+          >
             <label className="flex items-center gap-2 text-[11px] text-slate-300">
               <Box
                 checked={f.probeOn}
                 onChange={(v) => setStepsProbed(f.file.stepIds, v)}
                 label={`Probe ${f.file.name}`}
+              />
+              <span
+                className="size-2 shrink-0 rounded-full"
+                style={{ background: f.probeOn ? FILE_COLOURS[i % FILE_COLOURS.length] : '#475569' }}
               />
               <span className={cn('truncate font-mono', !f.probeOn && 'text-slate-500 line-through')}>
                 {f.file.name}
@@ -87,20 +108,17 @@ export function ProbeFiles({ files, levelling }: { files: ExportFile[]; levellin
                 <span className="flex gap-1 text-amber-300/90">
                   <AlertTriangle className="mt-px size-3 shrink-0" /> {f.levelSkip}
                 </span>
-              ) : f.levelled ? (
-                <span className="flex flex-wrap items-center gap-x-1 text-emerald-300/90">
-                  <Mountain className="size-3" /> corrected
-                  {f.touchPoints.length > 0 && (
-                    <>
-                      <Crosshair className="ml-1 size-3" /> Z0 at{' '}
-                      {f.touchPoints.map((p, i) => (
-                        <span key={i} title={p.where}>
-                          {i > 0 && ', '}X{fmt(p.x)} Y{fmt(p.y)} ({p.where})
-                        </span>
-                      ))}
-                    </>
+              ) : f.levelled || f.touchPoints.length ? (
+                <div className="flex flex-col gap-0.5">
+                  {f.levelled && (
+                    <span className="flex items-center gap-1 text-emerald-300/90">
+                      <Mountain className="size-3" /> corrected
+                    </span>
                   )}
-                </span>
+                  {f.touchPoints.map((p, k) => (
+                    <PointRow key={k} n={k + 1} p={p} />
+                  ))}
+                </div>
               ) : (
                 <span className="text-slate-500">{levelling ? 'correcting…' : 'waiting'}</span>
               )}
@@ -108,6 +126,74 @@ export function ProbeFiles({ files, levelling }: { files: ExportFile[]; levellin
           </li>
         ))}
       </ul>
+    </div>
+  )
+}
+
+/** One bit's Z0 point: where, and buttons to move it (a click on the board map) or go back to automatic. */
+function PointRow({ n, p }: { n: number; p: TouchPoint }): React.JSX.Element {
+  const editStep = useTouchUi((s) => s.editStep)
+  const set = useTouchUi((s) => s.set)
+  const name = useUi((s) => s.cam?.toolpaths.find((t) => t.stepId === p.stepId)?.stepName)
+  const editing = !!p.stepId && editStep === p.stepId
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center gap-1 text-emerald-300/90" data-testid="touch-point-row">
+        <Crosshair className="size-3 shrink-0" />
+        <span className="min-w-0 flex-1 truncate" title={p.where}>
+          {n}. {name ?? 'bit'}: X{fmt(p.x)} Y{fmt(p.y)} <span className="text-slate-400">({p.where})</span>
+        </span>
+        {p.stepId && (
+          <button
+            type="button"
+            title="Choose this bit's Z0 point yourself: click on the board map on the left, or type X / Y"
+            className={cn(
+              'flex items-center gap-0.5 rounded px-1 text-sky-300 hover:bg-slate-700',
+              editing && 'bg-sky-600/30'
+            )}
+            onClick={() => set({ editStep: editing ? null : p.stepId! })}
+            data-testid="touch-point-move"
+          >
+            <Move className="size-3" /> {editing ? 'Done' : 'Move'}
+          </button>
+        )}
+        {p.own && p.stepId && (
+          <button
+            type="button"
+            title="Back to the automatic point"
+            className="flex items-center gap-0.5 rounded px-1 text-slate-300 hover:bg-slate-700"
+            onClick={() => {
+              setStepTouchPoint(p.stepId!, null)
+              if (editing) set({ editStep: null })
+            }}
+          >
+            <RotateCcw className="size-3" /> Auto
+          </button>
+        )}
+      </div>
+      {p.rejected && (
+        <span className="flex gap-1 pl-4 text-amber-300/90">
+          <AlertTriangle className="mt-px size-3 shrink-0" />
+          Your point X{fmt(p.rejected.x)} Y{fmt(p.rejected.y)} has no copper joined to the probe clip there
+          (or is outside the probed area) – the automatic point is used.
+        </span>
+      )}
+      {editing && p.stepId && (
+        <div className="grid grid-cols-2 gap-2 pl-4">
+          <NumberField
+            label="X"
+            unit="mm"
+            value={p.rejected?.x ?? p.x}
+            onChange={(x) => setStepTouchPoint(p.stepId!, { x, y: p.rejected?.y ?? p.y })}
+          />
+          <NumberField
+            label="Y"
+            unit="mm"
+            value={p.rejected?.y ?? p.y}
+            onChange={(y) => setStepTouchPoint(p.stepId!, { x: p.rejected?.x ?? p.x, y })}
+          />
+        </div>
+      )}
     </div>
   )
 }
@@ -133,28 +219,29 @@ export function TouchPointChoice(): React.JSX.Element {
         onClick={() => setOpen((o) => !o)}
       >
         {open ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
-        Advanced: where isolation finds Z0
+        Advanced: where isolation finds Z0 by default
       </button>
       {open && (
         <div className="flex flex-col gap-2 rounded-md border border-slate-800 bg-slate-950/50 p-2">
           <p className="text-[11px] leading-snug text-slate-400">
-            Isolation and copper clearing touch the copper here (the whole sheet is still copper then). Drilling
-            touches on a hole it is about to drill and the cutout on its own line, so the small mark is
-            removed. Every point must be copper still joined to the outer copper where the probe clip is.
+            Isolation and copper clearing touch the copper here (the whole sheet is still copper then).
+            Drilling touches on a hole it is about to drill and the cutout on its own line, so the small mark
+            is removed. Every point must be copper still joined to the outer copper where the probe clip is.
+            To choose the point of one file’s bit yourself, press “Move” next to it below.
           </p>
           <Segmented
             size="sm"
             value={choice}
             onChange={(v) =>
               setSettings({
-                autoLevelTouchPoint: v,
-                ...(v === 'custom' && !xy ? { autoLevelTouchXY: centre } : {})
+                autoLevelTouchPoint: v
               })
             }
             options={[
               { value: 'center', label: 'Board centre' },
               { value: 'point1', label: 'Point 1 (corner)' },
-              { value: 'custom', label: 'My point' }
+              // older projects: one point for every copper step (now chosen per bit with "Move")
+              ...(choice === 'custom' ? [{ value: 'custom' as const, label: 'My point' }] : [])
             ]}
           />
           {choice === 'custom' && (

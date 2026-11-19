@@ -26,6 +26,7 @@ import { Dialog } from '@renderer/components/ui/dialog'
 import { useAutoLevel } from '@renderer/heightmap/state'
 import { GcodePreviewDialog } from './GcodePreviewDialog'
 import { saveMany, saveOne, type ExportFile } from './exportFiles'
+import { hoverProps } from '@renderer/heightmap/touchState'
 import { SavedNote } from './SavedNote'
 
 function SideBadge({ side }: { side: 'top' | 'bottom' }): React.JSX.Element {
@@ -285,6 +286,7 @@ export function FilesTable({
                 key={f.file.name}
                 data-testid="export-row"
                 className="bg-slate-950/40 align-top hover:bg-slate-900/60"
+                {...hoverProps(f.file.name)}
               >
                 <td className="px-3 py-2.5 font-mono text-xs text-slate-500">{i + 1}</td>
                 <td className="px-3 py-2.5">

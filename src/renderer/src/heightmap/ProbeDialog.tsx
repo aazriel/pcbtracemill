@@ -179,7 +179,8 @@ function IntroPage({
           <li>
             You can probe with the <b>milling bit itself</b> (0.1 mm tip) – keep the probe speed slow. Clean
             the copper first: where it doesn’t conduct (oxide, lacquer), the tip is pushed into the board and
-            breaks. After a bit change PCB TraceMill finds Z zero again by itself, on copper that is still joined to the clip.
+            breaks. After a bit change PCB TraceMill finds Z zero again by itself, on copper that is still
+            joined to the clip.
           </li>
           <li>Remove the clip from the bit before you start milling.</li>
           {machine && !machine.supportsProbing && (
@@ -499,14 +500,16 @@ export function ProbeDialog({
         ?.settingsSet(PROBE_CFG_SETTINGS_KEY, { cfg: live, side: al.measuredSide })
         .catch(() => undefined)
       const where = typeof ok === 'string' ? ` to ${ok}` : ''
-      useUi.getState().saved(
-        (isMach3 && mach3Recorder === 'macros'
-          ? 'Probe program saved. It needs the PCB TraceMill Mach3 macros M401 / M402 – save them with "Mach3 macros…" if you have not yet.'
-          : isMach3 && mach3Recorder === 'variables'
-            ? `Probe program saved. Run it in Mach3 – the heights stay in Mach3, there is no file to load. Then press “Probing done” (step 2)${dropped ? ' and save the corrected files again: the grid changed, so the old height map was removed' : ''}.`
-            : 'Probe program saved. Run it on your machine, then import the results (step 2).'
-        ).replace('Probe program saved', `Probe program saved${where}`)
-      )
+      useUi
+        .getState()
+        .saved(
+          (isMach3 && mach3Recorder === 'macros'
+            ? 'Probe program saved. It needs the PCB TraceMill Mach3 macros M401 / M402 – save them with "Mach3 macros…" if you have not yet.'
+            : isMach3 && mach3Recorder === 'variables'
+              ? `Probe program saved. Run it in Mach3 – the heights stay in Mach3, there is no file to load. Then press “Probing done” (step 2)${dropped ? ' and save the corrected files again: the grid changed, so the old height map was removed' : ''}.`
+              : 'Probe program saved. Run it on your machine, then import the results (step 2).'
+          ).replace('Probe program saved', `Probe program saved${where}`)
+        )
       if (machine.postProcessor !== 'mach3' || mach3Recorder !== 'macros') onOpenChange(false)
     } catch (e) {
       toast('error', `Could not create the probe program: ${e instanceof Error ? e.message : String(e)}`)
@@ -551,11 +554,13 @@ export function ProbeDialog({
             onClick={() =>
               void saveMany(mach3ProbeMacros().map((m) => ({ name: m.name, text: m.text }))).then((r) => {
                 if (r !== null)
-                  useUi.getState().saved(
-                    typeof r === 'string'
-                      ? `Saved M401.m1s and M402.m1s to ${r}. They must be in Mach3/macros/<your profile>/ – restart Mach3 once.`
-                      : 'Downloading M401.m1s and M402.m1s…'
-                  )
+                  useUi
+                    .getState()
+                    .saved(
+                      typeof r === 'string'
+                        ? `Saved M401.m1s and M402.m1s to ${r}. They must be in Mach3/macros/<your profile>/ – restart Mach3 once.`
+                        : 'Downloading M401.m1s and M402.m1s…'
+                    )
               })
             }
           >
@@ -787,8 +792,8 @@ export function ProbeDialog({
                       isMach3
                         ? `${recSpacing} mm is the default for Mach3 / Mach4 – enough detail for a PCB without a long, touchy probing run. Smaller = more detail but slower.`
                         : clearance?.clearance != null
-                        ? `${recSpacing} mm suits this board's ${clearance.clearance} mm copper gaps (10 mm under 0.5 mm gaps, 15 mm under 1.2 mm, 20 mm above). Smaller = more detail but slower.`
-                        : `${recSpacing} mm suits wide copper gaps (10 mm under 0.5 mm gaps, 15 mm under 1.2 mm). Smaller = more detail but slower.`
+                          ? `${recSpacing} mm suits this board's ${clearance.clearance} mm copper gaps (10 mm under 0.5 mm gaps, 15 mm under 1.2 mm, 20 mm above). Smaller = more detail but slower.`
+                          : `${recSpacing} mm suits wide copper gaps (10 mm under 0.5 mm gaps, 15 mm under 1.2 mm). Smaller = more detail but slower.`
                     }
                     {...fig(HELP['autolevel.grid']?.body, <ProbeSpacingFigure spacing={spacing} />)}
                     onChange={(v) => {

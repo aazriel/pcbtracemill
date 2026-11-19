@@ -9,6 +9,7 @@
  *  - drill / hole milling: the centre of a hole this step makes (the dent is drilled away);
  *  - cutout: a point on the cutout path (milled away right after);
  *  - otherwise any copper still connected to the outer copper, outside the board first.
+ * The user can give any step its own point (`stepPoints`); it is used when the probe can work there.
  * A step with no such point gets null: that file cannot find Z0 with the probe.
  */
 import type { BBox, Material, PolygonSet, ProbeGridConfig, Tool, Toolpath, Vec2 } from '../model/types'
@@ -47,11 +48,21 @@ export interface TouchPointRequest {
   choice?: TouchPointChoice
   /** Custom point, work coordinates of the side the copper step mills. */
   custom?: Vec2 | null
+  /** The user's own point for single steps (by step id, work coordinates of the step's side). */
+  stepPoints?: Record<string, Vec2>
 }
 
 export interface TouchPoint extends Vec2 {
   /** Short reason shown to the user, e.g. "board centre", "hole 2.1 mm". */
   where: string
+  /** The step that touches here. */
+  stepId?: string
+  /** Side of the board the step mills (the point is in that side's work coordinates). */
+  side?: 'top' | 'bottom'
+  /** The user's own point for this step was used. */
+  own?: boolean
+  /** The user's own point could not be used (no copper connected to the clip there). */
+  rejected?: Vec2
 }
 
 /** Keep the touch this far inside the remaining copper, mm. */
@@ -207,12 +218,21 @@ export function touchOffPoints(req: TouchPointRequest): Map<string, TouchPoint |
       )
     })
     const ok = offset(outer, -MARGIN)
-    const valid = (p: Vec2 | null | undefined): p is Vec2 => !!p && inGrid(grid, p) && pointInPolygonSet(p, ok)
+    const valid = (p: Vec2 | null | undefined): p is Vec2 =>
+      !!p && inGrid(grid, p) && pointInPolygonSet(p, ok)
     const shape = req.boardShape[side]
     const centre = bboxCentre(shape)
 
     let pick: TouchPoint | null = null
-    if (COPPER.has(tp.stepKind)) {
+    const mine = req.stepPoints?.[tp.stepId]
+    let rejected: Vec2 | undefined
+    if (mine) {
+      if (valid({ x: mine.x, y: mine.y })) pick = { x: mine.x, y: mine.y, where: 'your point', own: true }
+      else rejected = { x: mine.x, y: mine.y }
+    }
+    if (pick) {
+      // the user's point
+    } else if (COPPER.has(tp.stepKind)) {
       const want =
         req.choice === 'custom' && req.custom
           ? { ...req.custom, where: 'your point' }
@@ -231,7 +251,7 @@ export function touchOffPoints(req: TouchPointRequest): Map<string, TouchPoint |
       if (on) pick = { ...on, where: 'on the cutout line' }
     }
     if (!pick) pick = fallback(ok, shape, centre, grid, stock)
-    out.set(tp.stepId, pick)
+    out.set(tp.stepId, pick && { ...pick, stepId: tp.stepId, side, ...(rejected ? { rejected } : {}) })
 
     // what this step removes, on its side and (through the board) on the other one
     const area = milledArea(tp, tool)
