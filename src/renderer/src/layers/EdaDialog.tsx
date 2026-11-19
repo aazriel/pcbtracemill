@@ -77,17 +77,21 @@ export function EdaDialog({
               data-testid="project-name"
               aria-label="Project name"
             />
-            {folder && (
+            {window.tracemill && (
               <button
                 type="button"
-                title={`Saved in ${folder}. Click to choose another folder.`}
+                title={
+                  folder
+                    ? `Saved in ${folder}. Click to choose another folder.`
+                    : 'Choose the folder new projects are saved in.'
+                }
                 onClick={() => void pickProjectFolder()}
                 className="flex max-w-[45%] items-center gap-1.5 rounded-md border border-slate-600 bg-slate-900 px-3 text-sm text-slate-200 hover:border-sky-500 hover:bg-slate-800"
                 data-testid="project-folder"
               >
                 <FolderOpen className="size-4 shrink-0 text-sky-300" />
                 <bdi dir="ltr" className="truncate">
-                  {shortFolder(folder)}
+                  {folder ? shortFolder(folder) : 'Choose a folder…'}
                 </bdi>
               </button>
             )}
