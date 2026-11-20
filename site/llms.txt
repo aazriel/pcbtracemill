@@ -1,0 +1,23 @@
+# PCB TraceMill
+
+> PCB TraceMill is free, open-source (MIT) desktop software for milling printed circuit boards at home on a hobby CNC router. It turns Gerber RS-274X and Excellon drill files (from KiCad, EasyEDA, Altium, Eagle, Fusion Electronics) into G-code for Mach3/Mach4, GRBL and LinuxCNC. It runs on Windows, macOS and Linux.
+
+What it does:
+- Isolation milling with "smart clearance": the depth and number of passes come from the measured copper gaps, and narrow gaps get one groove down the middle.
+- Copper clearing, drilling grouped by size, milling of big holes in a spiral, and board cutout outside the outline with holding tabs.
+- Double-sided boards with alignment pins.
+- One-click "Recipe" that builds a full job with suitable bits, depths and feeds, using the user's own tools first.
+- Realistic 3D material-removal simulation before cutting.
+- Auto-levelling: generates a probe program and corrects the G-code to follow the measured copper surface. On Mach3 the heights stay in Mach3 variables (no macros, no file). GRBL and LinuxCNC probe logs can be loaded. Before each bit, Z0 is found with the probe on copper that is still connected to the probe clip.
+- Machine presets: Mach3 routers, GRBL 3018, Genmitsu, Shapeoko, LongMill, LinuxCNC, desktop PCB mills.
+- Output: one file per step, per tool, or one combined file (.tap, .nc, .ngc).
+
+It is an alternative to FlatCAM, CopperCAM, pcb2gcode and similar tools, aimed at hobbyists, and every setting is explained in plain words.
+
+## Links
+- [Website and download](https://aazriel.github.io/pcbtracemill/): installers for Windows (.exe), macOS (.dmg, Apple Silicon and Intel) and Linux (AppImage, .deb)
+- [How to mill a PCB on a hobby CNC router](https://aazriel.github.io/pcbtracemill/guide.html): step-by-step guide
+- [Source code on GitHub](https://github.com/aazriel/pcbtracemill)
+- [Releases and release notes](https://github.com/aazriel/pcbtracemill/releases)
+- [User guide](https://github.com/aazriel/pcbtracemill/blob/main/docs/USER_GUIDE.md)
+- [Report a problem](https://github.com/aazriel/pcbtracemill/issues)
