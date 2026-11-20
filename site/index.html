@@ -91,7 +91,7 @@
               Source on GitHub
             </a>
           </div>
-          <p class="fine">Version 0.1.2 · Also for <a href="#download">macOS and Linux</a></p>
+          <p class="fine">Version 0.1.2 · Also for <a href="#download">macOS and Linux</a><span class="dl-count" hidden> · <b></b> downloads so far</span></p>
         </div>
         <figure class="hero-shot">
           <img src="img/simulation.jpg" width="1600" height="960" alt="PCB TraceMill 3D simulation of a milled multimeter PCB, showing isolation grooves cut into the copper" />
@@ -185,7 +185,7 @@
     <section id="download" class="section">
       <div class="wrap center">
         <h2>Download PCB TraceMill</h2>
-        <p class="sub">Free for everyone. No account, no ads.</p>
+        <p class="sub">Free for everyone. No account, no ads.<span class="dl-count" hidden><br /><b></b> downloads so far</span></p>
         <div class="dl">
           <a class="dl-card" href="https://github.com/aazriel/pcbtracemill/releases/download/v0.1.2/PCB-TraceMill-Setup-0.1.2.exe">
             <b>Windows</b><span>10 / 11 · 64-bit installer</span><em>Download</em>
@@ -224,5 +224,25 @@
       <span><a href="https://github.com/aazriel/pcbtracemill">GitHub</a> · <a href="https://github.com/aazriel/pcbtracemill/issues">Report a problem</a> · <a href="https://github.com/aazriel/pcbtracemill/releases">Releases</a></span>
     </div>
   </footer>
+  <script>
+    // Total downloads of every installer on GitHub (all versions); hidden when GitHub cannot be reached.
+    (function () {
+      var KEY = 'dl-count', show = function (n) {
+        var t = n.toLocaleString('en-US')
+        document.querySelectorAll('.dl-count').forEach(function (el) { el.querySelector('b').textContent = t; el.hidden = false })
+      }
+      try { var c = JSON.parse(localStorage.getItem(KEY) || 'null'); if (c && Date.now() - c.t < 3600e3) return show(c.n) } catch (e) {}
+      fetch('https://api.github.com/repos/aazriel/pcbtracemill/releases?per_page=100')
+        .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json() })
+        .then(function (rel) {
+          var n = 0
+          rel.forEach(function (r) { r.assets.forEach(function (a) { if (/\.(exe|dmg|AppImage|deb)$/.test(a.name)) n += a.download_count }) })
+          if (!n) return
+          try { localStorage.setItem(KEY, JSON.stringify({ n: n, t: Date.now() })) } catch (e) {}
+          show(n)
+        })
+        .catch(function () {})
+    })()
+  </script>
 </body>
 </html>
