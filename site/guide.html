@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>How to mill a PCB on a hobby CNC router – Gerber to G-code, step by step | PCB TraceMill</title>
+  <meta name="description" content="Step-by-step guide to milling a printed circuit board at home on a hobby CNC router (Mach3, GRBL, LinuxCNC): export Gerber and drill files, generate isolation, drilling and cutout G-code, auto-level the copper with a probe, and mill." />
+  <link rel="canonical" href="https://aazriel.github.io/pcbtracemill/guide.html" />
+  <link rel="icon" type="image/png" href="img/icon.png" />
+  <meta name="theme-color" content="#0b1220" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="PCB TraceMill" />
+  <meta property="og:title" content="How to mill a PCB on a hobby CNC router, step by step" />
+  <meta property="og:description" content="From Gerber files to a finished board: isolation milling, drilling, cutout and auto-levelling on Mach3, GRBL or LinuxCNC." />
+  <meta property="og:url" content="https://aazriel.github.io/pcbtracemill/guide.html" />
+  <meta property="og:image" content="https://aazriel.github.io/pcbtracemill/img/og.jpg" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "HowTo",
+    "name": "How to mill a PCB on a hobby CNC router",
+    "description": "Turn Gerber and Excellon drill files into G-code and mill a printed circuit board on a hobby CNC router with PCB TraceMill (free).",
+    "image": "https://aazriel.github.io/pcbtracemill/img/simulation.jpg",
+    "totalTime": "PT2H",
+    "tool": [
+      { "@type": "HowToTool", "name": "Hobby CNC router (Mach3, GRBL or LinuxCNC)" },
+      { "@type": "HowToTool", "name": "Tapered end mill, pyramid bit or V-bit with a 0.1 mm tip" },
+      { "@type": "HowToTool", "name": "PCB drills and a corn / router bit for the cutout" },
+      { "@type": "HowToTool", "name": "Probe clip and wire (for auto-levelling)" },
+      { "@type": "HowToTool", "name": "PCB TraceMill (free software)" }
+    ],
+    "supply": [
+      { "@type": "HowToSupply", "name": "Single- or double-sided copper-clad board (FR4)" },
+      { "@type": "HowToSupply", "name": "Masking tape and glue" }
+    ],
+    "step": [
+      { "@type": "HowToStep", "name": "Export Gerber and drill files", "text": "In KiCad, EasyEDA, Altium or Eagle, export the fabrication files: Gerber RS-274X for copper and board outline, plus Excellon drill files." },
+      { "@type": "HowToStep", "name": "Import them into PCB TraceMill", "text": "Drop the files, the folder or the ZIP into PCB TraceMill. Pick the design program; every layer is recognised automatically." },
+      { "@type": "HowToStep", "name": "Choose machine and material, press Recipe", "text": "Pick your machine preset and the copper-clad board, then press Recipe to get isolation, drilling and cutout steps with suitable bits, depths and speeds." },
+      { "@type": "HowToStep", "name": "Check the 3D simulation", "text": "Watch the job being milled in 3D and check that the grooves separate every trace." },
+      { "@type": "HowToStep", "name": "Fix the board to the machine", "text": "Centre the board on the sheet, tape the board and the table with masking tape, glue between, press together and wait about 30 minutes." },
+      { "@type": "HowToStep", "name": "Auto-level the copper", "text": "Generate the probe program, run it with the probe clip on the bit, then save the height-corrected G-code." },
+      { "@type": "HowToStep", "name": "Mill", "text": "Run the files in order: isolation, drilling, cutout. Each file stops before every bit to find Z0 on the copper with the probe." }
+    ]
+  }
+  </script>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="nav">
+    <div class="wrap nav-in">
+      <a class="brand" href="./"><img src="img/icon.png" alt="" width="28" height="28" /> PCB TraceMill</a>
+      <nav class="links">
+        <a href="./#features">Features</a>
+        <a href="guide.html">Guide</a>
+        <a href="./#faq">FAQ</a>
+        <a href="https://github.com/aazriel/pcbtracemill" rel="noopener">GitHub</a>
+      </nav>
+      <a class="btn btn-sm btn-green" href="./#download">Download</a>
+    </div>
+  </header>
+
+  <main class="section">
+    <article class="wrap narrow prose">
+      <p class="eyebrow">Guide</p>
+      <h1>How to mill a PCB on a hobby CNC router</h1>
+      <p class="lead">
+        A milled PCB is ready in an hour or two instead of a week from a board house. You need a hobby CNC
+        router (Mach3, GRBL or LinuxCNC), a piece of copper-clad board, a few small bits, and software that turns
+        your design's Gerber files into G-code. This guide uses <b>PCB TraceMill</b>, which is free for Windows,
+        macOS and Linux.
+      </p>
+
+      <h2>What you need</h2>
+      <ul>
+        <li><b>A CNC router.</b> A 3018-class GRBL machine works, and so does a bigger Mach3 or LinuxCNC router. Any machine that runs G-code is fine.</li>
+        <li><b>Copper-clad board</b> (FR4, single- or double-sided). The copper is only 0.035 mm thick, which is why levelling matters.</li>
+        <li><b>An isolation bit.</b> Best results come from a <b>tapered end mill</b>, then a <b>pyramid bit</b>, then a <b>V-bit</b>, all with a 0.1 mm tip and 10–20°.</li>
+        <li><b>PCB drills</b> for the holes and a <b>corn / router bit</b> (about 1–2 mm) for the cutout.</li>
+        <li><b>A probe clip and a wire</b> for auto-levelling. Most machines have a probe input.</li>
+        <li><b>Masking tape and glue</b> to hold the board flat.</li>
+      </ul>
+
+      <h2>1. Export Gerber and drill files</h2>
+      <p>
+        In your PCB design program, export the fabrication files, the same ones you would send to a board house.
+        You need the copper layer(s), the board outline and the drill files:
+      </p>
+      <ul>
+        <li><b>KiCad:</b> File → Fabrication Outputs → Gerbers (F.Cu, B.Cu, Edge.Cuts), then Generate Drill Files (Excellon).</li>
+        <li><b>EasyEDA / JLCPCB:</b> Fabrication → PCB Fabrication File (Gerber). You get a ZIP, which you can import as it is.</li>
+        <li><b>Altium, Eagle, Fusion Electronics:</b> the normal Gerber RS-274X + Excellon output.</li>
+      </ul>
+
+      <h2>2. Import the files</h2>
+      <p>
+        Open PCB TraceMill and drop the files, the folder or the ZIP onto the window. Tell it which design program
+        made them. It then recognises every layer (copper, outline, drills, silkscreen…) and ignores BOMs and reports.
+        The <b>File status</b> box shows what was found: copper is required, outline and drills are recommended.
+      </p>
+
+      <h2>3. Machine, material and the Recipe</h2>
+      <p>
+        On the <b>Manufacture</b> page, pick your machine (presets for Mach3 routers, GRBL 3018, Genmitsu, Shapeoko,
+        LongMill, LinuxCNC and more) and the size of your copper-clad board. Then press <b>Recipe</b>. You get a
+        complete job:
+      </p>
+      <ul>
+        <li><b>Isolate traces</b> cuts a groove around every trace and pad. The depth and the number of passes come from the narrowest gap measured on your board. With <b>smart clearance</b>, narrow gaps get one groove down the middle, so a slightly wide groove eats the gap and not your traces.</li>
+        <li><b>Drill holes</b> are grouped by drill size. Holes bigger than your drills are <b>milled</b> in a gentle spiral.</li>
+        <li><b>Cut out board</b> cuts outside the outline and leaves small <b>tabs</b>, so the board stays in place until the end.</li>
+        <li><b>Double-sided boards</b> get alignment pins on the flip line, so both sides line up.</li>
+      </ul>
+      <p>If you have added your own bits to the tool library, the Recipe uses them first.</p>
+
+      <h2>4. Check the 3D simulation</h2>
+      <p>
+        The <b>Simulation</b> page mills the job in 3D, with copper, fibreglass and walls shaped like the real bit. Turn
+        on the design overlay and check that every trace is separated, that the holes are where they should be, and
+        that the tabs hold the board. Mistakes here cost nothing.
+      </p>
+
+      <h2>5. Fix the board to the machine</h2>
+      <p>Most failed PCBs fail here, not in the software. What works, learned from real test runs:</p>
+      <ul>
+        <li><b>Centre the board</b> on the sheet. The middle is the flattest part.</li>
+        <li><b>Solder a ground point</b> on a corner for the probe clip.</li>
+        <li><b>Put masking tape on the board and on the table, with glue between</b>, then press them together.</li>
+        <li><b>Wait about 30 minutes</b> for the tape to settle, then probe, and mill right after.</li>
+      </ul>
+
+      <h2>6. Auto-level the copper</h2>
+      <p>
+        No board is perfectly flat, and a tilt of 0.1 mm across the board is already more than the cut depth.
+        Auto-levelling measures the real surface and bends the G-code to follow it:
+      </p>
+      <ol>
+        <li>On the <b>Export</b> page, press <b>Generate probe program</b>. Choose the area (board shape, whole sheet or your own), and the grid spacing (15 mm by default for Mach3).</li>
+        <li>Clip the probe to a sturdy bit and run the program. <b>Mach3:</b> the heights stay in Mach3's own variables, so there is nothing to install and no file to load. <b>GRBL / LinuxCNC:</b> load the probe log your controller saved. PCB TraceMill checks it and refuses results that look wrong.</li>
+        <li>Save the <b>corrected G-code</b>. Each file stops before every bit to find Z0 on the copper with the probe. The board map shows where each bit will touch, and you can move any point with a click.</li>
+      </ol>
+
+      <h2>7. Mill</h2>
+      <p>
+        Run the files in order: isolation, drilling, then the cutout. Keep the speeds PCB TraceMill sets, because fast cuts push
+        the board and snap 0.1 mm tips. For a double-sided board, flip it on the alignment pins when the files say so.
+        Break the board out of its tabs, deburr the edge, and it is ready to solder.
+      </p>
+
+      <h2>Common problems</h2>
+      <ul>
+        <li><b>Traces still shorted in some places:</b> the groove was too shallow there. Use auto-levelling, and check that the board is taped down flat.</li>
+        <li><b>Traces cut too thin or missing:</b> the groove was too deep or the bit too wide. Use a smaller tip, let the Recipe pick the depth, and probe again.</li>
+        <li><b>Broken V-bit tips:</b> the feed was too fast or the bit plunged into the board. Use the suggested speeds, and probe with a sturdy bit or a steel pin.</li>
+        <li><b>Double-sided board out of line:</b> drill the alignment pins and flip on them, not by eye.</li>
+      </ul>
+
+      <h2>Get PCB TraceMill</h2>
+      <p>
+        PCB TraceMill is free and open source (MIT) for Windows, macOS and Linux. It is an easy-to-use alternative to
+        FlatCAM, CopperCAM and similar tools, and explains every setting in plain words.
+      </p>
+      <p class="cta"><a class="btn btn-green" href="./#download">Download PCB TraceMill</a> <a class="btn btn-ghost" href="https://github.com/aazriel/pcbtracemill" rel="noopener">Source on GitHub</a></p>
+    </article>
+  </main>
+
+  <footer class="foot">
+    <div class="wrap foot-in">
+      <span>© 2026 PCB TraceMill contributors · MIT license</span>
+      <span><a href="./">Home</a> · <a href="https://github.com/aazriel/pcbtracemill">GitHub</a> · <a href="https://github.com/aazriel/pcbtracemill/issues">Report a problem</a> · <a href="https://github.com/aazriel/pcbtracemill/releases">Releases</a></span>
+    </div>
+  </footer>
+</body>
+</html>

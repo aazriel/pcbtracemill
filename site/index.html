@@ -48,7 +48,10 @@
       { "@type": "Question", "name": "Which CNC controllers does PCB TraceMill support?", "acceptedAnswer": { "@type": "Answer", "text": "Mach3 (and Mach4), GRBL senders such as Candle, UGS, bCNC and CNCjs, LinuxCNC, and a generic G-code output." } },
       { "@type": "Question", "name": "Which PCB design programs work with PCB TraceMill?", "acceptedAnswer": { "@type": "Answer", "text": "Any program that exports Gerber RS-274X (X1/X2) and Excellon drill files: KiCad, EasyEDA, Altium, Eagle, Fusion Electronics and others." } },
       { "@type": "Question", "name": "What is auto-levelling and do I need it?", "acceptedAnswer": { "@type": "Answer", "text": "Copper is only 0.035 mm thick and no board is perfectly flat. Auto-levelling probes the real board surface and bends the G-code to follow it, so the cut depth stays even. For fine traces it makes the difference between a working board and a scrapped one." } },
-      { "@type": "Question", "name": "Which bit should I use for PCB isolation milling?", "acceptedAnswer": { "@type": "Answer", "text": "Best results come from a tapered end mill, then a pyramid bit, then a V-bit, all with a 0.1 mm tip and 10 to 20 degrees. Use the speeds PCB TraceMill sets." } }
+      { "@type": "Question", "name": "Which bit should I use for PCB isolation milling?", "acceptedAnswer": { "@type": "Answer", "text": "Best results come from a tapered end mill, then a pyramid bit, then a V-bit, all with a 0.1 mm tip and 10 to 20 degrees. Use the speeds PCB TraceMill sets." } },
+      { "@type": "Question", "name": "Does PCB TraceMill work with a 3018 / GRBL CNC?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. There are presets for GRBL 3018, Genmitsu, Shapeoko and LongMill machines, the output works with Candle, UGS, bCNC and CNCjs, and auto-levelling works with GRBL probe logs." } },
+      { "@type": "Question", "name": "Is PCB TraceMill an alternative to FlatCAM or CopperCAM?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. It turns Gerber and drill files into G-code for isolation milling, drilling and cutout, and adds a one-click Recipe, a 3D simulation and built-in auto-levelling." } },
+      { "@type": "Question", "name": "Does PCB TraceMill run on Mac and Linux?", "acceptedAnswer": { "@type": "Answer", "text": "Yes: Windows 10/11, macOS (Apple Silicon and Intel) and Linux (AppImage or .deb)." } }
     ]
   }
   </script>
@@ -62,6 +65,7 @@
         <a href="#features">Features</a>
         <a href="#how">How it works</a>
         <a href="#setup">Board setup</a>
+        <a href="guide.html">Guide</a>
         <a href="#videos">Videos</a>
         <a href="#faq">FAQ</a>
         <a href="https://github.com/aazriel/pcbtracemill" rel="noopener">GitHub</a>
@@ -126,7 +130,7 @@
     <section id="how" class="section alt">
       <div class="wrap">
         <h2>Four steps, left to right</h2>
-        <p class="sub">The app walks you through the job in four stages.</p>
+        <p class="sub">The app walks you through the job in four stages. New to PCB milling? Read the <a href="guide.html">step-by-step guide</a>.</p>
         <ol class="steps">
           <li>
             <div class="step-text"><span class="num">1</span><h3>Board</h3><p>Drop in your Gerber and drill files (or a ZIP). PCB TraceMill recognises every layer and shows the board in real colours.</p></div>
@@ -213,6 +217,9 @@
         <details><summary>Which PCB design programs work?</summary><p>Any that export Gerber RS-274X (X1/X2) and Excellon drill files: KiCad, EasyEDA, Altium, Eagle, Fusion Electronics and more.</p></details>
         <details><summary>What is auto-levelling, and do I need it?</summary><p>No board is perfectly flat, and copper is only 0.035 mm thick. Auto-levelling touches the board at many points and bends the G-code to follow the real surface, so the cut depth stays even. For fine traces it is the difference between a working board and a scrapped one.</p></details>
         <details><summary>Do I need to install macros in Mach3?</summary><p>No. By default the probe program is plain G-code and Mach3 keeps the heights in its own variables; the corrected files read them directly.</p></details>
+        <details><summary>Does it work with a cheap 3018 / GRBL machine?</summary><p>Yes. There are presets for GRBL 3018, Genmitsu, Shapeoko and LongMill machines, and the output works with Candle, UGS, bCNC and CNCjs. Auto-levelling works with GRBL too: run the probe program and load the probe log.</p></details>
+        <details><summary>Is PCB TraceMill an alternative to FlatCAM or CopperCAM?</summary><p>Yes. It does the same job – Gerber to G-code for isolation milling, drilling and cutout – and adds a one-click Recipe, a 3D simulation and built-in auto-levelling, with every setting explained in plain words.</p></details>
+        <details><summary>Does it run on Mac and Linux?</summary><p>Yes: Windows 10/11, macOS (Apple Silicon and Intel) and Linux (AppImage or .deb).</p></details>
         <details><summary>Which bit should I use?</summary><p>Best results: a tapered end mill, then a pyramid bit, then a V-bit – all with a 0.1 mm tip and 10–20°. You can probe with the same bit; just keep the speeds PCB TraceMill sets.</p></details>
       </div>
     </section>
@@ -221,7 +228,7 @@
   <footer class="foot">
     <div class="wrap foot-in">
       <span>© 2026 PCB TraceMill contributors · MIT license</span>
-      <span><a href="https://github.com/aazriel/pcbtracemill">GitHub</a> · <a href="https://github.com/aazriel/pcbtracemill/issues">Report a problem</a> · <a href="https://github.com/aazriel/pcbtracemill/releases">Releases</a></span>
+      <span><a href="guide.html">How to mill a PCB</a> · <a href="https://github.com/aazriel/pcbtracemill">GitHub</a> · <a href="https://github.com/aazriel/pcbtracemill/issues">Report a problem</a> · <a href="https://github.com/aazriel/pcbtracemill/releases">Releases</a></span>
     </div>
   </footer>
   <script>

@@ -1,15 +1,39 @@
-# PCB TraceMill — mill your own PCBs on a hobby CNC
+# PCB TraceMill: free PCB milling software (Gerber to G-code for hobby CNC)
 
-**Website:** https://aazriel.github.io/pcbtracemill/ · **Download:** [latest release](https://github.com/aazriel/pcbtracemill/releases/latest) (Windows; macOS & Linux coming soon)
+**Mill your own printed circuit boards at home.** PCB TraceMill turns the Gerber and Excellon drill files from **KiCad, EasyEDA, Altium, Eagle or Fusion Electronics** into ready-to-run G-code for **Mach3 / Mach4, GRBL and LinuxCNC**. It covers isolation milling, drilling, cutout with tabs and double-sided boards, with a realistic 3D simulation and auto-levelling. It is free and open source (MIT) for Windows, macOS and Linux.
+
+**Website:** https://aazriel.github.io/pcbtracemill/ · **Guide:** [How to mill a PCB on a hobby CNC router](https://aazriel.github.io/pcbtracemill/guide.html)
 
 ![PCB TraceMill 3D simulation of a milled board](site/img/simulation.jpg)
 
-PCB TraceMill turns PCB fabrication files (Gerber RS-274X X1/X2 + Excellon) into G-code for hobby CNC routers: isolation routing, copper clearing, drilling, hole milling, board cutout with tabs, double-sided alignment, a realistic material-removal simulation and auto-levelling.
+## Download
 
-- **Import**: Gerber X1/X2, Excellon PTH/NPTH, ZIP archives and folders; KiCad, Altium, Eagle and EasyEDA naming; automatic layer type & side detection (overridable).
-- **Manufacture**: machine presets (Mach3 primary, GRBL, LinuxCNC, Generic), material editor with live preview, step editor with validation, tool library with a starter kit, one-click Recipe.
-- **Simulation**: realistic 3D material-removal simulation (WebGL) with tool-accurate walls, timeline markers and G-code sync.
-- **Export**: per-step / per-tool / combined files, probe-program generation, probe import, heat map + 3D surface, Z correction.
+| System | File |
+|---|---|
+| **Windows** 10/11 | [`PCB-TraceMill-Setup.exe`](https://github.com/aazriel/pcbtracemill/releases/latest) |
+| **macOS** (Apple Silicon & Intel) | [`PCB-TraceMill-universal.dmg`](https://github.com/aazriel/pcbtracemill/releases/latest) |
+| **Linux** (any distribution) | [`PCB-TraceMill-x86_64.AppImage`](https://github.com/aazriel/pcbtracemill/releases/latest) |
+| **Linux** (Ubuntu / Debian) | [`PCB-TraceMill-amd64.deb`](https://github.com/aazriel/pcbtracemill/releases/latest) |
+
+All files are on the [latest release](https://github.com/aazriel/pcbtracemill/releases/latest) page. The installers are not code-signed yet. On Windows click **More info → Run anyway**. On macOS right-click the app and choose **Open**.
+
+## Features
+
+- **Import:** Gerber RS-274X (X1/X2), Excellon PTH/NPTH, ZIP archives and folders. Layer type and side are detected automatically from KiCad, Altium, Eagle and EasyEDA file names.
+- **One-click Recipe:** a complete job with suitable bits, depths and feeds, using your own tools first.
+- **Isolation milling with smart clearance:** depth and number of passes come from the measured copper gaps. Narrow gaps get one groove down the middle.
+- **Copper clearing, drilling and hole milling:** drills are grouped by size, and holes bigger than your drills are milled in a spiral.
+- **Cutout with tabs:** always outside the board outline.
+- **Double-sided boards** with alignment pins.
+- **Realistic 3D simulation** of the material removal, with tool-accurate walls and G-code sync.
+- **Auto-levelling:** generates a probe program and bends the G-code to follow the measured copper surface.
+  - On Mach3 the heights stay in Mach3 variables, with no macros and no file to load.
+  - GRBL and LinuxCNC probe logs can be loaded.
+  - Each bit finds Z0 on copper that is still connected to the probe clip, shown on a board map.
+- **Machine presets:** Mach3 routers, GRBL 3018, Genmitsu, Shapeoko, LongMill, LinuxCNC and desktop PCB mills.
+- **Output:** one file per step, per tool or combined, as `.tap`, `.nc` or `.ngc`.
+
+PCB TraceMill is an easy-to-use alternative to FlatCAM, CopperCAM and pcb2gcode. Every setting is explained in plain words.
 
 ## Development
 
