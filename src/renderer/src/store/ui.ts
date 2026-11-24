@@ -43,8 +43,8 @@ export interface UiState {
   camError: string | null
   /** Files waiting for the user to pick the EDA tool. */
   pendingImport: DroppedFile[] | null
-  /** A file / folder / ZIP picker waiting for the user to pick the EDA tool first. */
-  pendingBrowse: BrowseKind | null
+  /** The import wizard is open: at which step, and which import type to highlight. */
+  importWizard: { step: 1 | 2; kind: BrowseKind | null } | null
   pendingDuplicates: PendingDuplicates | null
   helpOpen: boolean
   helpTopic: string | null
@@ -109,7 +109,7 @@ export const useUi = create<UiState>()((set) => ({
   camStale: true,
   camError: null,
   pendingImport: null,
-  pendingBrowse: null,
+  importWizard: null,
   pendingDuplicates: null,
   helpOpen: false,
   helpTopic: null,

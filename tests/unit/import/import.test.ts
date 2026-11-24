@@ -7,6 +7,8 @@ import {
   computeLayerStats,
   defaultLayerColor,
   detectLayer,
+  LAYER_PALETTE,
+  pickLayerColor,
   expandInputs,
   isRelevantFile,
   summarizeLayerStatus,
@@ -160,21 +162,28 @@ describe('defaultLayerColor', () => {
   ]
   it('returns hex colours, unique across a typical project', () => {
     const seen = new Set<string>()
-    types.forEach(([t, s], i) => {
-      const c = defaultLayerColor(t, s, i)
+    types.forEach(([t, s]) => {
+      const c = defaultLayerColor(t, s)
       expect(c).toMatch(/^#[0-9a-f]{6}$/)
       seen.add(c)
     })
     expect(seen.size).toBe(types.length)
   })
-  it('varies by index for the same type', () => {
-    const cs = new Set(Array.from({ length: 30 }, (_, i) => defaultLayerColor('copper', 'inner', i)))
-    expect(cs.size).toBe(30)
+  it('pickLayerColor never repeats a colour, even for 30 layers of one kind', () => {
+    const used: string[] = []
+    for (let i = 0; i < 30; i++) used.push(pickLayerColor('copper', 'inner', used))
+    expect(new Set(used).size).toBe(30)
+    // the strongly different palette colours come first
+    expect(used.slice(0, LAYER_PALETTE.length).sort()).toEqual([...LAYER_PALETTE].sort())
+  })
+  it('pickLayerColor keeps the preferred colour when it is free', () => {
+    expect(pickLayerColor('copper', 'bottom', ['#ff3b3b'])).toBe(defaultLayerColor('copper', 'bottom'))
+    expect(pickLayerColor('copper', 'top', ['#FF3B3B'])).not.toBe('#ff3b3b')
   })
   it('top copper is reddish, bottom copper is blue', () => {
     const rgb = (c: string): number[] => [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16))
-    const [r1, , b1] = rgb(defaultLayerColor('copper', 'top', 0))
-    const [r2, , b2] = rgb(defaultLayerColor('copper', 'bottom', 0))
+    const [r1, , b1] = rgb(defaultLayerColor('copper', 'top'))
+    const [r2, , b2] = rgb(defaultLayerColor('copper', 'bottom'))
     expect(r1).toBeGreaterThan(b1)
     expect(b2).toBeGreaterThan(r2)
   })

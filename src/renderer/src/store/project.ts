@@ -6,6 +6,7 @@ import { create, useStore } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
 import { temporal } from 'zundo'
 import { PROJECT_VERSION, UNNAMED_PROJECT } from '@core/project'
+import { pickLayerColor } from '@core/import'
 import type {
   CamStep,
   EdaTool,
@@ -46,6 +47,8 @@ export interface ProjectActions {
   setLayerVisible(id: string, visible: boolean): void
   setAllVisible(visible: boolean): void
   setLayerColor(id: string, color: string): void
+  /** Gives every layer a strongly different colour again (the preferred one of its kind when free). */
+  resetLayerColors(): void
   setLayerType(id: string, type: LayerType): void
   setLayerSide(id: string, side: LayerSide): void
   resetLayerDetection(id: string, type: LayerType, side: LayerSide): void
@@ -117,15 +120,19 @@ export const useProject = create<ProjectState & ProjectActions>()(
         set((s) => {
           for (const [id, p] of Object.entries(parsed)) parsedCache.set(id, p)
           const base = s.layers.length
-          layers.forEach((l, i) =>
+          const used = s.layers.map((l) => l.color)
+          layers.forEach((l, i) => {
+            const color = pickLayerColor(l.type, l.side, used)
+            used.push(color)
             s.layers.push({
               ...l,
+              color,
               detectedType: l.detectedType ?? l.type,
               detectedSide: l.detectedSide ?? l.side,
               parsed: undefined,
               order: base + i
             })
-          )
+          })
           renumber(s.layers)
           s.parsedVersion++
           s.dirty = true
@@ -164,6 +171,16 @@ export const useProject = create<ProjectState & ProjectActions>()(
         set((s) => {
           const l = s.layers.find((x) => x.id === id)
           if (l) l.color = color
+          s.dirty = true
+        }),
+      resetLayerColors: () =>
+        set((s) => {
+          const used: string[] = []
+          // the bottom of the list (drawn first) keeps the preferred colours of its kinds
+          for (const l of [...s.layers].sort((a, b) => a.order - b.order)) {
+            l.color = pickLayerColor(l.type, l.side, used)
+            used.push(l.color)
+          }
           s.dirty = true
         }),
       setLayerType: (id, type) =>

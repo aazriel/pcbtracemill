@@ -8,7 +8,9 @@ import {
   Lock,
   Unlock,
   Layers as LayersIcon,
-  Plus
+  Plus,
+  Palette,
+  ChevronDown
 } from 'lucide-react'
 import type { ImportedLayer, LayerSide, LayerType } from '@core/model/types'
 import { Button } from '@renderer/components/ui/button'
@@ -60,6 +62,7 @@ export interface LayerPanelProps {
   onDelete(id: string): void
   onReimport(id: string): void
   onAdd(): void
+  onResetColors(): void
 }
 
 export function LayerPanel(p: LayerPanelProps): React.JSX.Element {
@@ -67,7 +70,15 @@ export function LayerPanel(p: LayerPanelProps): React.JSX.Element {
   const sorted = [...p.layers].sort((a, b) => b.order - a.order)
   const [dragId, setDragId] = useState<string | null>(null)
   const [overId, setOverId] = useState<string | null>(null)
+  const [open, setOpen] = useState<Set<string>>(() => new Set())
   const allVisible = p.layers.length > 0 && p.layers.every((l) => l.visible)
+  const toggleOpen = (id: string): void =>
+    setOpen((o) => {
+      const n = new Set(o)
+      if (n.has(id)) n.delete(id)
+      else n.add(id)
+      return n
+    })
 
   return (
     <PanelSection
@@ -89,6 +100,19 @@ export function LayerPanel(p: LayerPanelProps): React.JSX.Element {
               {allVisible ? <Eye /> : <EyeOff />}
             </Button>
           </Tooltip>
+          {p.layers.length > 1 && (
+            <Tooltip content="Give every layer a clearly different colour again">
+              <Button
+                size="iconSm"
+                variant="ghost"
+                onClick={p.onResetColors}
+                aria-label="New layer colours"
+                data-testid="reset-layer-colors"
+              >
+                <Palette />
+              </Button>
+            </Tooltip>
+          )}
           <Tooltip content="Add more Gerber / drill files">
             <Button size="iconSm" variant="ghost" onClick={p.onAdd} aria-label="Add files">
               <Plus />
@@ -102,165 +126,191 @@ export function LayerPanel(p: LayerPanelProps): React.JSX.Element {
           No layers yet. Import your fabrication files to start.
         </p>
       )}
-      <ul className="flex flex-col gap-1.5" data-testid="layer-list">
-        {sorted.map((l) => (
-          <li
-            key={l.id}
-            draggable
-            onDragStart={(e) => {
-              setDragId(l.id)
-              e.dataTransfer.effectAllowed = 'move'
-            }}
-            onDragOver={(e) => {
-              e.preventDefault()
-              setOverId(l.id)
-            }}
-            onDragEnd={() => {
-              setDragId(null)
-              setOverId(null)
-            }}
-            onDrop={(e) => {
-              e.preventDefault()
-              if (dragId && dragId !== l.id) p.onMove(dragId, l.order)
-              setDragId(null)
-              setOverId(null)
-            }}
-            className={cn(
-              'group rounded-lg border bg-slate-900/60 p-2 transition-colors',
-              overId === l.id && dragId !== l.id ? 'border-sky-500' : 'border-slate-800',
-              dragId === l.id && 'opacity-50'
-            )}
-            data-testid="layer-item"
-          >
-            <div className="flex items-center gap-1.5">
-              <Tooltip content="Drag to change the drawing order (layers higher in the list are drawn on top)">
-                <span className="cursor-grab text-slate-600 hover:text-slate-300">
-                  <GripVertical className="size-4" />
-                </span>
-              </Tooltip>
-              <Tooltip content={l.visible ? 'Hide this layer in the view' : 'Show this layer in the view'}>
-                <button
-                  type="button"
-                  className="text-slate-400 hover:text-slate-100"
-                  onClick={() => p.onToggleVisible(l.id, !l.visible)}
-                  aria-label="Toggle visibility"
-                >
-                  {l.visible ? <Eye className="size-4" /> : <EyeOff className="size-4 text-slate-600" />}
-                </button>
-              </Tooltip>
-              <Tooltip content="Layer colour – click to change it. Each layer gets its own colour.">
-                <label
-                  className="relative size-4 shrink-0 cursor-pointer rounded border border-slate-600"
-                  style={{ background: l.color }}
-                >
-                  <input
-                    type="color"
-                    className="absolute inset-0 cursor-pointer opacity-0"
-                    value={l.color}
-                    onChange={(e) => p.onColor(l.id, e.target.value)}
-                    aria-label="Layer colour"
-                  />
-                </label>
-              </Tooltip>
-              <span
-                className="min-w-0 flex-1 truncate text-xs font-medium text-slate-200"
-                title={l.fileName}
-                data-testid="layer-name"
-              >
-                {l.fileName}
-              </span>
-              <div className="-my-1 hidden shrink-0 items-center group-focus-within:flex group-hover:flex">
-                <Tooltip content="Re-import this file from disk (e.g. after you changed the design)">
-                  <Button
-                    size="iconSm"
-                    variant="ghost"
-                    onClick={() => p.onReimport(l.id)}
-                    aria-label="Re-import"
-                  >
-                    <RefreshCw />
-                  </Button>
+      <ul className="flex flex-col gap-1" data-testid="layer-list">
+        {sorted.map((l) => {
+          const expanded = open.has(l.id)
+          return (
+            <li
+              key={l.id}
+              draggable
+              onDragStart={(e) => {
+                setDragId(l.id)
+                e.dataTransfer.effectAllowed = 'move'
+              }}
+              onDragOver={(e) => {
+                e.preventDefault()
+                setOverId(l.id)
+              }}
+              onDragEnd={() => {
+                setDragId(null)
+                setOverId(null)
+              }}
+              onDrop={(e) => {
+                e.preventDefault()
+                if (dragId && dragId !== l.id) p.onMove(dragId, l.order)
+                setDragId(null)
+                setOverId(null)
+              }}
+              className={cn(
+                'rounded-md border bg-slate-900/60 transition-colors',
+                overId === l.id && dragId !== l.id ? 'border-sky-500' : 'border-slate-800',
+                dragId === l.id && 'opacity-50'
+              )}
+              style={{ borderLeft: `4px solid ${l.visible ? l.color : '#334155'}` }}
+              data-testid="layer-item"
+            >
+              <div className="flex items-center gap-1.5 py-1 pl-1 pr-1">
+                <Tooltip content="Drag to change the drawing order (layers higher in the list are drawn on top)">
+                  <span className="cursor-grab text-slate-600 hover:text-slate-300">
+                    <GripVertical className="size-4" />
+                  </span>
                 </Tooltip>
-                <Tooltip content="Remove this layer from the project">
-                  <Button
-                    size="iconSm"
-                    variant="ghost"
-                    className="hover:text-rose-400"
-                    onClick={() => p.onDelete(l.id)}
-                    aria-label="Delete layer"
-                  >
-                    <Trash2 />
-                  </Button>
-                </Tooltip>
-              </div>
-            </div>
-            <div className="mt-1.5 grid grid-cols-[minmax(0,1fr)_108px] items-end gap-x-1.5 gap-y-0.5 pl-6">
-              <span className="text-[9px] font-semibold uppercase tracking-wider text-slate-500">Type</span>
-              <span className="flex items-center justify-between text-[9px] font-semibold uppercase tracking-wider text-slate-500">
-                Side
-                <Tooltip
-                  content={
-                    l.autoDetected
-                      ? `Type and side were detected automatically (${Math.round(l.confidence * 100)}% sure). Change them if the guess is wrong.`
-                      : 'You changed the detected type or side. Pick the detected values again, or click here, to go back to automatic.'
-                  }
-                >
+                <Tooltip content={l.visible ? 'Hide this layer in the view' : 'Show this layer in the view'}>
                   <button
                     type="button"
-                    onClick={() => !l.autoDetected && p.onResetAuto(l.id)}
-                    className={cn(
-                      'flex items-center gap-0.5 rounded px-1 text-[9px] font-semibold normal-case tracking-normal',
-                      l.autoDetected ? 'text-emerald-400' : 'text-amber-400 hover:bg-slate-800'
-                    )}
-                    aria-label={l.autoDetected ? 'Auto-detected' : 'Manual override'}
-                    data-testid="layer-auto"
+                    className="text-slate-300 hover:text-white"
+                    onClick={() => p.onToggleVisible(l.id, !l.visible)}
+                    aria-label="Toggle visibility"
+                    data-testid="layer-visible"
                   >
-                    {l.autoDetected ? <Lock className="size-2.5" /> : <Unlock className="size-2.5" />}
-                    {l.autoDetected ? 'AUTO' : 'MANUAL'}
+                    {l.visible ? <Eye className="size-4" /> : <EyeOff className="size-4 text-slate-600" />}
                   </button>
                 </Tooltip>
-              </span>
-              <select
-                className="h-6 min-w-0 rounded border border-slate-700 bg-slate-950 px-1 text-[11px] text-slate-200"
-                value={l.type}
-                onChange={(e) => p.onType(l.id, e.target.value as LayerType)}
-                aria-label="Layer type"
-                title={LAYER_TYPE_HELP[l.type]}
-              >
-                {Object.entries(LAYER_TYPE_LABELS).map(([k, v]) => (
-                  <option key={k} value={k}>
-                    {v}
-                  </option>
-                ))}
-              </select>
-              <select
-                className="h-6 rounded border border-slate-700 bg-slate-950 px-1 text-[11px] text-slate-200"
-                value={l.side}
-                onChange={(e) => p.onSide(l.id, e.target.value as LayerSide)}
-                aria-label="Layer side"
-                title="Which side of the board this layer belongs to"
-              >
-                {(Object.keys(SIDE_LABELS) as LayerSide[]).map((k) => (
-                  <option key={k} value={k}>
-                    {SIDE_LABELS[k]}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="mt-1.5 grid grid-cols-3 gap-1 pl-6 font-mono text-[10px] text-slate-500">
-              <span title="Width × height of this layer in millimetres">
-                {l.stats.widthMm.toFixed(1)}×{l.stats.heightMm.toFixed(1)}mm
-              </span>
-              <span title="Number of geometric points (vertices) after parsing">
-                {l.stats.points.toLocaleString()} pts
-              </span>
-              <span title={l.type === 'drill' ? 'Number of holes' : 'Number of pads (flashed shapes)'}>
-                {l.stats.pads.toLocaleString()} {l.type === 'drill' ? 'holes' : 'pads'}
-              </span>
-            </div>
-          </li>
-        ))}
+                <Tooltip content="Layer colour – click to change it. Each layer gets its own colour.">
+                  <label
+                    className={cn(
+                      'relative size-4 shrink-0 cursor-pointer rounded-sm border border-black/40',
+                      !l.visible && 'opacity-30'
+                    )}
+                    style={{ background: l.color }}
+                  >
+                    <input
+                      type="color"
+                      className="absolute inset-0 cursor-pointer opacity-0"
+                      value={l.color}
+                      onChange={(e) => p.onColor(l.id, e.target.value)}
+                      aria-label="Layer colour"
+                    />
+                  </label>
+                </Tooltip>
+                <button
+                  type="button"
+                  onClick={() => toggleOpen(l.id)}
+                  className={cn(
+                    'flex min-w-0 flex-1 items-center gap-1 text-left text-xs font-medium',
+                    l.visible ? 'text-slate-100' : 'text-slate-500'
+                  )}
+                  title={`${l.fileName}: ${LAYER_TYPE_LABELS[l.type]}, ${SIDE_LABELS[l.side].toLowerCase()}. Click for details.`}
+                  aria-expanded={expanded}
+                  data-testid="layer-expand"
+                >
+                  <span className="min-w-0 flex-1 truncate" data-testid="layer-name">
+                    {l.fileName}
+                  </span>
+                  <ChevronDown
+                    className={cn(
+                      'size-3.5 shrink-0 text-slate-500 transition-transform',
+                      !expanded && '-rotate-90'
+                    )}
+                  />
+                </button>
+              </div>
+              {expanded && <LayerDetails l={l} p={p} />}
+            </li>
+          )
+        })}
       </ul>
     </PanelSection>
+  )
+}
+
+/** The folded-away part of a layer row: type, side, numbers, re-import and delete. */
+function LayerDetails({ l, p }: { l: ImportedLayer; p: LayerPanelProps }): React.JSX.Element {
+  return (
+    <div className="border-t border-slate-800 px-2 pb-2 pt-1.5" data-testid="layer-details">
+      <div className="grid grid-cols-[minmax(0,1fr)_108px] items-end gap-x-1.5 gap-y-0.5">
+        <span className="text-[9px] font-semibold uppercase tracking-wider text-slate-500">Type</span>
+        <span className="flex items-center justify-between text-[9px] font-semibold uppercase tracking-wider text-slate-500">
+          Side
+          <Tooltip
+            content={
+              l.autoDetected
+                ? `Type and side were detected automatically (${Math.round(l.confidence * 100)}% sure). Change them if the guess is wrong.`
+                : 'You changed the detected type or side. Pick the detected values again, or click here, to go back to automatic.'
+            }
+          >
+            <button
+              type="button"
+              onClick={() => !l.autoDetected && p.onResetAuto(l.id)}
+              className={cn(
+                'flex items-center gap-0.5 rounded px-1 text-[9px] font-semibold normal-case tracking-normal',
+                l.autoDetected ? 'text-emerald-400' : 'text-amber-400 hover:bg-slate-800'
+              )}
+              aria-label={l.autoDetected ? 'Auto-detected' : 'Manual override'}
+              data-testid="layer-auto"
+            >
+              {l.autoDetected ? <Lock className="size-2.5" /> : <Unlock className="size-2.5" />}
+              {l.autoDetected ? 'AUTO' : 'MANUAL'}
+            </button>
+          </Tooltip>
+        </span>
+        <select
+          className="h-6 min-w-0 rounded border border-slate-700 bg-slate-950 px-1 text-[11px] text-slate-200"
+          value={l.type}
+          onChange={(e) => p.onType(l.id, e.target.value as LayerType)}
+          aria-label="Layer type"
+          title={LAYER_TYPE_HELP[l.type]}
+        >
+          {Object.entries(LAYER_TYPE_LABELS).map(([k, v]) => (
+            <option key={k} value={k}>
+              {v}
+            </option>
+          ))}
+        </select>
+        <select
+          className="h-6 rounded border border-slate-700 bg-slate-950 px-1 text-[11px] text-slate-200"
+          value={l.side}
+          onChange={(e) => p.onSide(l.id, e.target.value as LayerSide)}
+          aria-label="Layer side"
+          title="Which side of the board this layer belongs to"
+        >
+          {(Object.keys(SIDE_LABELS) as LayerSide[]).map((k) => (
+            <option key={k} value={k}>
+              {SIDE_LABELS[k]}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="mt-1.5 flex items-center gap-2 font-mono text-[10px] text-slate-500">
+        <span title="Width × height of this layer in millimetres">
+          {l.stats.widthMm.toFixed(1)}×{l.stats.heightMm.toFixed(1)}mm
+        </span>
+        <span title="Number of geometric points (vertices) after parsing">
+          {l.stats.points.toLocaleString()} pts
+        </span>
+        <span title={l.type === 'drill' ? 'Number of holes' : 'Number of pads (flashed shapes)'}>
+          {l.stats.pads.toLocaleString()} {l.type === 'drill' ? 'holes' : 'pads'}
+        </span>
+        <span className="ml-auto flex">
+          <Tooltip content="Re-import this file from disk (e.g. after you changed the design)">
+            <Button size="iconSm" variant="ghost" onClick={() => p.onReimport(l.id)} aria-label="Re-import">
+              <RefreshCw />
+            </Button>
+          </Tooltip>
+          <Tooltip content="Remove this layer from the project">
+            <Button
+              size="iconSm"
+              variant="ghost"
+              className="hover:text-rose-400"
+              onClick={() => p.onDelete(l.id)}
+              aria-label="Delete layer"
+            >
+              <Trash2 />
+            </Button>
+          </Tooltip>
+        </span>
+      </div>
+    </div>
   )
 }
 

@@ -8,7 +8,7 @@ import { Button } from '@renderer/components/ui/button'
 import { Segmented } from '@renderer/components/ui/fields'
 import { Toasts } from '@renderer/components/Toasts'
 import { Stepper } from '@renderer/layout/Stepper'
-import { EdaDialog } from '@renderer/layers/EdaDialog'
+import { ImportWizard } from '@renderer/layers/ImportWizard'
 import { DuplicateDialog } from '@renderer/layers/DuplicateDialog'
 import { FolderBrowserDialog } from '@renderer/layers/FolderBrowserDialog'
 import { RestoreDialog } from '@renderer/layers/RestoreDialog'
@@ -31,6 +31,7 @@ import {
   redo,
   resolveDuplicates,
   resolveEda,
+  wizardBrowse,
   saveProject,
   undo,
   useBoardHint,
@@ -51,7 +52,7 @@ export function App(): React.JSX.Element {
   const [toolsOpen, setToolsOpen] = useState(false)
   const setUi = useUi((s) => s.set)
   const pending = useUi((s) => s.pendingImport)
-  const pendingBrowse = useUi((s) => s.pendingBrowse)
+  const wizard = useUi((s) => s.importWizard)
   const duplicates = useUi((s) => s.pendingDuplicates)
   const helpOpen = useUi((s) => s.helpOpen)
   const helpTopic = useUi((s) => s.helpTopic)
@@ -96,8 +97,8 @@ export function App(): React.JSX.Element {
       else if (cmd === 'open-project') void openProject()
       else if (cmd === 'save-project') void saveProject()
       else if (cmd === 'save-project-as') void saveProject(true)
-      else if (cmd === 'import-files') void browseAndImport(false)
-      else if (cmd === 'import-folder') void browseAndImport(true)
+      else if (cmd === 'import-files') browseAndImport(false)
+      else if (cmd === 'import-folder') browseAndImport(true)
       else if (cmd === 'undo') undo()
       else if (cmd === 'redo') redo()
       else if (cmd === 'tour') openTour()
@@ -267,12 +268,15 @@ export function App(): React.JSX.Element {
           {stage === 'simulation' && <SimulationStage />}
           {stage === 'export' && <ExportStage />}
         </main>
-        <EdaDialog
-          open={!!pending || !!pendingBrowse}
+        <ImportWizard
+          open={!!pending || !!wizard}
+          startStep={wizard?.step ?? 1}
+          kind={wizard?.kind ?? null}
           current={eda}
-          beforeBrowse={!!pendingBrowse}
+          droppedCount={pending?.length ?? 0}
           askName={name === UNNAMED_PROJECT}
-          onPick={(e, n) => void resolveEda(e, n)}
+          onBrowse={(e, k, n) => void wizardBrowse(e, k, n)}
+          onImportDropped={(e, n) => void resolveEda(e, n)}
           onClose={cancelEdaChoice}
         />
         <ToolLibraryDialog open={toolsOpen} onOpenChange={setToolsOpen} />

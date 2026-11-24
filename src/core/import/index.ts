@@ -8,6 +8,8 @@ export {
   buildImportedLayer,
   computeLayerStats,
   defaultLayerColor,
+  pickLayerColor,
+  LAYER_PALETTE,
   summarizeLayerStatus,
   type LayerStatusEntry,
   type LayerStatusKey,

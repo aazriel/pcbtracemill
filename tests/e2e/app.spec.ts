@@ -55,7 +55,10 @@ test('full workflow: import → manufacture → simulate → export', async () =
   const dir = join(root, 'fixtures/boards/demo-kicad')
   const files = readdirSync(dir).map((name) => ({ name, data: readFileSync(join(dir, name), 'utf8') }))
   await page.evaluate((f) => void window.__tm!.importDropped(f), files)
+  await expect(page.getByTestId('export-guide')).toHaveCount(0)
   await page.getByTestId('eda-kicad').click()
+  await expect(page.getByTestId('export-guide')).toContainText('Edge.Cuts')
+  await page.getByTestId('import-next').click()
   await expect(page.getByTestId('layer-item')).toHaveCount(8)
   await expect(page.getByTestId('file-status')).toContainText('Copper')
   await page.getByTestId('toggle-all-layers').click()
@@ -117,6 +120,7 @@ test('undo / redo restores a deleted layer', async () => {
 test('layer type returns to AUTO, re-import asks to replace, help opens', async () => {
   await page.evaluate(() => window.__tm!.ui.getState().set({ stage: 'board' }))
   const first = page.getByTestId('layer-item').first()
+  await first.getByTestId('layer-expand').click()
   const typeSelect = first.getByLabel('Layer type')
   const detected = await typeSelect.inputValue()
   await typeSelect.selectOption(detected === 'other' ? 'copper' : 'other')

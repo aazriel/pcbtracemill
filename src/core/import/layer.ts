@@ -38,27 +38,65 @@ export function computeLayerStats(parsed: ParsedLayer): LayerStats {
 
 // ─────────────────────────────────────────── colours
 
-/** Base colour per type/side as HSL [h, s%, l%]. */
-function baseHsl(type: LayerType, side: LayerSide): [number, number, number] {
+/**
+ * Strongly different colours for the layer list and the board view (no two shades of one hue), so it is
+ * easy to see which layer is which. The first ones are the preferred colours of the common layer kinds.
+ */
+export const LAYER_PALETTE = [
+  '#ff3b3b', // red: top copper
+  '#3b82ff', // blue: bottom copper
+  '#ffd400', // yellow: board outline
+  '#f8fafc', // white: drill holes
+  '#22c55e', // green: top solder mask
+  '#ff4fd8', // magenta: bottom solder mask
+  '#00e5ff', // cyan: top silkscreen
+  '#ff8a00', // orange: inner copper
+  '#a855f7', // purple: bottom silkscreen
+  '#8a94a6', // grey: top paste
+  '#c8925a', // tan: bottom paste
+  '#ff9eb8', // pink: top fab
+  '#14b8a6', // teal: bottom fab
+  '#c6ff3d', // lime: other
+  '#6366f1', // indigo
+  '#9a8a00' // olive
+] as const
+
+/** The preferred colour of a layer kind. */
+export function defaultLayerColor(type: LayerType, side: LayerSide): string {
+  const P = LAYER_PALETTE
   switch (type) {
     case 'copper':
-      if (side === 'bottom') return [212, 70, 56] // blue
-      if (side === 'inner') return [32, 85, 55] // amber
-      return [12, 72, 55] // reddish copper
+      return side === 'bottom' ? P[1] : side === 'inner' ? P[7] : P[0]
     case 'soldermask':
-      return side === 'bottom' ? [165, 40, 52] : [135, 42, 52] // muted, translucent-looking greens
+      return side === 'bottom' ? P[5] : P[4]
     case 'silkscreen':
-      return side === 'bottom' ? [50, 90, 78] : [45, 15, 94] // pale yellow / warm white
+      return side === 'bottom' ? P[8] : P[6]
     case 'paste':
-      return side === 'bottom' ? [220, 8, 66] : [210, 10, 76] // silver greys
+      return side === 'bottom' ? P[10] : P[9]
     case 'outline':
-      return [48, 95, 58] // yellow
+      return P[2]
     case 'drill':
-      return [210, 6, 62] // grey
+      return P[3]
     case 'fab':
-      return side === 'bottom' ? [300, 45, 66] : [275, 50, 70] // lavender / pink
+      return side === 'bottom' ? P[12] : P[11]
     default:
-      return [180, 35, 55] // teal
+      return P[13]
+  }
+}
+
+/**
+ * Colour for a new layer that no other layer uses: its kind's preferred colour when that is free,
+ * otherwise the first free palette colour, and only after all of them hues spread by the golden angle.
+ */
+export function pickLayerColor(type: LayerType, side: LayerSide, used: readonly string[]): string {
+  const taken = new Set(used.map((c) => c.toLowerCase()))
+  const pref = defaultLayerColor(type, side)
+  if (!taken.has(pref)) return pref
+  const free = LAYER_PALETTE.find((c) => !taken.has(c))
+  if (free) return free
+  for (let i = taken.size; ; i++) {
+    const c = hslToHex(i * 137.508, 85, i % 2 ? 62 : 52)
+    if (!taken.has(c)) return c
   }
 }
 
@@ -82,21 +120,6 @@ function hslToHex(h: number, s: number, l: number): string {
       .toString(16)
       .padStart(2, '0')
   return `#${to(ch(hh + 1 / 3))}${to(ch(hh))}${to(ch(hh - 1 / 3))}`
-}
-
-/**
- * Pleasant default colour for a layer. `index` (usually the layer order) shifts hue and
- * lightness in a zig-zag so two layers of the same kind still get distinct colours.
- */
-export function defaultLayerColor(type: LayerType, side: LayerSide, index: number): string {
-  const [h, s, l] = baseHsl(type, side)
-  const i = Math.max(0, Math.floor(index))
-  // zig-zag 0, +1, -1, +2, -2 ... limited to ±6 steps, then wraps with a lightness band change.
-  const step = i % 13
-  const band = Math.floor(i / 13)
-  const z = step === 0 ? 0 : step % 2 === 1 ? (step + 1) / 2 : -step / 2
-  const dl = (band % 2 === 1 ? -1 : 1) * Math.ceil(band / 2) * 7 + (step % 2 === 1 ? 3 : step === 0 ? 0 : -3)
-  return hslToHex(h + z * 9, s, l + dl)
 }
 
 // ─────────────────────────────────────────── layer building
@@ -143,7 +166,7 @@ export function buildImportedLayer(
     autoDetected: true,
     confidence: detection.confidence,
     visible: detection.type !== 'other',
-    color: defaultLayerColor(detection.type, detection.side, order),
+    color: defaultLayerColor(detection.type, detection.side),
     order,
     stats: computeLayerStats(parsed),
     parsed

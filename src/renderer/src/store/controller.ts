@@ -237,35 +237,44 @@ export async function importDropped(files: DroppedFile[]): Promise<void> {
 }
 
 /**
- * Opens the file / folder / ZIP picker. The design program is asked for first, so the picker only
- * offers that program's fabrication files.
+ * Opens the import wizard: 1. design program, 2. files / folder / ZIP, 3. the file browser. When the
+ * program is already known (adding files to a board) it starts at step 2.
  */
-export async function startImport(kind: BrowseKind): Promise<void> {
-  if (needsEdaChoice()) {
-    useUi.getState().set({ pendingBrowse: kind })
-    return
-  }
-  await browse(kind, useProject.getState().settings.edaTool!)
+export function startImport(kind: BrowseKind | null = null): void {
+  useUi.getState().set({ importWizard: { step: needsEdaChoice() ? 1 : 2, kind } })
 }
 
 /** Kept for the menu: Import Files… / Import Folder… */
-export function browseAndImport(directory = false): Promise<void> {
-  return startImport(directory ? 'folder' : 'files')
+export function browseAndImport(directory = false): void {
+  startImport(directory ? 'folder' : 'files')
 }
 
+async function applyEda(eda: EdaTool, name?: string): Promise<void> {
+  const p = useProject.getState()
+  if (p.layers.length && p.settings.edaTool && p.settings.edaTool !== eda) await changeEda(eda)
+  else p.setEdaTool(eda)
+  if (name) useProject.getState().setName(name)
+}
+
+/** Dropped files: the program was picked in the wizard. */
 export async function resolveEda(eda: EdaTool, name?: string): Promise<void> {
   const ui = useUi.getState()
-  useProject.getState().setEdaTool(eda)
-  if (name) useProject.getState().setName(name)
   const files = ui.pendingImport
-  const kind = ui.pendingBrowse
-  ui.set({ pendingImport: null, pendingBrowse: null })
+  ui.set({ pendingImport: null, importWizard: null })
+  await applyEda(eda, name)
   if (files) await runImport(files, eda)
-  else if (kind) await browse(kind, eda)
+}
+
+/** Wizard step 2 -> 3: opens the file browser; cancelling it goes back to the wizard. */
+export async function wizardBrowse(eda: EdaTool, kind: BrowseKind, name?: string): Promise<void> {
+  useUi.getState().set({ importWizard: null })
+  await applyEda(eda, name)
+  const picked = await browse(kind, eda)
+  if (!picked) useUi.getState().set({ importWizard: { step: 2, kind } })
 }
 
 export function cancelEdaChoice(): void {
-  useUi.getState().set({ pendingImport: null, pendingBrowse: null })
+  useUi.getState().set({ pendingImport: null, importWizard: null })
 }
 
 /** Changes the design program (Settings menu) and re-detects every layer that is still automatic. */
@@ -362,7 +371,8 @@ function applyImport(
   scheduleRegenerate()
 }
 
-async function browse(kind: BrowseKind, eda: EdaTool): Promise<void> {
+/** Returns false when the user cancelled the browser. */
+async function browse(kind: BrowseKind, eda: EdaTool): Promise<boolean> {
   const info = edaInfo(eda) ?? EDA_INFO[EDA_INFO.length - 1]
   const exts = info.extensions
   const matches = (name: string): boolean => {
@@ -373,7 +383,7 @@ async function browse(kind: BrowseKind, eda: EdaTool): Promise<void> {
   if (window.tracemill && kind === 'folder') {
     // PCB TraceMill's own folder browser: unlike the Windows one it shows the files inside
     const path = await pickFolder(exts, info.short)
-    if (!path) return
+    if (!path) return false
     const opened = await window.tracemill.readFolder(path, [...exts, 'zip'])
     files = opened.map((f) => ({
       name: f.name,
@@ -391,7 +401,7 @@ async function browse(kind: BrowseKind, eda: EdaTool): Promise<void> {
             anyFile: true
           }
     )
-    if (!paths?.length) return
+    if (!paths?.length) return false
     const opened = await window.tracemill.readPaths(paths)
     files = opened.map((f) => ({
       name: f.name,
@@ -420,7 +430,9 @@ async function browse(kind: BrowseKind, eda: EdaTool): Promise<void> {
       input.click()
     })
   }
-  if (files.length) await runImport(files, eda)
+  if (!files.length) return false
+  await runImport(files, eda)
+  return true
 }
 
 /** Removes a layer; when none are left the list of ignored files from the last import goes too. */
@@ -761,7 +773,7 @@ export function startNewProject(): void {
     generating: false,
     generatingStepId: null,
     pendingImport: null,
-    pendingBrowse: null,
+    importWizard: null,
     pendingDuplicates: null,
     importing: false,
     skippedFiles: [],

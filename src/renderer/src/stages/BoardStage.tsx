@@ -130,35 +130,39 @@ export function BoardStage(): React.JSX.Element {
             onMove={p.moveLayer}
             onDelete={removeLayer}
             onReimport={(id) => void reimportLayer(id)}
-            onAdd={() => void startImport('files')}
+            onAdd={() => startImport()}
+            onResetColors={p.resetLayerColors}
           />
           {ui.skippedFiles.length > 0 && (
             <IgnoredFiles files={ui.skippedFiles} onDismiss={() => ui.set({ skippedFiles: [] })} />
           )}
         </div>
         <LayerStatusPanel status={statusEntries} />
-        <div className="flex items-center gap-2 border-t border-slate-800 p-3">
-          <StatusCircle level={empty ? 'pending' : stageStatus.board} size={22} title={hint} />
-          <div
-            className={cn(
-              'flex-1 text-xs leading-snug',
-              stageStatus.board === 'warning' && !empty
-                ? 'text-amber-300'
-                : stageStatus.board === 'error' && !empty
-                  ? 'text-rose-300'
-                  : 'text-slate-400'
-            )}
-            data-testid="board-hint"
-          >
-            {hint}
+        <div className="flex flex-col gap-2 border-t border-slate-800 p-3">
+          <div className="flex items-center gap-2">
+            <StatusCircle level={empty ? 'pending' : stageStatus.board} size={22} title={hint} />
+            <div
+              className={cn(
+                'flex-1 text-xs leading-snug',
+                stageStatus.board === 'warning' && !empty
+                  ? 'text-amber-300'
+                  : stageStatus.board === 'error' && !empty
+                    ? 'text-rose-300'
+                    : 'text-slate-400'
+              )}
+              data-testid="board-hint"
+            >
+              {hint}
+            </div>
           </div>
           <Button
-            variant="success"
+            size="lg"
             disabled={!canEnterStage('manufacture')}
             onClick={() => ui.set({ stage: 'manufacture' })}
+            className="w-full bg-green-500 font-bold text-slate-950 shadow-[0_0_18px_rgba(34,197,94,0.55)] hover:bg-green-400 disabled:shadow-none"
             data-testid="continue-manufacture"
           >
-            Continue <ArrowRight />
+            Next: Manufacture <ArrowRight />
           </Button>
         </div>
       </aside>
@@ -166,7 +170,7 @@ export function BoardStage(): React.JSX.Element {
       <section className="relative min-w-0 flex-1">
         <ImportDropZone
           onFiles={(f) => void importDropped(f)}
-          onBrowse={(k) => void startImport(k)}
+          onBrowse={() => startImport()}
           compact={!empty}
         >
           {!empty && (

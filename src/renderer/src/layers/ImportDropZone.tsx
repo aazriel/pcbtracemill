@@ -1,8 +1,7 @@
 import { useState, type ReactNode } from 'react'
-import { FileUp, FolderOpen, Files, FileArchive } from 'lucide-react'
+import { FileUp } from 'lucide-react'
 import { Button } from '@renderer/components/ui/button'
 import { cn } from '@renderer/lib/utils'
-import type { BrowseKind } from '@renderer/store/ui'
 
 export interface DroppedFile {
   name: string
@@ -56,7 +55,8 @@ export function ImportDropZone({
   children
 }: {
   onFiles: (files: DroppedFile[]) => void
-  onBrowse: (kind: BrowseKind) => void
+  /** Opens the import wizard. */
+  onBrowse: () => void
   compact?: boolean
   children?: ReactNode
 }): React.JSX.Element {
@@ -85,31 +85,14 @@ export function ImportDropZone({
           <div>
             <h2 className="text-xl font-semibold text-slate-100">Import your PCB fabrication files</h2>
             <p className="mt-2 text-sm text-slate-400">
-              Choose the Gerber and drill files your PCB design program exported for manufacturing (the
-              &ldquo;fab outputs&rdquo; or &ldquo;Gerbers&rdquo;), or the folder that contains them. You can
-              also drag & drop them here.
+              Bring in the Gerber and drill files your PCB design program exported for manufacturing (the
+              &ldquo;fab outputs&rdquo; or &ldquo;Gerbers&rdquo;). The import shows you how to export them
+              from your program. You can also drag & drop the files, the folder or a ZIP here.
             </p>
           </div>
-          <div className="flex flex-wrap justify-center gap-2">
-            <Button onClick={() => onBrowse('files')} data-testid="import-files">
-              <Files /> Choose files…
-            </Button>
-            <Button variant="secondary" onClick={() => onBrowse('folder')} data-testid="import-folder">
-              <FolderOpen /> Choose a folder…
-            </Button>
-          </div>
-          <div className="flex items-center gap-2 border-t border-slate-800 pt-3 text-xs text-slate-400">
-            <FileArchive className="size-3.5 text-slate-500" />
-            Got everything in one ZIP archive?
-            <button
-              type="button"
-              onClick={() => onBrowse('zip')}
-              className="font-medium text-sky-400 underline-offset-2 hover:underline"
-              data-testid="import-zip"
-            >
-              Import a ZIP…
-            </button>
-          </div>
+          <Button size="lg" onClick={onBrowse} data-testid="import-start">
+            <FileUp /> Import files…
+          </Button>
           <p className="text-[11px] text-slate-500">
             Supported: Gerber RS-274X (X1 & X2) and Excellon drill (PTH / NPTH) from KiCad, Altium, Eagle,
             EasyEDA and others.
