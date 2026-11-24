@@ -157,3 +157,12 @@ a:focus-visible, button:focus-visible, summary:focus-visible, [tabindex]:focus-v
 /* legal pages */
 .legal h2 { text-align: left; font-size: 22px; margin-top: 36px; }
 .legal .updated { color: var(--muted); font-size: 14px; }
+
+/* support: visible but calm */
+.btn-heart { border-color: #f87171; color: #fecaca; margin-right: 8px; }
+.btn-heart:hover { background: rgba(248, 113, 113, 0.12); }
+.btn-heart svg { fill: #f87171; stroke: none; }
+.btn-kofi svg { fill: #fff; stroke: none; }
+.free-note { margin: 6px 0 0; font-size: 14px; color: var(--muted); }
+.thanks-strip { display: flex; align-items: center; justify-content: center; gap: 16px; flex-wrap: wrap; max-width: 820px; margin: 28px auto 0; padding: 16px 20px; border: 1px solid rgba(248, 113, 113, 0.35); border-radius: 12px; background: rgba(248, 113, 113, 0.06); font-size: 15px; }
+@media (max-width: 600px) { .btn-heart span { display: none; } .btn-heart { padding: 7px 10px; } }
