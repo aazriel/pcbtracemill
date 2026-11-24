@@ -129,23 +129,27 @@
 
     <section id="how" class="section alt">
       <div class="wrap">
-        <h2>Four steps, left to right</h2>
-        <p class="sub">The app walks you through the job in four stages. New to PCB milling? Read the <a href="guide.html">step-by-step guide</a>.</p>
+        <h2>From your design files to G-code, step by step</h2>
+        <p class="sub">The app walks you through the job, left to right. New to PCB milling? Read the <a href="guide.html">step-by-step guide</a>.</p>
         <ol class="steps">
           <li>
-            <div class="step-text"><span class="num">1</span><h3>Board</h3><p>Drop in your Gerber and drill files (or a ZIP). PCB TraceMill recognises every layer and shows the board in real colours.</p></div>
+            <div class="step-text"><span class="num">1</span><h3>Import</h3><p>Pick the program you designed the board in (KiCad, Altium, Eagle / Fusion, EasyEDA or other). PCB TraceMill shows how to export the files from it and which layers you must have, which are recommended and which are optional. Then bring in the files, the folder or the ZIP.</p></div>
+            <a href="img/import.png"><img src="img/import.png" loading="lazy" width="1600" height="960" alt="PCB TraceMill import: how to export Gerber and drill files from KiCad, and which layers are required, recommended or optional" /></a>
+          </li>
+          <li>
+            <div class="step-text"><span class="num">2</span><h3>Board</h3><p>Every layer is recognised and shown in real colours, or each in its own clearly different colour. Show, hide and reorder layers in a compact list, then press <b>Next: Manufacture</b>.</p></div>
             <a href="img/board.png"><img src="img/board.png" loading="lazy" width="1600" height="960" alt="PCB TraceMill Board stage: imported Gerber layers of a multimeter PCB" /></a>
           </li>
           <li>
-            <div class="step-text"><span class="num">2</span><h3>Manufacture</h3><p>Pick your machine and material, press <b>Recipe</b>, and you get a complete job: isolation, drilling and cut-out, with suitable bits and speeds.</p></div>
+            <div class="step-text"><span class="num">3</span><h3>Manufacture</h3><p>Pick your machine and material, press <b>Recipe</b>, and you get a complete job: isolation, drilling and cut-out, with suitable bits and speeds.</p></div>
             <a href="img/manufacture.png"><img src="img/manufacture.png" loading="lazy" width="1600" height="960" alt="PCB TraceMill Manufacture stage: toolpaths for isolation, drilling and cut-out" /></a>
           </li>
           <li>
-            <div class="step-text"><span class="num">3</span><h3>Simulation</h3><p>See the finished board in 3D before a single chip flies. Scrub the timeline, follow the tool, move the light.</p></div>
+            <div class="step-text"><span class="num">4</span><h3>Simulation</h3><p>See the finished board in 3D before a single chip flies. Scrub the timeline, follow the tool, move the light.</p></div>
             <a href="img/simulation.jpg"><img src="img/simulation.jpg" loading="lazy" width="1600" height="960" alt="PCB TraceMill 3D simulation of the finished board" /></a>
           </li>
           <li>
-            <div class="step-text"><span class="num">4</span><h3>Export</h3><p>Probe the board for an even depth, then save the G-code files – one per step or per tool – ready for your controller.</p></div>
+            <div class="step-text"><span class="num">5</span><h3>Export</h3><p>Probe the board for an even depth, then save the G-code files – one per step or per tool – ready for your controller.</p></div>
             <a href="img/export.png"><img src="img/export.png" loading="lazy" width="1600" height="960" alt="PCB TraceMill Export stage with auto-levelling and the G-code file list" /></a>
           </li>
         </ol>
