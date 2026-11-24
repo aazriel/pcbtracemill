@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Ask a question
+    url: https://github.com/aazriel/pcbtracemill/discussions/categories/q-a
+    about: How do I ...? Questions about milling, machines and settings.
+  - name: Write a review or show your board
+    url: https://aazriel.github.io/pcbtracemill/#reviews
+    about: Tell others what you think, or share photos of boards you milled.

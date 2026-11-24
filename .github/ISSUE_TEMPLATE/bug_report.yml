@@ -1,0 +1,53 @@
+name: Report a problem
+description: Something in PCB TraceMill does not work as it should.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time! The more we know, the faster it gets fixed.
+        Please do not post anything private (names, addresses, keys). Board files are welcome if you are happy to share them.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How can we make it happen again?
+      placeholder: |
+        1. Import the KiCad files of ...
+        2. Press Recipe
+        3. ...
+  - type: input
+    id: version
+    attributes:
+      label: PCB TraceMill version
+      description: Help → About, or the installer name (e.g. 0.1.3).
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Computer
+      options: [Windows, macOS, Linux]
+    validations:
+      required: true
+  - type: dropdown
+    id: controller
+    attributes:
+      label: Machine control software (if it is about the G-code)
+      options: [Not about the G-code, Mach3, Mach4, GRBL (Candle / UGS / bCNC / CNCjs), LinuxCNC, Other]
+  - type: input
+    id: eda
+    attributes:
+      label: Design program (if it is about importing)
+      placeholder: KiCad 8, EasyEDA Pro, Altium ...
+  - type: textarea
+    id: files
+    attributes:
+      label: Screenshots or files
+      description: Drag images, a ZIP of the Gerber files, or the .tmill project here.

@@ -1,0 +1,21 @@
+name: Suggest an idea
+description: Something PCB TraceMill should do, or do better.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: Your idea
+      description: What would you like PCB TraceMill to do?
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why would it help you?
+      description: What are you milling, on which machine, and what gets in the way today?
+  - type: textarea
+    id: more
+    attributes:
+      label: Anything else
+      description: Pictures, links to other tools, sketches.
