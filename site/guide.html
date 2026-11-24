@@ -48,10 +48,11 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  <a class="skip" href="#main">Skip to content</a>
   <header class="nav">
     <div class="wrap nav-in">
       <a class="brand" href="./"><img src="img/icon.png" alt="" width="28" height="28" /> PCB TraceMill</a>
-      <nav class="links">
+      <nav class="links" aria-label="Main">
         <a href="./#features">Features</a>
         <a href="guide.html">Guide</a>
         <a href="./#faq">FAQ</a>
@@ -61,7 +62,7 @@
     </div>
   </header>
 
-  <main class="section">
+  <main id="main" class="section">
     <article class="wrap narrow prose">
       <p class="eyebrow">Guide</p>
       <h1>How to mill a PCB on a hobby CNC router</h1>
@@ -169,7 +170,8 @@
   <footer class="foot">
     <div class="wrap foot-in">
       <span>© 2026 PCB TraceMill contributors · MIT license</span>
-      <span><a href="./">Home</a> · <a href="https://github.com/aazriel/pcbtracemill">GitHub</a> · <a href="https://github.com/aazriel/pcbtracemill/issues">Report a problem</a> · <a href="https://github.com/aazriel/pcbtracemill/releases">Releases</a></span>
+      <span><a href="./">Home</a> · <a href="https://github.com/aazriel/pcbtracemill">GitHub</a> · <a href="./#reviews">Reviews &amp; feedback</a> · <a href="https://github.com/aazriel/pcbtracemill/releases">Releases</a> · <a href="./#support">Support</a></span>
+      <span><a href="accessibility.html">Accessibility statement</a> · <a href="privacy.html">Privacy</a> · <a href="terms.html">Terms &amp; safety</a></span>
     </div>
   </footer>
 </body>

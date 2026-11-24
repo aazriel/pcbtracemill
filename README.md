@@ -35,6 +35,11 @@ All files are on the [latest release](https://github.com/aazriel/pcbtracemill/re
 
 PCB TraceMill is an easy-to-use alternative to FlatCAM, CopperCAM and pcb2gcode. Every setting is explained in plain words.
 
+## Feedback and support
+
+- Problems and ideas: [open an issue](https://github.com/aazriel/pcbtracemill/issues/new/choose). Questions and photos of your boards: [Discussions](https://github.com/aazriel/pcbtracemill/discussions). Reviews: [on the website](https://aazriel.github.io/pcbtracemill/#reviews).
+- PCB TraceMill is free and stays free. If you would like to say thanks: [support it on Ko-fi](https://ko-fi.com/aazriel) ☕
+
 ## Development
 
 ```bash

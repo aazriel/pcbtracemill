@@ -58,23 +58,27 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  <a class="skip" href="#main">Skip to content</a>
   <header class="nav">
     <div class="wrap nav-in">
       <a class="brand" href="#top"><img src="img/icon.png" alt="" width="28" height="28" /> PCB TraceMill</a>
-      <nav class="links">
+      <nav class="links" aria-label="Main">
         <a href="#features">Features</a>
         <a href="#how">How it works</a>
         <a href="#setup">Board setup</a>
         <a href="guide.html">Guide</a>
         <a href="#videos">Videos</a>
         <a href="#faq">FAQ</a>
+        <a href="#reviews">Reviews</a>
+        <a href="#support">Support</a>
         <a href="https://github.com/aazriel/pcbtracemill" rel="noopener">GitHub</a>
       </nav>
       <a class="btn btn-sm btn-green" href="#download">Download</a>
     </div>
   </header>
 
-  <main id="top">
+  <main id="main">
+    <span id="top"></span>
     <section class="hero">
       <div class="wrap hero-in">
         <div class="hero-text">
@@ -213,6 +217,45 @@
       </div>
     </section>
 
+    <section id="support" class="section alt">
+      <div class="wrap narrow center support">
+        <h2>Support PCB TraceMill</h2>
+        <p class="sub">PCB TraceMill is free and open source, and it stays that way. If it saved you time or a trip to the board house and you would like to say thanks, you can buy me a coffee on Ko-fi. It pays for test boards, bits and the time to keep improving the app.</p>
+        <a class="btn btn-kofi" href="https://ko-fi.com/aazriel" rel="noopener">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><path d="M6 1v3M10 1v3M14 1v3"/></svg>
+          Support on Ko-fi
+        </a>
+        <p class="fine">A donation is a voluntary gift. It does not buy a product, a service or support, and the app is the same for everyone.<br />Payments are handled by Ko-fi (card, PayPal, Apple Pay, Google Pay); this website never sees your payment details. <a href="terms.html#donations">More about donations</a>.</p>
+      </div>
+    </section>
+
+    <section id="reviews" class="section">
+      <div class="wrap">
+        <h2>Reviews &amp; feedback</h2>
+        <p class="sub">Milled a board with PCB TraceMill? Tell others how it went. Found a problem or missing something? Every report helps make it better.</p>
+        <div class="dl fb">
+          <a class="dl-card" href="https://github.com/aazriel/pcbtracemill/issues/new?template=bug_report.yml" rel="noopener">
+            <b>Report a problem</b><span>Something does not work as it should</span><em>Open a report</em>
+          </a>
+          <a class="dl-card" href="https://github.com/aazriel/pcbtracemill/issues/new?template=feature_request.yml" rel="noopener">
+            <b>Suggest an idea</b><span>A feature or an improvement</span><em>Share the idea</em>
+          </a>
+          <a class="dl-card" href="https://github.com/aazriel/pcbtracemill/discussions" rel="noopener">
+            <b>Ask &amp; share</b><span>Questions, tips and photos of your boards</span><em>Join the discussion</em>
+          </a>
+        </div>
+        <div class="reviews">
+          <h3>What users say</h3>
+          <p class="fine">Write your review below. Posting needs a free GitHub account; reading does not. Reviews are public, so please do not post private details.</p>
+          <div class="reviews-gate" id="reviews-gate">
+            <p>The reviews are kept in GitHub Discussions and shown by the giscus service, which loads only when you ask. See the <a href="privacy.html">privacy policy</a>.</p>
+            <button type="button" class="btn btn-ghost" id="reviews-load">Show reviews</button>
+          </div>
+          <div class="giscus"></div>
+        </div>
+      </div>
+    </section>
+
     <section id="faq" class="section alt">
       <div class="wrap narrow">
         <h2>Questions</h2>
@@ -232,7 +275,8 @@
   <footer class="foot">
     <div class="wrap foot-in">
       <span>© 2026 PCB TraceMill contributors · MIT license</span>
-      <span><a href="guide.html">How to mill a PCB</a> · <a href="https://github.com/aazriel/pcbtracemill">GitHub</a> · <a href="https://github.com/aazriel/pcbtracemill/issues">Report a problem</a> · <a href="https://github.com/aazriel/pcbtracemill/releases">Releases</a></span>
+      <span><a href="guide.html">How to mill a PCB</a> · <a href="https://github.com/aazriel/pcbtracemill">GitHub</a> · <a href="#reviews">Reviews &amp; feedback</a> · <a href="https://github.com/aazriel/pcbtracemill/issues/new/choose">Report a problem</a> · <a href="https://github.com/aazriel/pcbtracemill/releases">Releases</a> · <a href="#support">Support</a></span>
+      <span><a href="accessibility.html">Accessibility statement</a> · <a href="privacy.html">Privacy</a> · <a href="terms.html">Terms &amp; safety</a></span>
     </div>
   </footer>
   <script>
@@ -253,6 +297,29 @@
           show(n)
         })
         .catch(function () {})
+    })()
+  </script>
+  <script>
+    // Reviews (giscus) load only after the visitor asks; the choice is remembered on this device.
+    (function () {
+      var gate = document.getElementById('reviews-gate'), btn = document.getElementById('reviews-load')
+      var load = function () {
+        gate.hidden = true
+        var s = document.createElement('script')
+        var cfg = { repo: 'aazriel/pcbtracemill', repoId: 'R_kgDOVnebaQ', category: 'General', categoryId: 'DIC_kwDOVnebac4DL2yl',
+          mapping: 'specific', term: 'Reviews of PCB TraceMill', strict: '1', reactionsEnabled: '1', emitMetadata: '0',
+          inputPosition: 'top', theme: 'transparent_dark', lang: 'en' }
+        s.src = 'https://giscus.app/client.js'
+        s.async = true
+        s.crossOrigin = 'anonymous'
+        Object.keys(cfg).forEach(function (k) { s.dataset[k] = cfg[k] })
+        document.querySelector('.giscus').after(s)
+      }
+      btn.addEventListener('click', function () {
+        try { localStorage.setItem('reviews-ok', '1') } catch (e) {}
+        load()
+      })
+      try { if (localStorage.getItem('reviews-ok') === '1') load() } catch (e) {}
     })()
   </script>
 </body>
