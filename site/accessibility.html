@@ -1,18 +1,18 @@
 <!doctype html>
-<html lang="he" dir="rtl">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>הצהרת נגישות – PCB TraceMill | Accessibility statement</title>
-  <meta name="description" content="הצהרת הנגישות של אתר PCB TraceMill: רמת הנגישות לפי ת״י 5568, ההתאמות שבוצעו ודרכי פנייה. Accessibility statement of the PCB TraceMill website." />
+  <title>Accessibility statement – PCB TraceMill</title>
+  <meta name="description" content="Accessibility statement of the PCB TraceMill website: WCAG 2.1 AA, what was done, how it was checked, and how to report a problem." />
   <link rel="canonical" href="https://aazriel.github.io/pcbtracemill/accessibility.html" />
   <link rel="icon" type="image/png" href="img/icon.png" />
   <meta name="theme-color" content="#0b1220" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <a class="skip" href="#main">דילוג לתוכן</a>
-  <header class="nav" dir="ltr">
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="nav">
     <div class="wrap nav-in">
       <a class="brand" href="./"><img src="img/icon.png" alt="" width="28" height="28" /> PCB TraceMill</a>
       <nav class="links" aria-label="Main">
@@ -27,102 +27,57 @@
 
   <main id="main" class="section">
     <article class="wrap narrow prose legal">
-      <div class="he">
-        <h1>הצהרת נגישות</h1>
-        <p class="updated">עודכנה לאחרונה: 24 בנובמבר 2026</p>
-        <p>
-          אתר PCB TraceMill מציג תוכנה חינמית בקוד פתוח לכרסום מעגלים מודפסים במכונות CNC ביתיות. אנו רואים
-          חשיבות רבה במתן שירות שוויוני, נגיש ומכבד לכל המשתמשים, ובכלל זה לאנשים עם מוגבלות, ופועלים להנגשת
-          האתר בהתאם לחוק שוויון זכויות לאנשים עם מוגבלות, התשנ״ח-1998, ולתקנות שוויון זכויות לאנשים עם
-          מוגבלות (התאמות נגישות לשירות), התשע״ג-2013.
-        </p>
+      <h1>Accessibility statement</h1>
+      <p class="updated">Last updated: 24 November 2026</p>
+      <p>
+        We want everyone, including people with disabilities, to be able to use this website. It is designed to meet
+        the Web Content Accessibility Guidelines (WCAG) 2.1 of the W3C at level AA, which also covers WCAG 2.0 AA and
+        the national standards built on it.
+      </p>
 
-        <h2>רמת הנגישות</h2>
-        <p>
-          האתר הותאם לדרישות התקן הישראלי ת״י 5568 (״קווים מנחים לנגישות תכנים באינטרנט״) ברמה AA, המבוסס על
-          הנחיות WCAG 2.0 של ארגון W3C. האתר נבדק גם מול הנחיות WCAG 2.1 ברמה AA.
-        </p>
+      <h2>What we did</h2>
+      <ul>
+        <li>Semantic page structure with ordered headings, marked navigation and content areas, and the page language set.</li>
+        <li>A “Skip to content” link at the top of every page, and full use with the keyboard alone (Tab, Shift+Tab, Enter).</li>
+        <li>A clearly visible yellow outline around whatever has keyboard focus.</li>
+        <li>Colour contrast that meets level AA, and links inside text that are underlined, not shown by colour only.</li>
+        <li>Text alternatives for every meaningful image and screenshot.</li>
+        <li>A layout that adapts to any screen (computer, tablet, phone) and works at 200% zoom without losing content.</li>
+        <li>No animation or smooth scrolling when “reduce motion” is set in the operating system.</li>
+        <li>Questions and answers that open and close with standard elements that screen readers understand.</li>
+        <li>No accessibility overlay plugin: accessibility is built into the site itself.</li>
+      </ul>
 
-        <h2>ההתאמות שבוצעו באתר</h2>
-        <ul>
-          <li>מבנה דפים סמנטי עם כותרות מסודרות, אזורי ניווט ותוכן מסומנים, ושפת הדף מוגדרת.</li>
-          <li>אפשרות ״דילוג לתוכן״ בתחילת כל דף, וניווט מלא באמצעות המקלדת בלבד (Tab, Shift+Tab, Enter).</li>
-          <li>מסגרת מיקוד צהובה ובולטת סביב הרכיב הנבחר במקלדת.</li>
-          <li>ניגודיות צבעים לפי דרישות רמה AA, וקישורים בתוך טקסט מסומנים בקו תחתון ולא בצבע בלבד.</li>
-          <li>טקסט חלופי לכל תמונה ולכל צילום מסך בעל משמעות.</li>
-          <li>האתר מתאים את עצמו לגודל המסך (מחשב, טאבלט וטלפון) וניתן להגדלה עד 200% ללא אובדן תוכן.</li>
-          <li>כיבוי אנימציות וגלילה חלקה כאשר מוגדרת במערכת ההפעלה העדפה ל״הפחתת תנועה״.</li>
-          <li>שאלות נפוצות פתוחות ונסגרות ברכיבים תקניים הנגישים לקוראי מסך.</li>
-          <li>האתר אינו משתמש בתוסף נגישות חיצוני; ההנגשה מובנית בקוד האתר עצמו.</li>
-        </ul>
+      <h2>How we checked</h2>
+      <p>
+        Automated testing with axe-core against WCAG 2.0 and 2.1 (levels A and AA), and manual keyboard testing, in
+        current Microsoft Edge and Google Chrome. The site uses standard HTML and CSS that Firefox and Safari also
+        support.
+      </p>
 
-        <h2>אופן הבדיקה</h2>
-        <p>
-          הנגישות נבדקה בכלי הבדיקה האוטומטי axe-core מול הנחיות WCAG 2.0 ו-2.1 ברמות A ו-AA, ובבדיקה ידנית של
-          ניווט במקלדת. האתר נבדק בדפדפנים העדכניים Microsoft Edge ו-Google Chrome, והוא בנוי בתקני HTML ו-CSS
-          הנתמכים גם ב-Firefox וב-Safari.
-        </p>
+      <h2>Known limits and third-party content</h2>
+      <ul>
+        <li>Screenshots of the app contain small text. Each has a text description, and the page text and the guide explain them.</li>
+        <li>
+          Some parts are provided by other services and are not fully in our control: downloads and issue reports
+          (GitHub), the reviews area (giscus and GitHub Discussions) and donations (Ko-fi). Their accessibility is the
+          responsibility of those providers.
+        </li>
+        <li>This statement covers the website. The PCB TraceMill desktop app is separate software.</li>
+      </ul>
+      <p>We keep improving the site. If something is hard to use, please tell us so we can fix it.</p>
 
-        <h2>מגבלות ידועות ותוכן של צד שלישי</h2>
-        <ul>
-          <li>
-            צילומי המסך של התוכנה מכילים טקסט קטן. לכל צילום יש תיאור חלופי, ותוכן הצילומים מוסבר גם בטקסט הדף
-            ובמדריך.
-          </li>
-          <li>
-            חלק מהשירותים מוצגים על ידי צד שלישי ואינם בשליטתנו המלאה: הורדת קובצי ההתקנה ודיווח על תקלות
-            (GitHub), אזור הביקורות (giscus ו-GitHub Discussions) ודף התרומות (Ko-fi). נגישותם באחריות ספקיהם.
-          </li>
-          <li>הצהרה זו מתייחסת לאתר האינטרנט. תוכנת PCB TraceMill עצמה היא תוכנת מחשב נפרדת.</li>
-        </ul>
-        <p>אנו ממשיכים לשפר את נגישות האתר. אם נתקלתם ברכיב שאינו נגיש, נשמח שתספרו לנו כדי שנוכל לתקן אותו.</p>
-
-        <h2>פנייה בנושא נגישות</h2>
-        <p>
-          נתקלתם בבעיית נגישות, או שאתם זקוקים למידע מהאתר בדרך נגישה אחרת? פנו אלינו דרך
-          <a href="https://github.com/aazriel/pcbtracemill/issues/new?title=%D7%A0%D7%92%D7%99%D7%A9%D7%95%D7%AA%3A%20" rel="noopener">טופס פנייה בנושא נגישות</a>.
-          כדי שנוכל לטפל בפנייה, נא לציין את כתובת הדף, תיאור הבעיה, והדפדפן וטכנולוגיה מסייעת שבהם השתמשתם
-          (אם יש). נשתדל לענות תוך 14 יום.
-        </p>
-      </div>
-
-      <hr />
-
-      <div lang="en" dir="ltr">
-        <h2 id="english">Accessibility statement (English)</h2>
-        <p class="updated">Last updated: 24 November 2026</p>
-        <p>
-          We want everyone, including people with disabilities, to be able to use this website. It is designed to
-          meet Israeli Standard IS 5568 at level AA, which is based on WCAG 2.0, and it is also checked against
-          WCAG 2.1 level AA, as required by the Israeli Equal Rights for Persons with Disabilities law and its
-          Service Accessibility Regulations (2013).
-        </p>
-        <p>
-          <b>What we did:</b> semantic page structure and landmarks, a “Skip to content” link, full keyboard use
-          with a clearly visible focus outline, AA colour contrast, underlined links in text, text alternatives for
-          images, a layout that works on any screen size and at 200% zoom, and no motion when “reduce motion” is
-          set. We do not use an accessibility overlay plugin.
-        </p>
-        <p>
-          <b>How we checked:</b> automated testing with axe-core against WCAG 2.0 and 2.1 (A and AA) and manual
-          keyboard testing, in current Microsoft Edge and Google Chrome.
-        </p>
-        <p>
-          <b>Known limits:</b> screenshots contain small text (each has a text description, and the page text
-          explains them). Downloads and issue reports (GitHub), the reviews area (giscus / GitHub Discussions) and
-          donations (Ko-fi) are provided by third parties. This statement covers the website, not the desktop app.
-        </p>
-        <p>
-          <b>Contact:</b> found something that is hard to use? Please tell us through the
-          <a href="https://github.com/aazriel/pcbtracemill/issues/new?title=Accessibility%3A%20" rel="noopener">accessibility contact form</a>
-          with the page address, what went wrong, and the browser and assistive technology you use. We aim to
-          reply within 14 days.
-        </p>
-      </div>
+      <h2>Contact</h2>
+      <p>
+        Found an accessibility problem, or need information from the site in another form? Please tell us through the
+        <a href="https://github.com/aazriel/pcbtracemill/issues/new?title=Accessibility%3A%20" rel="noopener">accessibility contact form</a>
+        with the page address, what went wrong, and the browser and assistive technology you use (if any). We aim to
+        reply within 14 days.
+      </p>
     </article>
   </main>
 
-  <footer class="foot" dir="ltr">
+  <footer class="foot">
     <div class="wrap foot-in">
       <span>© 2026 PCB TraceMill contributors · MIT license</span>
       <span><a href="./">Home</a> · <a href="accessibility.html">Accessibility statement</a> · <a href="privacy.html">Privacy</a> · <a href="terms.html">Terms &amp; safety</a></span>

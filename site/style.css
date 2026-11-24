@@ -157,6 +157,3 @@ a:focus-visible, button:focus-visible, summary:focus-visible, [tabindex]:focus-v
 /* legal pages */
 .legal h2 { text-align: left; font-size: 22px; margin-top: 36px; }
 .legal .updated { color: var(--muted); font-size: 14px; }
-.he { direction: rtl; text-align: right; }
-.he h2 { text-align: right; }
-.he ul, .he ol { padding-left: 0; padding-right: 22px; }
